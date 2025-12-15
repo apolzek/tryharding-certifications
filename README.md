@@ -35,6 +35,8 @@ https://aws.plainenglish.io/istio-must-know-for-the-certified-kubernetes-securit
 https://afonsorodrigues.com/cks/
 https://dev.to/ptuladhar3/falco-must-know-for-cks-exam-7en
 https://www.groundcover.com/blog/kubernetes-network-policy
+https://medium.com/@muppedaanvesh/a-hands-on-guide-to-kubernetes-network-policy-%EF%B8%8F-041bebe19a23
+https://kubernetes.io/docs/concepts/services-networking/network-policies/
 
 ---
 
