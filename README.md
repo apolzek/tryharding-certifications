@@ -1,6 +1,14 @@
 # cks
 
 
+https://training.linuxfoundation.org/certification/certified-kubernetes-security-specialist/
+
+## Course
+
+https://learn.kodekloud.com/courses/certified-kubernetes-security-specialist-cks
+https://killercoda.com/
+Killer Shell
+
 ## Repositories
 
 https://github.com/zealvora/certified-kubernetes-security-specialist
@@ -18,6 +26,15 @@ https://www.youtube.com/playlist?list=PLyJzBek6WsDpeFd8BUHx4OCtuv_A5zQW-
 https://www.youtube.com/playlist?list=PLpbwBK0ptssx38770vYNwZEuCeGNw54CH
 https://www.youtube.com/playlist?list=PLdyzeqlOPPmDSamNwyzWqY1ELgNVhCQXu
 https://www.youtube.com/watch?v=d9xfB5qaOfg&t=39920s
+
+## Articles
+
+https://dev.to/mageshwaransekar/installing-cilium-as-cni-for-kubernetes-cluster-5d28
+https://techwithmohamed.com/blog/cks-exam-study-guide/
+https://aws.plainenglish.io/istio-must-know-for-the-certified-kubernetes-security-specialist-cks-exam-c5f1f86f24d8
+https://afonsorodrigues.com/cks/
+https://dev.to/ptuladhar3/falco-must-know-for-cks-exam-7en
+https://www.groundcover.com/blog/kubernetes-network-policy
 
 ---
 
