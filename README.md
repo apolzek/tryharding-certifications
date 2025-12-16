@@ -1,50 +1,49 @@
-# cks
+# CKS
 
+## CKS Curriculum
 
 ### Cluster Hardening (15%)
 
-- Use Role Based Access Controls to minimize exposure
-- Exercise caution in using service accounts (e.g. disable defaults, minimize permissions on newly created ones)
-- Restrict access to Kubernetes API
-- Upgrade Kubernetes to avoid vulnerabilities
+- [ ] **01** Use Role Based Access Controls to minimize exposure  
+- [ ] **02** Exercise caution in using service accounts (e.g. disable defaults, minimize permissions on newly created ones)  
+- [ ] **03** Restrict access to Kubernetes API  
+- [ ] **04** Upgrade Kubernetes to avoid vulnerabilities  
 
 ### System Hardening (10%)
 
-- Minimize host OS footprint (reduce attack surface)
-- Use least-privilege identity and access management
-- Minimize external access to the network
-- Appropriately use kernel hardening tools such as AppArmor and seccomp
+- [ ] **05** Minimize host OS footprint (reduce attack surface)  
+- [ ] **06** Use least-privilege identity and access management  
+- [ ] **07** Minimize external access to the network  
+- [ ] **08** Appropriately use kernel hardening tools such as AppArmor and seccomp  
 
 ### Minimize Microservice Vulnerabilities (20%)
 
-- Use appropriate pod security standards
-- Manage Kubernetes secrets
-- Understand and implement isolation techniques (multi-tenancy, sandboxed containers, etc.)
-- Implement Pod-to-Pod encryption (e.g. Cilium, Istio)
+- [ ] **09** Use appropriate pod security standards  
+- [ ] **10** Manage Kubernetes secrets  
+- [ ] **11** Understand and implement isolation techniques (multi-tenancy, sandboxed containers, etc.)  
+- [ ] **12** Implement Pod-to-Pod encryption (e.g. Cilium, Istio)  
 
 ### Supply Chain Security (20%)
 
-- Minimize base image footprint
-- Understand your supply chain (e.g. SBOM, CI/CD, artifact repositories)
-- Secure your supply chain (permitted registries, sign and validate artifacts, etc.)
-- Perform static analysis of user workloads and container images (e.g. Kubesec, KubeLinter)
+- [ ] **13** Minimize base image footprint  
+- [ ] **14** Understand your supply chain (e.g. SBOM, CI/CD, artifact repositories)  
+- [ ] **15** Secure your supply chain (permitted registries, sign and validate artifacts, etc.)  
+- [ ] **16** Perform static analysis of user workloads and container images (e.g. Kubesec, KubeLinter)  
 
 ### Monitoring, Logging, and Runtime Security (20%)
 
-- Perform behavioral analytics to detect malicious activities
-- Detect threats within physical infrastructure, applications, networks, data, users, and workloads
-- Investigate and identify phases of attack and bad actors within the environment
-- Ensure immutability of containers at runtime
-- Use Kubernetes audit logs to monitor access
-  
+- [ ] **17** Perform behavioral analytics to detect malicious activities  
+- [ ] **18** Detect threats within physical infrastructure, applications, networks, data, users, and workloads  
+- [ ] **19** Investigate and identify phases of attack and bad actors within the environment  
+- [ ] **20** Ensure immutability of containers at runtime  
+- [ ] **21** Use Kubernetes audit logs to monitor access  
 
-## Course
+## Courses
 
-https://learn.kodekloud.com/courses/certified-kubernetes-security-specialist-cks
-https://killercoda.com/
-Killer Shell
-https://training.linuxfoundation.org/certification/certified-kubernetes-security-specialist/
-
+[KodeKloud](https://learn.kodekloud.com/courses/certified-kubernetes-security-specialist-cks)
+[Killercoda](https://killercoda.com/)
+[Killer Shell](https://killer.sh/)
+[Linux Foundation](https://training.linuxfoundation.org/certification/certified-kubernetes-security-specialist/)
 
 ## Repositories
 
