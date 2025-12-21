@@ -2,49 +2,43 @@
 
 ## CKS Curriculum
 
-### Cluster Setup (15%)
+**Cluster Setup15%**
+- [ ] **01** Use Network security policies to restrict cluster level access
+- [ ] **02** Use CIS benchmark to review the security configuration of Kubernetes components (etcd, kubelet, kubedns, kubeapi)
+- [ ] **03** Properly set up Ingress with TLS
+- [ ] **04** Protect node metadata and endpoints
+- [ ] **05** Verify platform binaries before deploying
 
-- [ ] **01** Use Network security policies to restrict cluster level access  
-- [ ] **02** Use CIS benchmark to review the security configuration of Kubernetes components (etcd, kubelet, kubedns, kubeapi)  
-- [ ] **03** Properly set up Ingress objects with TLS  
-- [ ] **04** Protect node metadata and endpoints  
-- [ ] **05** Verify platform binaries before deploying  
+**Cluster Hardening15%**
+- [ ] **06** Use Role Based Access Controls to minimize exposure
+- [ ] **07** Exercise caution in using service accounts e.g. disable defaults, minimize permissions on newly created ones
+- [ ] **08** Restrict access to Kubernetes API
+- [ ] **09** Upgrade Kubernetes to avoid vulnerabilities
 
-### Cluster Hardening (15%)
+**System Hardening10%**
+- [ ] **10** Minimize host OS footprint (reduce attack surface)
+- [ ] **11** Using least-privilege identity and access management
+- [ ] **12** Minimize external access to the network
+- [ ] **13** Appropriately use kernel hardening tools such as AppArmor, seccomp
 
-- [ ] **06** Use Role Based Access Controls to minimize exposure  
-- [ ] **07** Exercise caution in using service accounts (e.g. disable defaults, minimize permissions on newly created ones)  
-- [ ] **08** Restrict access to Kubernetes API  
-- [ ] **09** Upgrade Kubernetes to avoid vulnerabilities  
+**Minimize Microservice Vulnerabilities20%**
+- [ ] **14** Use appropriate pod security standards
+- [ ] **15** Manage Kubernetes secrets
+- [ ] **16** Understand and implement isolation techniques (multi-tenancy, sandboxed containers, etc.)
+- [ ] **17** Implement Pod-to-Pod encryption (Cilium, Istio)
 
-### System Hardening (10%)
+**Supply Chain Security20%**
+- [ ] **18** Minimize base image footprint
+- [ ] **19** Understand your supply chain (e.g. SBOM, CI/CD, artifact repositories)
+- [ ] **20** Secure your supply chain (permitted registries, sign and validate artifacts, etc.)
+- [ ] **21** Perform static analysis of user workloads and container images (e.g. Kubesec, KubeLinter)
 
-- [ ] **10** Minimize host OS footprint (reduce attack surface)  
-- [ ] **11** Use least-privilege identity and access management  
-
-### Minimize Microservice Vulnerabilities (20%)
-
-- [ ] **12** Use appropriate pod security standards  
-- [ ] **13** Manage Kubernetes secrets  
-- [ ] **14** Understand and implement isolation techniques (multi-tenancy, sandboxed containers, etc.)  
-- [ ] **15** Implement Pod-to-Pod encryption (e.g. Cilium, Istio)  
-
-### Supply Chain Security (20%)
-
-- [ ] **16** Minimize base image footprint  
-- [ ] **17** Understand your supply chain (e.g. SBOM, CI/CD, artifact repositories)  
-- [ ] **18** Secure your supply chain (permitted registries, sign and validate artifacts, etc.)  
-- [ ] **19** Perform static analysis of user workloads and container images (e.g. Kubesec, KubeLinter)  
-
-### Monitoring, Logging, and Runtime Security (20%)
-
-- [ ] **20** Perform behavioral analytics to detect malicious activities  
-- [ ] **21** Minimize external access to the network  
-- [ ] **22** Detect threats within physical infrastructure, applications, networks, data, users, and workloads  
-- [ ] **23** Appropriately use kernel hardening tools such as AppArmor and seccomp  
-- [ ] **24** Investigate and identify phases of attack and bad actors within the environment  
-- [ ] **25** Ensure immutability of containers at runtime  
-- [ ] **26** Use Kubernetes audit logs to monitor access  
+**Monitoring, Logging and Runtime Security20%**
+- [ ] **22** Perform behavioral analytics to detect malicious activities
+- [ ] **23** Detect threats within physical infrastructure, apps, networks, data, users and workloads
+- [ ] **24** Investigate and identify phases of attack and bad actors within the environment
+- [ ] **25** Ensure immutability of containers at runtime
+- [ ] **26** Use Kubernetes audit logs to monitor access
 
 ## Courses
 
