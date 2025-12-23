@@ -54,6 +54,7 @@
 
 ## Repositories
 
+- https://github.com/ViktorUJ/cks/tree/master/tasks/cks
 - https://github.com/zealvora/certified-kubernetes-security-specialist
 - https://github.com/ahmetb/kubernetes-network-policy-recipes
 - https://github.com/ViktorUJ/cks
