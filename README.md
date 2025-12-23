@@ -73,3 +73,7 @@ https://www.groundcover.com/blog/kubernetes-network-policy
 https://medium.com/@muppedaanvesh/a-hands-on-guide-to-kubernetes-network-policy-%EF%B8%8F-041bebe19a23
 https://kubernetes.io/docs/concepts/services-networking/network-policies/
 
+
+---
+
+
