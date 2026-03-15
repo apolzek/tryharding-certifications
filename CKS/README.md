@@ -55,10 +55,7 @@ Topic 6: **Monitoring, Logging and Runtime Security20%**
 ## Repositories
 
 - https://github.com/ViktorUJ/cks/tree/master/tasks/cks/mock/04
-<<<<<<< HEAD
 - https://github.com/ViktorUJ/cks/tree/master/tasks/cks
-=======
->>>>>>> 1cbb2cb (ädd cks)
 - https://github.com/zealvora/certified-kubernetes-security-specialist
 - https://github.com/ahmetb/kubernetes-network-policy-recipes
 - https://github.com/ViktorUJ/cks

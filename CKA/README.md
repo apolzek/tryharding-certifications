@@ -47,9 +47,12 @@
 ## Articles
 
 - [Preparing for the Certified Kubernetes Administrator (CKA) exam](https://medium.com/@DynamoDevOps/preparing-for-the-certified-kubernetes-administrator-cka-exam-everything-i-wish-id-known-6ef6723a7a18)
-- [https://unicast.com.br/posts/exam-prep-cka-certified-kubernetes-administrator/]()
+- [Linux Foundation Global Certification and Confidentiality Agreement](https://docs.linuxfoundation.org/tc-docs/certification/lf-cert-agreement/)
+- [Important Instructions: CKA and CKAD](https://docs.linuxfoundation.org/tc-docs/certification/tips-cka-and-ckad)
 
 ## Repositories
 
 - [Practice for the Certified Kubernetes Administrator (CKA) Exam](https://github.com/chadmcrowell/CKA-Exercises)
 - [Certified Kubernetes Administrator Exam Curriculum](https://github.com/nikovirtala/Certified-Kubernetes-Administrator-CKA/blob/master/CURRICULUM.md)
+- [CKA-Exercises](https://github.com/chadmcrowell/CKA-Exercises)
+- [Open Source Curriculum for CNCF Certification Courses](https://github.com/cncf/curriculum)
