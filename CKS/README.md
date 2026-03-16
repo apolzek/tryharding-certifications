@@ -78,3 +78,4 @@ https://www.groundcover.com/blog/kubernetes-network-policy
 ---
 
 
+https://github.com/ViktorUJ/cks/tree/master/tasks/cks
