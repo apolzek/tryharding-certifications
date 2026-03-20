@@ -1,0 +1,1 @@
+https://github.com/onai254/prometheus-certified-associate
