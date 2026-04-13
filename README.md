@@ -21,3 +21,5 @@ Financial Services Open Source Developer (<a href="./FSOSD">FSOSD</a>)<br>
 Hyperledger Fabric Certified Practitioner (<a href="./HFCP">HFCP</a>)<br>
 Besu Certified Practitioner (<a href="./BCP">BCP</a>)<br>
 Certified Open Source Developer for Enterprise (<a href="./CODE">CODE</a>)<br>
+AWS Certified Solutions Architect Associate (<a href="./SAA">SAA</a>)<br>
+CompTIA Security+ (<a href="./Security+">Security+</a>)<br>
