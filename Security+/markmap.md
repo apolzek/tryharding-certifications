@@ -1,0 +1,715 @@
+---
+title: CompTIA Security+ (SY0-701)
+markmap:
+  colorFreezeLevel: 2
+---
+
+# Security+
+
+## General Security Concepts (12%)
+
+### 1.1 Types of security controls
+- Categories
+  - Technical
+    - Firewall (iptables, pfSense)
+    - IDS/IPS (Snort, Suricata)
+    - Antivirus / EDR (CrowdStrike Falcon)
+    - Encryption (AES-256, RSA-2048)
+    - ACLs on routers/switches
+  - Managerial
+    - Risk assessment process
+    - Security policy (ISO 27001 SoA)
+    - Background checks / screening
+  - Operational
+    - Security awareness training (KnowBe4)
+    - Incident response runbooks
+    - Configuration / change management
+  - Physical
+    - Locks (cipher, biometric)
+    - CCTV / NVR
+    - Mantrap / vestibule
+- Control types
+  - Preventive (firewall ACL deny, MFA)
+  - Deterrent (warning banner, "Beware of dog" signage)
+  - Detective (SIEM alert, IDS, audit log review)
+  - Corrective (restore from backup, IPS block)
+  - Compensating (host firewall when patch unavailable)
+  - Directive (AUP, signage "Authorized personnel only")
+
+### 1.2 Fundamental security concepts
+- CIA triad
+  - Confidentiality (AES-256-GCM, TLS 1.3)
+  - Integrity (SHA-256, HMAC, digital signature)
+  - Availability (RAID, clustering, DDoS scrubbing)
+- Non-repudiation
+  - Digital signature (RSA-PSS, ECDSA P-256)
+  - Audit logs with timestamps (NTP-synced)
+- AAA (Authentication, Authorization, Accounting)
+  - Authenticating people
+    - Username + password (bcrypt/Argon2 hash)
+    - MFA (TOTP RFC 6238, FIDO2/WebAuthn)
+    - Biometrics (fingerprint, FAR/FRR)
+  - Authenticating systems
+    - 802.1X with EAP-TLS (client X.509 cert)
+    - Mutual TLS (mTLS)
+    - Kerberos service tickets
+  - Authorization models
+    - RBAC, ABAC, MAC, DAC
+    - OAuth 2.0 scopes
+  - Accounting
+    - RADIUS accounting (UDP 1813)
+    - Syslog (UDP 514) to SIEM
+- Gap analysis (current vs NIST CSF baseline)
+- Zero Trust
+  - Control Plane
+    - Adaptive identity (risk-based auth signals)
+    - Threat scope reduction (microsegmentation)
+    - Policy-driven access control
+    - Policy Administrator (issues session tokens)
+    - Policy Engine (grant/deny decision, NIST SP 800-207)
+  - Data Plane
+    - Implicit trust zones (eliminated)
+    - Subject/System (requesting entity)
+    - Policy Enforcement Point (PEP gateway/proxy)
+- Physical security
+  - Bollards (anti-ram vehicle barrier)
+  - Access control vestibule (mantrap, anti-tailgating)
+  - Fencing (anti-climb, 8 ft / 3-strand barbed)
+  - Video surveillance (PTZ CCTV, motion-triggered NVR)
+  - Security guard + visitor logs
+  - Access badge (RFID 13.56 MHz, smart card PIV)
+  - Lighting (motion-activated, perimeter floodlights)
+  - Sensors
+    - Infrared (PIR motion)
+    - Pressure (floor mat)
+    - Microwave (Doppler)
+    - Ultrasonic (volumetric)
+- Deception and disruption technology
+  - Honeypot (Cowrie SSH, Dionaea)
+  - Honeynet (segmented decoy network)
+  - Honeyfile (canary document "passwords.xlsx")
+  - Honeytoken (canarytokens.org, fake AWS keys)
+
+### 1.3 Change management processes
+- Business processes impacting security operation
+  - Approval process (CAB sign-off)
+  - Ownership (named change owner / RACI)
+  - Stakeholders (notification list)
+  - Impact analysis (affected CIs in CMDB)
+  - Test results (UAT in staging)
+  - Backout plan (snapshot/rollback script)
+  - Maintenance window (off-hours, e.g. Sun 02:00)
+  - Standard operating procedure (SOP document)
+- Technical implications
+  - Allow lists / deny lists (firewall, AppLocker)
+  - Restricted activities (freeze window)
+  - Downtime (planned outage SLA)
+  - Service restart / Application restart (systemctl restart)
+  - Legacy applications (unsupported COBOL/Win Server 2008)
+  - Dependencies (service start order, DB before app)
+- Documentation
+  - Updating diagrams (Visio, network topology, Lucidchart)
+  - Updating policies/procedures (versioned in wiki)
+- Version control (Git commit/tag, semantic versioning)
+
+### 1.4 Cryptographic solutions
+- Public key infrastructure (PKI)
+  - Public key / Private key (asymmetric RSA/ECC)
+  - Key escrow (recovery agent holds copy)
+- Encryption
+  - Level
+    - Full-disk (BitLocker, LUKS, FileVault)
+    - Partition / Volume
+    - File (EFS, GPG)
+    - Database (TDE)
+    - Record / column-level
+  - Transport/communication (TLS 1.3, IPsec ESP)
+  - Asymmetric (RSA-2048, ECC P-256) / Symmetric (AES-256)
+  - Key exchange (Diffie-Hellman, ECDHE, RSA)
+  - Algorithms / Key length
+    - AES-128 / AES-256
+    - RSA-2048 / RSA-4096
+    - ChaCha20-Poly1305
+- Tools
+  - Trusted Platform Module (TPM 2.0, PCR sealing)
+  - Hardware security module (HSM, FIPS 140-2 L3)
+  - Key management system (AWS KMS, HashiCorp Vault)
+  - Secure enclave (Apple SEP, Intel SGX)
+- Obfuscation
+  - Steganography (LSB image embedding, steghide)
+  - Tokenization (PAN -> token, vault mapping)
+  - Data masking (XXXX-XXXX-XXXX-1234)
+- Hashing (SHA-256, SHA-3, bcrypt)
+- Salting (per-user random salt vs rainbow tables)
+- Digital signatures (RSA-PSS, ECDSA, DSA)
+- Key stretching (PBKDF2, bcrypt, scrypt, Argon2)
+- Blockchain / Open public ledger (Merkle tree, PoW)
+- Certificates (X.509 v3)
+  - Certificate authorities (CA root + intermediate)
+  - Certificate revocation lists (CRL distribution point)
+  - Online Certificate Status Protocol (OCSP, OCSP stapling)
+  - Self-signed vs Third-party (DigiCert, Let's Encrypt)
+  - Root of trust (trusted root store)
+  - Certificate signing request (CSR, openssl req)
+  - Wildcard (*.example.com) / SAN multi-domain
+
+## Threats, Vulnerabilities, and Mitigations (22%)
+
+### 2.1 Threat actors and motivations
+- Threat actors
+  - Nation-state (APT28, APT29, Lazarus Group)
+  - Unskilled attacker (script kiddie, LOIC tool)
+  - Hacktivist (Anonymous, DDoS/defacement)
+  - Insider threat (malicious admin, data theft)
+  - Organized crime (ransomware-as-a-service, Conti)
+  - Shadow IT (unsanctioned SaaS, personal Dropbox)
+- Attributes of actors
+  - Internal vs external
+  - Resources/funding (state-funded vs lone actor)
+  - Level of sophistication (zero-day vs Metasploit module)
+- Motivations
+  - Data exfiltration (PII/IP theft)
+  - Espionage (state secrets, trade secrets)
+  - Service disruption (DDoS, ransomware)
+  - Blackmail (doxing, sextortion)
+  - Financial gain (BEC, carding, crypto-mining)
+  - Philosophical/political beliefs (hacktivism)
+  - Ethical (white-hat disclosure)
+  - Revenge (disgruntled ex-employee)
+  - Disruption/chaos (wiper malware, NotPetya)
+  - War (cyberwarfare, Stuxnet)
+
+### 2.2 Threat vectors and attack surfaces
+- Message-based
+  - Email (malicious attachment .docm macro)
+  - SMS (smishing link)
+  - IM (Teams/Slack phishing)
+- Image-based (malicious SVG/EXIF payload)
+- File-based (PDF JS, .iso/.lnk loader)
+- Voice call (vishing, caller-ID spoof)
+- Removable device (USB drop attack, BadUSB)
+- Vulnerable software
+  - Client-based (outdated agent install)
+  - Agentless (unmanaged endpoints)
+- Unsupported systems (Windows 7/Server 2008 EOL)
+- Unsecure networks
+  - Wireless (open Wi-Fi, WEP, evil twin)
+  - Wired (no 802.1X, open switch ports)
+  - Bluetooth (bluejacking, BlueBorne)
+- Open service ports (Telnet 23, SMB 445, RDP 3389)
+- Default credentials (admin/admin, vendor defaults)
+- Supply chain (MSPs, vendors, SolarWinds-style)
+- Human vectors / social engineering
+  - Phishing (credential harvest page)
+  - Vishing (phone pretext) / Smishing (SMS)
+  - Misinformation / disinformation
+  - Impersonation (helpdesk, executive)
+  - Business email compromise (BEC, wire fraud)
+  - Pretexting (invented scenario)
+  - Watering hole (compromised industry site)
+  - Brand impersonation (fake login portal)
+  - Typosquatting (gooogle.com lookalike domain)
+
+### 2.3 Types of vulnerabilities
+- Application
+  - Memory injection (DLL injection, process hollowing)
+  - Buffer overflow (stack smash, no ASLR/DEP)
+  - Race conditions (TOCTOU)
+  - Malicious update (poisoned package, dependency confusion)
+- Operating system (unpatched CVE, kernel exploit)
+- Web-based
+  - SQL injection (' OR 1=1--)
+  - Cross-site scripting (reflected/stored/DOM XSS)
+  - CSRF, SSRF, XXE
+- Hardware (firmware backdoor, EOL, legacy BIOS)
+- Virtualization
+  - VM escape (Venom CVE-2015-3456)
+  - Resource reuse (memory not zeroed)
+- Cloud-specific (S3 public bucket, IAM misconfig)
+- Supply chain (compromised library, hardware implant)
+- Cryptographic (weak cipher, MD5/SHA-1, hardcoded key)
+- Misconfiguration (open admin port, verbose errors)
+- Mobile device (side loading APK, jailbreaking/rooting)
+- Zero-day (no patch, e.g. Log4Shell at disclosure)
+
+### 2.4 Indicators of malicious activity
+- Malware attacks
+  - Ransomware (LockBit, AES file encryption + ransom note)
+  - Trojan / RAT (Emotet, njRAT)
+  - Worm (WannaCry via EternalBlue SMBv1)
+  - Spyware / Keylogger (keystroke capture)
+  - Bloatware, Virus (file infector)
+  - Logic bomb (date-triggered payload)
+  - Rootkit (kernel-mode, bootkit)
+- Physical attacks
+  - Brute force (door forcing)
+  - RFID cloning (Proxmark3, 125 kHz badge)
+  - Environmental (HVAC tamper, power)
+- Network attacks
+  - DDoS (amplified DNS/NTP, reflected, volumetric)
+  - DNS attacks (cache poisoning, DNS tunneling)
+  - Wireless (deauth, evil twin) / On-path (ARP poisoning, MITM)
+  - Credential replay (pass-the-hash, captured token)
+  - Malicious code (C2 beacon traffic)
+- Application attacks
+  - Injection (SQLi, LDAP, command injection)
+  - Buffer overflow / Replay
+  - Privilege escalation (sudo misconfig, token theft)
+  - Forgery (CSRF, request forgery)
+  - Directory traversal (../../etc/passwd)
+- Cryptographic attacks
+  - Downgrade (TLS strip to SSLv3, POODLE)
+  - Collision (MD5/SHA-1 collision)
+  - Birthday attack
+- Password attacks
+  - Spraying (one password vs many accounts)
+  - Brute force (Hydra, hashcat dictionary)
+- Indicators
+  - Account lockout (failed auth threshold)
+  - Concurrent session usage (two geos at once)
+  - Blocked content (DLP/proxy hits)
+  - Impossible travel (login NY then Moscow 5 min)
+  - Resource consumption / inaccessibility (CPU spike)
+  - Out-of-cycle logging (3 AM admin login)
+  - Published/documented (IOC in threat feed)
+  - Missing logs (cleared event log, anti-forensics)
+
+### 2.5 Mitigation techniques
+- Segmentation (VLANs, microsegmentation, DMZ)
+- Access control (ACL, NTFS permissions, least privilege)
+- Application allow list (AppLocker, WDAC)
+- Isolation (sandbox, air gap, quarantine VLAN)
+- Patching (WSUS, SCCM, automated updates)
+- Encryption (BitLocker at rest, TLS in transit)
+- Monitoring (SIEM, EDR telemetry)
+- Least privilege (remove local admin)
+- Configuration enforcement (GPO, Ansible, CIS Benchmark)
+- Decommissioning (wipe + remove from inventory)
+- Hardening techniques
+  - Encryption (full-disk)
+  - Endpoint protection (EDR/antivirus)
+  - Host-based firewall (Windows Defender Firewall, ufw)
+  - Host-based intrusion prevention system (HIPS)
+  - Disabling ports/protocols (close 23/445, disable SMBv1)
+  - Default password changes
+  - Removal of unnecessary software (debloat)
+
+## Security Architecture (18%)
+
+### 3.1 Architecture model security implications
+- Architecture and infrastructure concepts
+  - Cloud
+    - Shared responsibility matrix (AWS/Azure)
+    - Hybrid (on-prem + cloud VPN)
+    - Third-party vendors (SaaS)
+  - Infrastructure as code (Terraform, CloudFormation)
+  - Serverless (AWS Lambda) / Microservices (REST/gRPC)
+  - Network infrastructure
+    - Physical isolation / Air-gapped
+    - Logical segmentation (VLAN 802.1Q)
+    - SDN (OpenFlow controller)
+  - On-premises (self-hosted datacenter)
+  - Centralized vs decentralized
+  - Containerization (Docker, Kubernetes) / Virtualization (ESXi, Hyper-V)
+  - IoT (MQTT, constrained devices)
+  - ICS/SCADA (Modbus, DNP3, PLC)
+  - Real-time operating system (RTOS, VxWorks)
+  - Embedded systems (firmware, RTOS)
+  - High availability (active-active cluster)
+- Considerations
+  - Availability / Resilience (uptime SLA 99.99%)
+  - Cost / Responsiveness / Scalability (auto-scaling)
+  - Ease of deployment / recovery
+  - Risk transference (cyber insurance)
+  - Patch availability / Inability to patch (legacy ICS)
+  - Power / Compute constraints
+
+### 3.2 Secure enterprise infrastructure
+- Infrastructure considerations
+  - Device placement (DMZ, internal, screened subnet)
+  - Security zones (trust levels)
+  - Attack surface / Connectivity
+  - Failure modes (fail-open vs fail-closed)
+  - Device attribute (active vs passive, inline vs tap/SPAN)
+  - Network appliances
+    - Jump server (bastion host, SSH/RDP)
+    - Proxy (forward/reverse, Squid, NGINX)
+    - IPS/IDS (Snort, Suricata)
+    - Load balancer (HAProxy, F5, L4/L7)
+    - Sensors (network tap, SPAN port)
+  - Port security
+    - 802.1X (NAC enforcement)
+    - EAP (EAP-TLS, PEAP, EAP-TTLS)
+    - MAC filtering / sticky MAC
+  - Firewall types
+    - WAF (ModSecurity, OWASP CRS)
+    - UTM (all-in-one appliance)
+    - NGFW (app-aware, Palo Alto)
+    - Layer 4 (stateful) vs Layer 7 (app inspection)
+- Secure communication/access
+  - VPN
+    - IPsec (IKEv2, ESP, port UDP 500/4500)
+    - SSL/TLS VPN (port 443)
+    - Site-to-site vs remote-access (split tunnel)
+  - Remote access (RDP over VPN, SSH port 22)
+  - Tunneling (TLS, IPsec, WireGuard)
+  - Software-defined wide area network (SD-WAN)
+  - Secure access service edge (SASE, SSE + SD-WAN)
+- Selection of effective controls (defense in depth)
+
+### 3.3 Concepts and strategies to protect data
+- Data types
+  - Regulated (PII, PHI under HIPAA, PCI DSS)
+  - Trade secret
+  - Intellectual property (patents, source code)
+  - Legal / Financial information
+  - Human-readable vs non-human-readable (binary/encoded)
+- Data classifications
+  - Sensitive / Confidential / Public
+  - Restricted / Private / Critical
+- General data considerations
+  - Data states
+    - At rest (AES-256 disk encryption)
+    - In transit (TLS 1.3)
+    - In use (memory, secure enclave)
+  - Data sovereignty (GDPR EU residency)
+  - Geolocation (regional storage)
+- Methods to secure data
+  - Geographic restrictions (geofencing)
+  - Encryption / Hashing / Masking
+  - Tokenization / Obfuscation
+  - Segmentation (separate data network)
+  - Permission restrictions (RBAC, ACLs)
+
+### 3.4 Resilience and recovery
+- High availability
+  - Load balancing (round-robin, least-conn)
+  - Clustering (active-passive failover)
+- Site considerations
+  - Hot site (real-time replication, minutes RTO)
+  - Warm site (partial, hours RTO)
+  - Cold site (empty space, days RTO)
+  - Geographic dispersion (separate regions)
+- Platform diversity (multi-vendor to avoid single CVE)
+- Multi-cloud systems (AWS + Azure)
+- Continuity of operations (COOP plan)
+- Capacity planning (people, technology, infrastructure)
+- Testing
+  - Tabletop exercises (discussion-based)
+  - Fail over (real cutover test)
+  - Simulation
+  - Parallel processing (run both sites)
+- Backups
+  - 3-2-1 rule (3 copies, 2 media, 1 offsite)
+  - Frequency / Encryption (AES)
+  - Snapshots (VM, LVM)
+  - Replication (synchronous/asynchronous)
+  - Journaling (transaction log)
+- Power
+  - Generators (diesel, long-term)
+  - UPS (battery, ride-through)
+  - PDU / dual power supply
+
+## Security Operations (28%)
+
+### 4.1 Secure computing resources
+- Secure baselines (establish, deploy, maintain via CIS Benchmark)
+- Hardening targets
+  - Mobile devices / Workstations
+  - Switches / Routers (disable Telnet, use SSH)
+  - Cloud infrastructure / Servers (CIS hardened AMI)
+  - ICS/SCADA / Embedded / RTOS / IoT devices
+- Wireless devices (site surveys, Wi-Fi heat maps, Ekahau)
+- Mobile solutions
+  - Mobile device management (Intune, Jamf, MDM)
+  - Deployment models (BYOD, COPE, CYOD)
+  - Connection methods (cellular, Wi-Fi, Bluetooth)
+- Wireless security settings
+  - WPA3 (SAE handshake, replaces WPA2 PSK)
+  - AAA / RADIUS (port 1812)
+  - Cryptographic protocols (CCMP-256, GCMP)
+  - Authentication protocols (EAP-TLS, PEAP)
+- Application security
+  - Input validation (allowlist, sanitization)
+  - Secure cookies (HttpOnly, Secure, SameSite flags)
+  - Static code analysis (SAST, SonarQube, Checkmarx)
+  - Code signing (Authenticode, GPG signature)
+- Sandboxing (Cuckoo, isolated VM detonation)
+- Monitoring (EDR agent telemetry)
+
+### 4.2 Asset management
+- Acquisition/procurement process (approved vendor list)
+- Assignment/accounting (ownership, classification tags)
+- Monitoring/asset tracking (CMDB, inventory, enumeration, nmap discovery)
+- Disposal/decommissioning
+  - Sanitization (NIST SP 800-88 clear/purge)
+  - Destruction (degaussing, shredding, incineration)
+  - Certification (certificate of destruction)
+  - Data retention (policy-driven retention schedule)
+
+### 4.3 Vulnerability management
+- Identification methods
+  - Vulnerability scan (Nessus, OpenVAS, Qualys)
+  - Application security
+    - Static (SAST)
+    - Dynamic (DAST, OWASP ZAP, Burp Suite)
+    - Package monitoring (SCA, Dependabot)
+  - Threat feed (OSINT, proprietary, ISACs, dark web monitoring)
+  - Penetration testing (Metasploit, manual exploit)
+  - Responsible disclosure / bug bounty (HackerOne)
+  - System/process audit
+- Analysis
+  - Confirmation (false positive vs false negative)
+  - Prioritize (risk-based)
+  - CVSS score / CVE identifier (CVE-2021-44228)
+  - Vulnerability classification
+  - Exposure factor / Environmental variables (CVSS env metrics)
+  - Industry/organizational impact
+  - Risk tolerance
+- Vulnerability response and remediation
+  - Patching / Insurance / Segmentation
+  - Compensating controls (WAF rule, virtual patch)
+  - Exceptions and exemptions (documented risk acceptance)
+- Validation of remediation (rescan, audit, verification)
+- Reporting (remediation metrics, SLA tracking)
+
+### 4.4 Security alerting and monitoring
+- Monitoring computing resources (systems, applications, infrastructure)
+- Activities
+  - Log aggregation (Syslog, Logstash to central store)
+  - Alerting (SIEM correlation rules)
+  - Scanning (scheduled vuln scans)
+  - Reporting / Archiving (cold storage retention)
+  - Alert response and remediation (quarantine host, alert tuning to cut false positives)
+- Tools
+  - SCAP / Benchmarks (OpenSCAP, CIS-CAT)
+  - Agents vs agentless collection
+  - SIEM (Splunk, Microsoft Sentinel, Elastic)
+  - Antivirus / EDR
+  - Data loss prevention (DLP, Forcepoint, Purview)
+  - SNMP traps (UDP 162) / NetFlow (flow telemetry)
+  - Vulnerability scanners (Nessus, Qualys)
+
+### 4.5 Modify enterprise capabilities
+- Firewall (rules, access lists, port/protocol filtering, screened subnets)
+- IDS/IPS (signature vs anomaly, trend baselining)
+- Web filter (agent-based, centralized proxy, URL scanning, content categorization, block rules, reputation lists)
+- Operating system security
+  - Group Policy (GPO hardening)
+  - SELinux / AppArmor (MAC enforcement)
+- Implementation of secure protocols
+  - HTTPS (443) over HTTP (80)
+  - SSH (22) over Telnet (23)
+  - SFTP/FTPS over FTP (21)
+  - DNSSEC, DoH/DoT
+  - SNMPv3 over SNMPv1/v2
+- DNS filtering (sinkhole, Cisco Umbrella, Pi-hole)
+- Email security
+  - DMARC (policy: reject/quarantine)
+  - DKIM (signature in DNS TXT)
+  - SPF (authorized sender IPs)
+  - Secure email gateway (Proofpoint, Mimecast)
+- File integrity monitoring (Tripwire, AIDE, hash baseline)
+- DLP (content inspection, endpoint/network)
+- Network access control (NAC, 802.1X posture check)
+- Endpoint detection and response (EDR) / XDR
+- User behavior analytics (UEBA, anomaly baselining)
+
+### 4.6 Identity and access management
+- Provisioning/de-provisioning (joiner-mover-leaver, SCIM)
+- Permission assignments and implications (group-based)
+- Identity proofing (document verification, KYC)
+- Federation (cross-domain trust, IdP-to-SP)
+- Single sign-on (SSO)
+  - LDAP (port 389 / LDAPS 636)
+  - OAuth 2.0 (authorization, access tokens)
+  - SAML 2.0 (XML assertion, SP/IdP)
+  - OpenID Connect (OIDC, ID token JWT)
+  - Kerberos (TGT, port 88)
+- Interoperability (standards-based federation)
+- Attestation (access recertification reviews)
+- Access controls
+  - Mandatory (MAC, labels/clearance)
+  - Discretionary (DAC, owner sets perms)
+  - Role-based (RBAC) / Rule-based / Attribute-based (ABAC)
+  - Time-of-day restrictions (login hours)
+  - Least privilege
+- Multifactor authentication
+  - Implementations
+    - Biometrics (fingerprint, face, iris)
+    - Hard token (YubiKey FIDO2) / Soft token (Google Authenticator TOTP)
+    - Security keys (FIDO2/WebAuthn)
+  - Factors
+    - Something you know (password, PIN)
+    - Something you have (token, phone)
+    - Something you are (biometric)
+    - Somewhere you are (GPS/geofence)
+- Password concepts
+  - Best practices (length >=14, complexity, no reuse, expiration, min age)
+  - Password managers (Bitwarden, 1Password)
+  - Passwordless (FIDO2, passkeys, magic link)
+- Privileged access management (PAM)
+  - Just-in-time permissions (time-bound elevation)
+  - Password vaulting (CyberArk, secret rotation)
+  - Ephemeral credentials (short-lived tokens)
+
+### 4.7 Automation and orchestration
+- Use cases
+  - User/resource provisioning (IaC, scripted onboarding)
+  - Guard rails / Security groups (policy-as-code)
+  - Ticket creation / Escalation (SOAR playbook to ServiceNow)
+  - Enabling/disabling services and access
+  - Continuous integration and testing (CI/CD, GitHub Actions)
+  - Integrations and APIs (REST, webhooks)
+- Benefits
+  - Efficiency / time saving
+  - Enforcing baselines (drift remediation)
+  - Standard infrastructure configurations (golden image)
+  - Scaling securely (auto-scaling with policy)
+  - Employee retention / Reaction time / Workforce multiplier
+- Other considerations
+  - Complexity / Cost
+  - Single point of failure (orchestrator outage)
+  - Technical debt (unmaintained scripts)
+  - Ongoing supportability
+
+### 4.8 Incident response activities
+- Process (NIST SP 800-61)
+  - Preparation (IR plan, tooling)
+  - Detection (SIEM alert)
+  - Analysis (triage, scoping)
+  - Containment (isolate host, block IP)
+  - Eradication (remove malware, close vector)
+  - Recovery (restore from clean backup)
+  - Lessons learned (post-incident review)
+- Training (IR team drills)
+- Testing (tabletop exercise, simulation/red team)
+- Root cause analysis (5 Whys, fishbone)
+- Threat hunting (hypothesis-driven, MITRE ATT&CK TTPs)
+- Digital forensics
+  - Legal hold (preserve evidence)
+  - Chain of custody (documented handoffs)
+  - Acquisition (bit-for-bit image, dd/FTK Imager)
+  - Reporting / Preservation (write blocker, hash verify)
+  - E-discovery (legal data production)
+
+### 4.9 Data sources for investigation
+- Log data
+  - Firewall logs (allow/deny, 5-tuple)
+  - Application logs
+  - Endpoint logs (EDR telemetry)
+  - OS-specific security logs (Windows Event ID 4625, auth.log)
+  - IPS/IDS logs (Snort alerts)
+  - Network logs / Metadata (NetFlow, DNS query logs)
+- Data sources
+  - Vulnerability scans (Nessus reports)
+  - Automated reports (scheduled SIEM)
+  - Dashboards (Grafana, Kibana)
+  - Packet captures (Wireshark, tcpdump PCAP)
+
+## Security Program Management and Oversight (20%)
+
+### 5.1 Effective security governance
+- Guidelines (recommended, non-mandatory)
+- Policies
+  - Acceptable use policy (AUP)
+  - Information security policies
+  - Business continuity (BCP) / Disaster recovery (DRP) / Incident response (IRP)
+  - SDLC / Change management policy
+- Standards (password, access control, physical security, encryption e.g. AES-256 mandated)
+- Procedures (change management, onboarding/offboarding, IR playbooks)
+- External considerations
+  - Regulatory (GDPR, HIPAA, PCI DSS, SOX)
+  - Legal / Industry (NIST, ISO 27001)
+  - Local/regional, national, global
+- Monitoring and revision (annual policy review)
+- Types of governance structures (boards, committees, government entities, centralized/decentralized)
+- Roles and responsibilities (data owner, controller, processor, custodian/steward)
+
+### 5.2 Risk management process
+- Risk identification (asset/threat enumeration)
+- Risk assessment (ad hoc, recurring, one-time, continuous)
+- Risk analysis
+  - Qualitative (high/medium/low heat map)
+  - Quantitative (dollar-based)
+  - SLE = AV x EF
+  - ALE = SLE x ARO
+  - ARO (annual rate of occurrence)
+  - Probability / Likelihood
+  - Exposure factor (EF %) / Impact
+- Risk register (key risk indicators, risk owners, risk threshold)
+- Risk tolerance
+- Risk appetite (expansionary, conservative, neutral)
+- Risk management strategies
+  - Transfer (insurance, outsource)
+  - Accept (exemption/exception)
+  - Avoid (discontinue activity)
+  - Mitigate (apply controls)
+- Risk reporting (to executives/board)
+- Business impact analysis
+  - RTO (recovery time objective)
+  - RPO (recovery point objective)
+  - MTTR (mean time to repair)
+  - MTBF (mean time between failures)
+
+### 5.3 Third-party risk assessment and management
+- Vendor assessment
+  - Penetration testing (vendor pen test report)
+  - Right-to-audit clause (contractual)
+  - Evidence of internal audits (SOC 2 Type II)
+  - Independent assessments (third-party attestation)
+  - Supply chain analysis (4th-party risk)
+- Vendor selection (due diligence, conflict of interest)
+- Agreement types
+  - SLA (service level agreement, uptime metrics)
+  - MOA / MOU (memorandum of agreement/understanding)
+  - MSA (master service agreement)
+  - WO / SOW (work order / statement of work)
+  - NDA (non-disclosure agreement)
+  - BPA (business partners agreement)
+- Vendor monitoring (continuous, scorecards)
+- Questionnaires (security assessment SIG)
+- Rules of engagement (scope, timing)
+
+### 5.4 Security compliance
+- Compliance reporting (internal, external regulator)
+- Consequences of non-compliance
+  - Fines / Sanctions (GDPR up to 4% global revenue)
+  - Reputational damage
+  - Loss of license
+  - Contractual impacts (breach penalties)
+- Compliance monitoring (due diligence/care, attestation and acknowledgement, internal/external, automation)
+- Privacy
+  - Legal implications (local/regional, national, global)
+  - Data subject (individual whose data is held)
+  - Controller vs processor (GDPR roles)
+  - Ownership
+  - Data inventory and retention
+  - Right to be forgotten (GDPR Art. 17 erasure)
+
+### 5.5 Audits and assessments
+- Attestation (signed statement of compliance)
+- Internal (compliance, audit committee, self-assessments)
+- External (regulatory, examinations, independent third-party audit, SOC 2)
+- Penetration testing
+  - Physical / Offensive (red team) / Defensive (blue team) / Integrated (purple team)
+  - Known (white-box) / Partially known (gray-box) / Unknown (black-box) environment
+  - Reconnaissance
+    - Passive (OSINT, WHOIS, Shodan)
+    - Active (nmap -sV, banner grabbing)
+
+### 5.6 Security awareness practices
+- Phishing (simulated campaigns, recognizing attempts, reporting suspicious messages)
+- Anomalous behavior recognition (risky, unexpected, unintentional)
+- User guidance and training
+  - Policy / handbooks (AUP acknowledgement)
+  - Situational awareness
+  - Insider threat indicators
+  - Password management (use of password manager)
+  - Removable media and cables (no unknown USB)
+  - Social engineering (pretexting, tailgating)
+  - Operational security (OPSEC)
+  - Hybrid/remote work environments (VPN, home Wi-Fi)
+- Reporting and monitoring (initial, recurring metrics)
+- Development (training program build-out)
+- Execution (delivery, LMS tracking)

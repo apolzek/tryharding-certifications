@@ -1,0 +1,554 @@
+---
+title: Linux Foundation Certified System Administrator (LFCS)
+markmap:
+  colorFreezeLevel: 2
+---
+
+# LFCS
+
+## Operations Deployment (25%)
+### Configure kernel parameters (persistent and non-persistent)
+- Runtime tuning
+  - List parameters
+    - `sysctl -a` list all parameters
+    - `sysctl net.ipv4.ip_forward` read one key
+    - `sysctl -N -a` names only
+  - Set at runtime
+    - `sysctl -w net.ipv4.ip_forward=1`
+    - `sysctl -w vm.swappiness=10`
+    - `sysctl -w kernel.hostname=web01`
+  - Write `/proc/sys` directly
+    - `echo 1 > /proc/sys/net/ipv4/ip_forward`
+    - `echo 0 > /proc/sys/kernel/randomize_va_space`
+- Persistent tuning
+  - Config files
+    - "/etc/sysctl.conf" legacy global file
+    - "/etc/sysctl.d/99-custom.conf" drop-in
+    - "/usr/lib/sysctl.d/" vendor defaults
+  - Apply files
+    - `sysctl -p` reload `/etc/sysctl.conf`
+    - `sysctl -p /etc/sysctl.d/99-custom.conf`
+    - `sysctl --system` apply all drop-ins
+- Kernel modules
+  - Inspect / load
+    - `lsmod` list loaded modules
+    - `modprobe overlay` load with deps
+    - `modinfo i915` show module info
+  - Unload
+    - `modprobe -r e1000e`
+    - `rmmod nvidia`
+  - Persist module config
+    - "/etc/modules-load.d/br_netfilter.conf" autoload at boot
+    - "/etc/modprobe.d/blacklist.conf" with `blacklist nouveau`
+    - "/etc/modprobe.d/options.conf" with `options snd index=0`
+### Diagnose, identify, manage, and troubleshoot processes and services
+- Inspect processes
+  - Snapshot listings
+    - `ps aux` BSD-style all processes
+    - `ps -ef` full-format listing
+    - `ps -eo pid,ppid,%cpu,%mem,cmd --sort=-%cpu`
+  - Live monitors
+    - `top` then `P`/`M` sort by CPU/MEM
+    - `htop` interactive viewer
+  - Find PIDs
+    - `pgrep -f nginx`
+    - `pidof sshd`
+    - `lsof -p 1234` files open by PID
+- Control processes
+  - Signals
+    - `kill -15 <pid>` SIGTERM graceful
+    - `kill -9 <pid>` SIGKILL force
+    - `kill -1 <pid>` SIGHUP reload
+    - `killall -9 firefox`
+    - `pkill -u bob` kill all of user bob
+  - Priority / scheduling
+    - `nice -n 10 ./batch.sh` start low priority
+    - `renice -n 5 -p 1234` change priority
+    - `ionice -c2 -n7 -p 1234` I/O class idle
+  - Job control
+    - `command &` background
+    - `jobs -l`, `fg %1`, `bg %1`
+    - `nohup ./run.sh &` survive logout
+    - `disown -h %1`
+- Service management
+  - State control
+    - `systemctl start nginx`
+    - `systemctl stop nginx`
+    - `systemctl restart sshd`
+    - `systemctl reload nginx` re-read config
+  - Status / queries
+    - `systemctl status sshd`
+    - `systemctl is-active nginx`
+    - `systemctl is-enabled nginx`
+    - `systemctl list-units --type=service --state=failed`
+### Manage or schedule jobs for executing commands
+- cron
+  - Per-user crontab
+    - `crontab -e` edit
+    - `crontab -l` list
+    - `crontab -r` remove
+  - System cron files
+    - "/etc/crontab" with user field
+    - "/etc/cron.d/backup" drop-in jobs
+    - "/etc/cron.daily/", "/etc/cron.hourly/", "/etc/cron.weekly/"
+  - Field syntax
+    - `*/5 * * * * /usr/bin/script.sh` every 5 min
+    - `0 2 * * 0 /usr/bin/backup.sh` 02:00 Sundays
+  - Access control
+    - "/etc/cron.allow", "/etc/cron.deny"
+- at
+  - One-shot jobs
+    - `echo "cmd" | at now + 1 hour`
+    - `at 22:00 tomorrow`
+  - Manage queue
+    - `atq` list pending
+    - `atrm 3` remove job
+    - `batch` run when load low
+- systemd timers
+  - Unit pairing
+    - "backup.timer" + "backup.service"
+    - `OnCalendar=*-*-* 02:00:00`
+    - `OnUnitActiveSec=15min`
+    - `Persistent=true` catch missed runs
+  - Manage
+    - `systemctl enable --now backup.timer`
+    - `systemctl list-timers --all`
+### Search for, install, validate, and maintain software packages or repositories
+- Debian/Ubuntu
+  - apt operations
+    - `apt update` refresh index
+    - `apt install nginx`
+    - `apt remove nginx`, `apt purge nginx`
+    - `apt full-upgrade`
+    - `apt-cache search keyword`
+  - dpkg low-level
+    - `dpkg -i pkg.deb` install local
+    - `dpkg -l` list installed
+    - `dpkg -L nginx` files of package
+    - `dpkg -S /usr/sbin/nginx` owning package
+  - Repo config
+    - "/etc/apt/sources.list"
+    - "/etc/apt/sources.list.d/docker.list"
+    - keys in "/etc/apt/keyrings/"
+- RHEL/Fedora
+  - dnf operations
+    - `dnf install httpd`
+    - `dnf remove httpd`
+    - `dnf update`
+    - `dnf search keyword`
+    - `dnf provides /usr/sbin/httpd`
+  - rpm low-level
+    - `rpm -ivh pkg.rpm`
+    - `rpm -qa` query all
+    - `rpm -ql httpd` files of package
+    - `rpm -qf /usr/sbin/httpd` owning package
+    - `rpm --import RPM-GPG-KEY` GPG validation
+  - Repo config
+    - "/etc/yum.repos.d/epel.repo"
+    - `gpgcheck=1`, `baseurl=`, `enabled=1`
+### Recover from hardware, operating system, or filesystem failures
+- Bootloader (GRUB2)
+  - Config
+    - "/etc/default/grub" `GRUB_CMDLINE_LINUX=`
+    - "/boot/grub2/grub.cfg" (RHEL) / "/boot/grub/grub.cfg" (Debian)
+  - Regenerate
+    - `grub2-mkconfig -o /boot/grub2/grub.cfg`
+    - `update-grub` (Debian)
+    - `grub-install /dev/sda`
+  - Boot-time edit
+    - press `e`, append `systemd.unit=rescue.target`
+    - `init=/bin/bash` to bypass init
+- Boot targets
+  - `systemctl rescue` single-user
+  - `systemctl emergency` minimal
+  - `systemd.unit=emergency.target` at kernel line
+  - `systemctl isolate multi-user.target`
+- Filesystem repair
+  - `fsck -y /dev/sda1` ext check+fix
+  - `xfs_repair /dev/sdb1`
+  - `mount -o remount,ro /` before fsck of root
+  - Fix bad "/etc/fstab" via `mount -o remount,rw /`
+### Manage Virtual Machines (libvirt)
+- Stack / daemon
+  - KVM + QEMU modules `kvm_intel`/`kvm_amd`
+  - `systemctl enable --now libvirtd`
+- Domain lifecycle
+  - `virsh list --all`
+  - `virsh start vm1`, `virsh shutdown vm1`
+  - `virsh destroy vm1` force off
+  - `virsh define vm1.xml`, `virsh undefine vm1`
+- Provision / network / storage
+  - `virt-install --name vm1 --ram 2048 --disk size=20 --cdrom os.iso`
+  - `virsh net-list --all`, `virsh net-start default`
+  - `virsh pool-list`, `virsh vol-create-as`
+### Configure container engines, create and manage containers
+- Engines
+  - Docker daemon `systemctl enable --now docker`
+  - Podman daemonless `podman info`
+- Run / manage
+  - `podman run -d -p 8080:80 --name web nginx`
+  - `docker ps -a`, `docker images`
+  - `docker exec -it web /bin/bash`
+  - `docker logs -f web`
+  - `docker build -t myapp:1.0 .`
+- Build files
+  - "Dockerfile" / "Containerfile"
+  - `FROM`, `RUN`, `COPY`, `CMD`, `EXPOSE`
+- Storage / rootless
+  - `-v /host:/container:ro` bind mount
+  - `podman volume create data`
+  - rootless via `~/.config/containers/` + subuid/subgid
+### Create and enforce MAC using SELinux
+- Modes
+  - `getenforce`
+  - `setenforce 0` permissive / `setenforce 1` enforcing
+  - "/etc/selinux/config" `SELINUX=enforcing`
+- Contexts
+  - `ls -Z /var/www`
+  - `ps -Z`
+  - `chcon -t httpd_sys_content_t /web/index.html`
+  - `restorecon -Rv /web`
+  - `semanage fcontext -a -t httpd_sys_content_t "/web(/.*)?"`
+- Booleans
+  - `getsebool -a | grep httpd`
+  - `setsebool -P httpd_can_network_connect on`
+- Ports / troubleshoot
+  - `semanage port -a -t http_port_t -p tcp 8080`
+  - `ausearch -m avc -ts recent`
+  - `sealert -a /var/log/audit/audit.log`
+
+## Networking (25%)
+### Configure IPv4 and IPv6 networking and hostname resolution
+- IP configuration (runtime)
+  - `ip addr add 10.0.0.5/24 dev eth0`
+  - `ip -6 addr add 2001:db8::5/64 dev eth0`
+  - `ip link set eth0 up`
+  - `ip route show`
+- NetworkManager (persistent)
+  - `nmcli con add type ethernet con-name lan ifname eth0 ip4 10.0.0.5/24 gw4 10.0.0.1`
+  - `nmcli con mod lan ipv4.dns 1.1.1.1`
+  - `nmcli con up lan`
+  - `nmtui` text UI
+- netplan / ifcfg
+  - "/etc/netplan/01-netcfg.yaml" then `netplan apply`
+  - "/etc/sysconfig/network-scripts/ifcfg-eth0" (legacy RHEL)
+- Hostname / resolution
+  - `hostnamectl set-hostname web01.example.com`
+  - "/etc/hostname"
+  - "/etc/hosts" static entries
+  - "/etc/resolv.conf" `nameserver 1.1.1.1`
+  - "/etc/nsswitch.conf" `hosts: files dns`
+  - `dig A example.com`, `host example.com`, `getent hosts example.com`
+### Set and synchronize system time using time servers
+- timedatectl
+  - `timedatectl set-timezone America/Sao_Paulo`
+  - `timedatectl set-ntp true`
+  - `timedatectl status`
+- chrony
+  - "/etc/chrony.conf" `server pool.ntp.org iburst`
+  - `systemctl enable --now chronyd`
+  - `chronyc sources -v`
+  - `chronyc tracking`
+- systemd-timesyncd
+  - "/etc/systemd/timesyncd.conf" `NTP=`
+  - `timedatectl timesync-status`
+### Monitor and troubleshoot networking
+- Sockets / connections
+  - `ss -tulpn` listening ports
+  - `ss -s` summary
+  - `netstat -i` interface stats (legacy)
+- Reachability
+  - `ping -c4 8.8.8.8`
+  - `ping6 -c4 2001:4860:4860::8888`
+  - `traceroute example.com`
+  - `mtr example.com`
+- Packet / link
+  - `tcpdump -i eth0 port 80 -nn`
+  - `ethtool eth0` link speed/duplex
+  - `ip -s link show eth0` error counters
+### Configure the OpenSSH server and client
+- Server
+  - "/etc/ssh/sshd_config"
+  - `Port 2222`, `PermitRootLogin no`, `PasswordAuthentication no`
+  - `sshd -t` test config
+  - `systemctl restart sshd`
+- Client
+  - "/etc/ssh/ssh_config" global
+  - "~/.ssh/config" per-host `Host web` / `HostName` / `User`
+- Keys
+  - `ssh-keygen -t ed25519 -C "bob@host"`
+  - `ssh-copy-id bob@web01`
+  - "~/.ssh/authorized_keys"
+  - `chmod 600 ~/.ssh/authorized_keys`
+### Configure packet filtering, port redirection, and NAT
+- firewalld
+  - `firewall-cmd --permanent --add-service=https`
+  - `firewall-cmd --permanent --add-port=8080/tcp`
+  - `firewall-cmd --zone=public --add-masquerade --permanent`
+  - `firewall-cmd --permanent --add-forward-port=port=80:proto=tcp:toport=8080`
+  - `firewall-cmd --reload`
+- nftables
+  - "/etc/nftables.conf"
+  - `nft add table inet filter`
+  - `nft add rule inet filter input tcp dport 22 accept`
+  - `nft list ruleset`
+- iptables (legacy)
+  - `iptables -A INPUT -p tcp --dport 22 -j ACCEPT`
+  - `iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE`
+  - `iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to 10.0.0.5:8080`
+- ufw
+  - `ufw allow 22/tcp`
+  - `ufw deny 23`
+  - `ufw enable`
+### Configure static routing
+- Runtime
+  - `ip route add 192.168.2.0/24 via 10.0.0.1 dev eth0`
+  - `ip route add default via 10.0.0.1`
+  - `ip route del 192.168.2.0/24`
+- Persistent
+  - `nmcli con mod lan +ipv4.routes "192.168.2.0/24 10.0.0.1"`
+  - netplan `routes:` block in "/etc/netplan/01-netcfg.yaml"
+### Configure bridge and bonding devices
+- Bridge
+  - `ip link add br0 type bridge` + `ip link set eth0 master br0`
+  - `nmcli con add type bridge con-name br0 ifname br0`
+- Bonding
+  - "/etc/modprobe.d/bonding.conf" `alias bond0 bonding`
+  - modes: `mode=active-backup`, `mode=802.3ad` (LACP)
+  - `nmcli con add type bond con-name bond0 ifname bond0 mode active-backup`
+  - `cat /proc/net/bonding/bond0`
+### Implement reverse proxies and load balancers
+- nginx
+  - "/etc/nginx/conf.d/proxy.conf"
+  - `proxy_pass http://backend;`
+  - `upstream backend { server 10.0.0.10; server 10.0.0.11; }`
+  - `nginx -t` then `systemctl reload nginx`
+- HAProxy
+  - "/etc/haproxy/haproxy.cfg"
+  - `frontend http-in` / `backend servers`
+  - `balance roundrobin`, `server web1 10.0.0.10:80 check`
+- Apache
+  - `a2enmod proxy proxy_http`
+  - `ProxyPass / http://10.0.0.10:8080/`
+
+## Storage (20%)
+### Configure and manage LVM storage
+- Physical volumes
+  - `pvcreate /dev/sdb1`
+  - `pvs`, `pvdisplay`
+- Volume groups
+  - `vgcreate vg_data /dev/sdb1`
+  - `vgextend vg_data /dev/sdc1`
+  - `vgs`, `vgdisplay`
+- Logical volumes
+  - `lvcreate -L 10G -n lv_app vg_data`
+  - `lvextend -L +5G /dev/vg_data/lv_app`
+  - `lvextend -r -L +5G /dev/vg_data/lv_app` (grow FS too)
+  - `lvs`, `lvremove`
+- Grow filesystem
+  - `resize2fs /dev/vg_data/lv_app` (ext4)
+  - `xfs_growfs /mnt/app` (xfs, online only)
+### Manage and configure the virtual file system
+- "/etc/fstab" entries
+  - `UUID=... /data ext4 defaults 0 2`
+  - fields: device, mountpoint, type, options, dump, pass
+- Mount commands
+  - `mount /dev/sdb1 /mnt`
+  - `mount -a` mount all fstab entries
+  - `umount /mnt`
+  - `findmnt /data`
+- systemd mounts
+  - "data.mount" unit with `What=` `Where=` `Type=`
+  - `systemctl enable --now data.mount`
+### Create, manage, and troubleshoot filesystems
+- Create
+  - `mkfs.ext4 /dev/sdb1`
+  - `mkfs.xfs /dev/sdc1`
+  - `mkfs.vfat -F32 /dev/sdd1`
+- Tune / check
+  - `tune2fs -l /dev/sdb1`
+  - `dumpe2fs /dev/sdb1`
+  - `fsck.ext4 -f /dev/sdb1`
+  - `xfs_repair /dev/sdc1`
+- Labels / UUID
+  - `blkid /dev/sdb1`
+  - `e2label /dev/sdb1 DATA`
+  - `xfs_admin -L DATA /dev/sdc1`
+- Usage
+  - `df -h`, `df -i` inodes
+  - `du -sh /var`
+  - `lsblk -f`
+### Use remote filesystems and network block devices
+- NFS
+  - "/etc/exports" `/srv/nfs 10.0.0.0/24(rw,sync,no_root_squash)`
+  - `exportfs -ra`
+  - `mount -t nfs server:/srv/nfs /mnt`
+- CIFS/SMB
+  - `mount -t cifs //server/share /mnt -o credentials=/etc/cifs-creds`
+  - "/etc/cifs-creds" `username=` `password=`
+- iSCSI
+  - `iscsiadm -m discovery -t st -p 10.0.0.20`
+  - `iscsiadm -m node --login`
+  - target side `targetcli`
+### Configure and manage swap space
+- Create swap
+  - `mkswap /dev/sdb2`
+  - `dd if=/dev/zero of=/swapfile bs=1M count=2048` then `chmod 600 /swapfile` + `mkswap /swapfile`
+- Activate
+  - `swapon /dev/sdb2`
+  - `swapon --show`
+  - `swapoff /dev/sdb2`
+- Persist / tune
+  - "/etc/fstab" `/swapfile none swap sw 0 0`
+  - `sysctl -w vm.swappiness=10`
+### Configure filesystem automounters
+- autofs
+  - `systemctl enable --now autofs`
+  - "/etc/auto.master" `/mnt/auto /etc/auto.misc`
+  - "/etc/auto.misc" `data -fstype=nfs server:/srv/nfs`
+- systemd automount
+  - "data.automount" unit `Where=` `TimeoutIdleSec=`
+### Monitor storage performance
+- `iostat -xz 1`
+- `iotop -o`
+- `vmstat 1`
+- `lsof +D /var` open files under dir
+
+## Essential Commands (20%)
+### Basic Git operations
+- Setup / create
+  - `git init`
+  - `git clone https://host/repo.git`
+  - `git config --global user.email "bob@host"`
+- Stage / commit
+  - `git add file.txt`, `git add -A`
+  - `git commit -m "msg"`
+  - `git status`, `git diff`, `git log --oneline`
+- Branch / sync
+  - `git branch feature`
+  - `git checkout -b feature`
+  - `git merge feature`
+  - `git pull origin main`, `git push origin main`
+### Create, configure, and troubleshoot services
+- Unit file location
+  - "/etc/systemd/system/myapp.service"
+  - "/usr/lib/systemd/system/" vendor units
+- Unit sections
+  - `[Unit]` `Description=` `After=network.target`
+  - `[Service]` `ExecStart=/usr/bin/myapp` `Restart=on-failure` `User=app`
+  - `[Install]` `WantedBy=multi-user.target`
+- Apply / control
+  - `systemctl daemon-reload`
+  - `systemctl enable --now myapp`
+  - `systemctl mask sleep.target`
+  - drop-in `systemctl edit myapp`
+### Monitor and troubleshoot system performance and services
+- CPU / load
+  - `uptime` load average
+  - `top`, `htop`
+  - `mpstat -P ALL 1`
+- Memory
+  - `free -h`
+  - `vmstat 1`
+- Historical
+  - `sar -u 1 3` CPU
+  - `sar -r` memory
+- Logs
+  - `journalctl -u sshd -f`
+  - `journalctl -xe`
+  - `journalctl -b -p err`
+  - `journalctl --since "1 hour ago"`
+  - `dmesg -T`
+  - "/var/log/syslog" / "/var/log/messages"
+### Determine application and service specific constraints
+- systemd resource control
+  - `MemoryMax=512M`
+  - `CPUQuota=50%`
+  - `LimitNOFILE=65536`
+  - `TasksMax=100`
+- cgroups
+  - `systemd-cgtop`
+  - `systemctl set-property myapp MemoryMax=1G`
+  - "/sys/fs/cgroup/"
+### Troubleshoot diskspace issues
+- Capacity
+  - `df -h`
+  - `du -ahx / | sort -rh | head`
+  - `ncdu /var`
+- Inodes
+  - `df -i`
+- Hidden usage
+  - `lsof | grep deleted` deleted-but-open files
+  - truncate via `: > /var/log/big.log`
+### Work with SSL certificates
+- Generate
+  - `openssl genrsa -out key.pem 4096`
+  - `openssl req -new -key key.pem -out req.csr`
+  - `openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365`
+- Inspect
+  - `openssl x509 -in cert.pem -text -noout`
+  - `openssl s_client -connect host:443`
+- Trust stores
+  - RHEL `update-ca-trust` + "/etc/pki/ca-trust/source/anchors/"
+  - Debian `update-ca-certificates` + "/usr/local/share/ca-certificates/"
+
+## Users and Groups (10%)
+### Create and manage local user and group accounts
+- Users
+  - `useradd -m -s /bin/bash bob`
+  - `usermod -aG wheel bob` add to group
+  - `userdel -r bob` remove + home
+  - `passwd bob`
+- Groups
+  - `groupadd devs`
+  - `groupmod -n developers devs`
+  - `groupdel devs`
+  - `gpasswd -a bob devs`
+- Account databases
+  - "/etc/passwd", "/etc/shadow"
+  - "/etc/group", "/etc/gshadow"
+- Aging
+  - `chage -M 90 -W 7 bob`
+  - "/etc/login.defs" `PASS_MAX_DAYS`
+### Manage personal and system-wide environment profiles
+- System-wide
+  - "/etc/profile"
+  - "/etc/profile.d/custom.sh"
+  - "/etc/bashrc" / "/etc/bash.bashrc"
+- Per-user
+  - "~/.bash_profile" login shells
+  - "~/.bashrc" interactive shells
+  - "~/.profile"
+- New-user template
+  - "/etc/skel/" copied on `useradd -m`
+### Configure user resource limits
+- Runtime
+  - `ulimit -a` show all
+  - `ulimit -n 4096` open files (soft)
+- Persistent
+  - "/etc/security/limits.conf" `bob hard nofile 65536`
+  - "/etc/security/limits.d/90-nproc.conf"
+- PAM enforcement
+  - `pam_limits.so` in "/etc/pam.d/login"
+### Configure and manage ACLs
+- View / set
+  - `getfacl file`
+  - `setfacl -m u:bob:rwx file`
+  - `setfacl -m g:devs:rx file`
+  - `setfacl -x u:bob file`
+- Default ACLs
+  - `setfacl -d -m u:bob:rwx /shared`
+  - mask `setfacl -m m::rx file`
+- Mount support
+  - "/etc/fstab" mount option `acl`
+### Configure the system to use LDAP user and group accounts
+- SSSD
+  - "/etc/sssd/sssd.conf" `id_provider = ldap`
+  - `chmod 600 /etc/sssd/sssd.conf`
+  - `systemctl enable --now sssd`
+- NSS / PAM
+  - "/etc/nsswitch.conf" `passwd: files sss`
+  - `authselect select sssd` (RHEL)
+- Validate
+  - `getent passwd bob`
+  - `id bob`

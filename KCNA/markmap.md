@@ -1,0 +1,310 @@
+---
+title: Kubernetes and Cloud Native Associate (KCNA)
+markmap:
+  colorFreezeLevel: 2
+---
+
+# KCNA
+
+## Kubernetes Fundamentals (44%)
+### Kubernetes Core Concepts
+- Control Plane components
+  - kube-apiserver (REST API, front-end)
+    - Exposes Kubernetes API over HTTPS (port 6443)
+    - Only component talking to etcd
+    - Request flow stages
+      - Authentication (X.509 / token / OIDC)
+      - Authorization (RBAC / Node / Webhook)
+      - Admission control (mutating then validating)
+    - Static pod manifest: /etc/kubernetes/manifests/kube-apiserver.yaml
+  - etcd (key-value store, cluster state)
+    - Raft consensus algorithm
+    - Stores all API objects under /registry prefix
+    - Quorum requires odd member count (3, 5)
+    - etcdctl snapshot save / snapshot restore
+  - kube-scheduler (Pod placement)
+    - Watches for Pods with spec.nodeName empty
+    - Writes binding via Pod.spec.nodeName
+  - kube-controller-manager (control loops)
+    - Node controller, ReplicaSet controller, Job controller
+    - Endpoints / EndpointSlice controller
+    - --leader-elect for HA
+  - cloud-controller-manager (cloud integration)
+    - Node controller (cloud metadata)
+    - Route controller, Service controller (LoadBalancer)
+- Node components
+  - kubelet (node agent, manages Pods)
+    - Registers Node object with apiserver
+    - Talks to runtime via CRI gRPC
+    - Reports status via Node.status.conditions (Ready)
+    - Runs static Pods from manifest dir
+  - kube-proxy (network rules, Services)
+    - Modes: iptables / IPVS / nftables
+    - Programs DNAT rules for Service ClusterIP -> Pod IPs
+    - Runs as DaemonSet in kube-system
+  - Container runtime (containerd, CRI-O)
+    - Implements CRI (RuntimeService, ImageService)
+    - Low-level runtime runc (OCI runtime spec)
+- Cluster topology
+  - Node object (kubectl get nodes)
+  - Cluster = control plane + worker nodes
+  - Namespace (logical partition of objects)
+  - Declarative API and desired state (spec vs status)
+  - Reconciliation loop (watch -> diff -> act)
+- Workload objects
+  - Pod (smallest deployable unit)
+    - Pod.spec.containers[] (name, image, ports)
+    - initContainers, ephemeralContainers
+    - Pause/sandbox container (shared netns)
+  - ReplicaSet (replica count)
+    - ReplicaSet.spec.replicas
+    - ReplicaSet.spec.selector.matchLabels
+  - Deployment (rollout/rollback, stateless)
+    - Deployment.spec.replicas
+    - Deployment.spec.strategy.type (RollingUpdate/Recreate)
+    - spec.strategy.rollingUpdate.maxSurge / maxUnavailable
+    - revisionHistoryLimit (rollback)
+  - StatefulSet (stable identity, ordered)
+    - Stable network ID (pod-0, pod-1)
+    - volumeClaimTemplates (per-Pod PVC)
+    - Requires Headless Service (spec.serviceName)
+  - DaemonSet (one Pod per node)
+    - Tolerations for control-plane taints
+    - Used for kube-proxy, CNI agent, node-exporter
+  - Job / CronJob (batch, scheduled)
+    - Job.spec.completions / parallelism
+    - Job.spec.backoffLimit
+    - CronJob.spec.schedule (cron syntax)
+- Configuration & metadata
+  - ConfigMap (non-sensitive config)
+    - Mounted as volume or envFrom
+    - ConfigMap.data / binaryData
+  - Secret (sensitive data, base64)
+    - Types: Opaque, kubernetes.io/dockerconfigjson, kubernetes.io/tls
+    - Consumed via env or projected volume
+  - Labels, selectors, annotations
+    - metadata.labels (key=value, used by selectors)
+    - matchLabels / matchExpressions (In, NotIn, Exists)
+    - metadata.annotations (non-identifying metadata)
+### Administration
+- kubectl CLI
+  - Core verbs
+    - kubectl get / describe
+    - kubectl apply / create / delete
+    - kubectl edit / patch
+  - Debug verbs
+    - kubectl logs (-f, --previous)
+    - kubectl exec -it -- /bin/sh
+    - kubectl port-forward
+    - kubectl debug (ephemeral container)
+  - Imperative vs declarative
+    - kubectl create (imperative)
+    - kubectl apply -f (declarative, last-applied annotation)
+  - Output control
+    - -o yaml / -o json / -o wide
+    - --dry-run=client
+- API resources & manifests
+  - YAML required fields (apiVersion, kind, metadata, spec)
+  - apiVersion groups (apps/v1, batch/v1, v1 core)
+  - kubectl explain <resource>.<field>
+  - kubectl api-resources / api-versions
+- Namespaces
+  - Resource isolation and scoping
+  - Built-ins: default, kube-system, kube-public, kube-node-lease
+  - kubectl get pods -A (all namespaces)
+  - Namespaced vs cluster-scoped resources
+- RBAC basics
+  - Role (namespaced) / ClusterRole (cluster-wide)
+  - RoleBinding / ClusterRoleBinding
+  - Rule fields: apiGroups, resources, verbs
+  - ServiceAccount (default per namespace)
+### Scheduling
+- Scheduler workflow
+  - Filtering (predicates: NodeResourcesFit, NodeAffinity)
+  - Scoring (priorities: LeastAllocated, balanced)
+  - Binding to node (Pod.spec.nodeName set)
+- Placement controls
+  - nodeSelector (exact label match)
+  - Node affinity (requiredDuringScheduling / preferred)
+  - Pod affinity / anti-affinity (topologyKey)
+  - Taints (NoSchedule/NoExecute) and tolerations
+  - topologySpreadConstraints (even distribution)
+- Resource management
+  - requests and limits (cpu in millicores, memory in Mi/Gi)
+  - QoS classes (Guaranteed, Burstable, BestEffort)
+  - LimitRange (per-namespace defaults)
+  - ResourceQuota (aggregate namespace limits)
+### Containerization
+- Container fundamentals
+  - Images, layers (union/overlay fs), registries
+  - Linux namespaces (pid, net, mnt, uts, ipc, user)
+  - cgroups (cpu/memory resource limits)
+  - OCI image spec / OCI runtime spec
+- Container runtimes
+  - containerd (default), CRI-O
+  - Container Runtime Interface (CRI gRPC API)
+  - dockershim removal (Kubernetes 1.24)
+  - runc (reference OCI runtime)
+- Building images
+  - Dockerfile / Containerfile (FROM, RUN, COPY, CMD)
+  - Multi-stage builds (builder + runtime stage)
+  - Image tags (mutable) vs digests (sha256, immutable)
+  - Build tools: docker build, buildah, kaniko
+
+## Container Orchestration (28%)
+### Networking
+- Kubernetes networking model
+  - Every Pod gets a routable IP (Pod.status.podIP)
+  - Pod-to-Pod (flat network, no NAT)
+  - Pod-to-Service (virtual ClusterIP)
+  - External-to-Service (NodePort / LoadBalancer / Ingress)
+- Container Network Interface (CNI)
+  - Overlay: Flannel (VXLAN)
+  - Policy-capable: Calico, Cilium (eBPF)
+  - CNI plugin binary + config in /etc/cni/net.d
+- Services
+  - ClusterIP (internal virtual IP, default)
+  - NodePort (port 30000-32767 on every node)
+  - LoadBalancer (cloud external LB, allocates ClusterIP+NodePort)
+  - ExternalName (CNAME to external DNS)
+  - Headless Service (clusterIP: None, returns Pod IPs)
+  - Backed by Endpoints / EndpointSlice
+- Service discovery & DNS
+  - CoreDNS (Deployment in kube-system)
+  - DNS name: <svc>.<ns>.svc.cluster.local
+  - kube-proxy (iptables / IPVS load balancing)
+- Ingress & Gateway API
+  - Ingress resource (host/path -> Service rules)
+  - Ingress controllers (ingress-nginx, Traefik)
+  - Gateway API (GatewayClass, Gateway, HTTPRoute)
+### Security
+- Authentication & authorization
+  - Users (X.509) vs ServiceAccounts (tokens)
+  - RBAC (default), ABAC (policy file)
+- Admission control
+  - Mutating webhooks (modify object)
+  - Validating webhooks (accept/reject)
+  - Built-in: ResourceQuota, LimitRanger, PodSecurity
+- Pod & workload security
+  - SecurityContext (runAsNonRoot, capabilities drop)
+  - Pod Security Standards (Privileged, Baseline, Restricted)
+  - Pod Security Admission (enforce/audit/warn labels)
+  - NetworkPolicy (ingress/egress, default-deny)
+- Secrets management
+  - Secret types (Opaque, tls, dockerconfigjson)
+  - Encryption at rest (EncryptionConfiguration, aescbc/kms)
+### Troubleshooting
+- Pod diagnostics
+  - kubectl describe pod (Events section)
+  - kubectl logs --previous (crashed container)
+  - Pod phases (Pending, Running, Succeeded, Failed, Unknown)
+  - Waiting reasons: CrashLoopBackOff, ImagePullBackOff, ErrImagePull
+  - OOMKilled (memory limit exceeded)
+- Probes & health
+  - livenessProbe (restart container)
+  - readinessProbe (remove from Service endpoints)
+  - startupProbe (slow-start grace)
+  - Handlers: httpGet, tcpSocket, exec
+- Cluster diagnostics
+  - kubectl get nodes (Ready/NotReady)
+  - kubectl get events -A
+  - kubectl top nodes/pods (metrics-server)
+  - Control plane: static Pods in kube-system
+### Storage
+- Volumes
+  - emptyDir (Pod lifetime, scratch)
+  - hostPath (node filesystem)
+  - configMap / secret (projected volumes)
+- Persistent storage
+  - PersistentVolume (PV, cluster resource)
+  - PersistentVolumeClaim (PVC, user request)
+  - StorageClass (dynamic provisioning, provisioner field)
+  - Access modes (ReadWriteOnce, ReadOnlyMany, ReadWriteMany, RWOP)
+- Container Storage Interface (CSI)
+  - CSI driver (DaemonSet + controller)
+  - Reclaim policies (Retain, Delete)
+  - VolumeSnapshot / VolumeSnapshotClass
+
+## Cloud Native Application Delivery (16%)
+### Application Delivery
+- CI/CD fundamentals
+  - Continuous Integration (build + test on commit)
+  - Continuous Delivery / Deployment (auto release)
+  - Pipeline tools (Tekton, Argo Workflows, GitHub Actions)
+- GitOps
+  - Git as single source of truth (declarative manifests)
+  - Pull-based reconciliation from repo
+  - Argo CD (Application CRD, sync)
+  - Flux (GitRepository, Kustomization CRDs)
+- Package management
+  - Helm (Chart, Release, values.yaml, templates)
+    - helm install / upgrade / rollback
+    - Chart.yaml, templates/_helpers.tpl
+  - Kustomize (kustomization.yaml, base + overlays)
+    - patchesStrategicMerge, kubectl apply -k
+- Deployment strategies
+  - Rolling update (Deployment default)
+  - Recreate (terminate then create)
+  - Blue/green (two environments, switch Service)
+  - Canary (progressive traffic shift)
+### Debugging
+- Inspecting deployments
+  - kubectl rollout status / history / undo
+  - kubectl get rs (ReplicaSet revisions)
+  - Diagnosing stuck rollout (readiness failing)
+- Application observability for delivery
+  - kubectl logs / get events during deploy
+  - kubectl diff -f (preview changes)
+  - kubectl apply --dry-run=server (validation)
+
+## Cloud Native Architecture (12%)
+### Observability
+- Pillars of observability
+  - Metrics (numeric time series)
+  - Logs (discrete event records)
+  - Traces (request spans across services)
+- Tooling (CNCF)
+  - Prometheus (pull metrics, PromQL, /metrics endpoint)
+  - Grafana (dashboards, panels)
+  - Fluentd / Fluent Bit (log forwarding)
+  - OpenTelemetry (OTLP, SDK instrumentation, Collector)
+  - Jaeger (distributed tracing, spans)
+- Concepts
+  - Telemetry signals (metrics/logs/traces)
+  - SLI (indicator) / SLO (objective) / SLA (agreement)
+  - Error budget
+  - FinOps / cost management (OpenCost, Kubecost)
+### Cloud Native Ecosystem and Principles
+- Cloud native principles
+  - Microservices (loosely coupled services)
+  - Containerization (OCI images)
+  - Immutable infrastructure (replace not patch)
+  - Declarative APIs (desired state)
+  - Scalability, reliability, portability
+- Architecture patterns
+  - Service mesh (Istio, Linkerd, Envoy sidecar)
+  - Serverless (Knative Serving/Eventing)
+  - Autoscaling
+    - HorizontalPodAutoscaler (HPA, replica count)
+    - VerticalPodAutoscaler (VPA, requests/limits)
+    - Cluster Autoscaler (node count)
+    - KEDA (event-driven scaling)
+- Open standards
+  - OCI (image/runtime/distribution specs)
+  - CRI (container runtime interface)
+  - CNI (networking interface)
+  - CSI (storage interface)
+  - Open Policy Agent (OPA, Rego policies)
+### Cloud Native Community and Collaboration
+- CNCF landscape & ecosystem
+  - Maturity levels: Sandbox -> Incubating -> Graduated
+  - Graduated examples (Kubernetes, Prometheus, Envoy)
+  - Technical Oversight Committee (TOC)
+- Governance & roles
+  - Open governance (vendor-neutral)
+  - Personas (contributor, reviewer, maintainer)
+  - CNCF Code of Conduct
+- Community
+  - SIGs (sig-network, sig-storage)
+  - Working Groups, KEP (Kubernetes Enhancement Proposal)
+  - KubeCon / CloudNativeCon events
