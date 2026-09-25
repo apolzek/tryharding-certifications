@@ -1,0 +1,63 @@
+function: histogram_stdvar
+title: "histogram_stdvar() — a variância (desvio padrão ao quadrado)"
+category: "04 - Histogramas"
+time_from: now-15m
+intro: |
+  **Analogia:** o desvio padrão é a **distância** típica até o alvo; a variância é essa distância **ao quadrado**, como a **área** de um
+  quadrado cujo lado é o desvio. Por isso a unidade é **s²** e ela amplifica diferenças. `sqrt(histogram_stdvar(x)) = histogram_stddev(x)`.
+  **Só funciona com native histograms.**
+
+  Métrica: `histogram_stdvar_queue_wait_seconds{queue}` (média 0.5s nas duas filas). `dedicated`: σ≈0.05s → var≈0.0025 s².
+  `shared`: alterna a cada **2 min** entre vizinho quieto (var≈0.010 s²) e barulhento (var≈0.108 s²).
+  Legenda dos painéis: 🟢 básico · 🟡 nuance/pegadinha · 🔴 caso real de produção.
+panels:
+  - title: "🟢 1. histogram_stdvar(rate(x[1m])) — em s²"
+    description: "dedicated ≈ 0.0025 s². shared alterna ≈ 0.010 ↔ ≈ 0.108 s². Unidade estranha: segundos AO QUADRADO."
+    decimals: 4
+    queries:
+      - expr: histogram_stdvar(rate(histogram_stdvar_queue_wait_seconds[1m]))
+        legend: "var {{queue}} (s²)"
+  - title: "🟢 2. sqrt(stdvar) = stddev (shared)"
+    description: "As duas linhas se sobrepõem: ≈0.10s ↔ ≈0.33s. Para mostrar em dashboard, o stddev é mais legível (mesma unidade da métrica)."
+    unit: s
+    queries:
+      - expr: sqrt(histogram_stdvar(rate(histogram_stdvar_queue_wait_seconds{queue="shared"}[1m])))
+        legend: "sqrt(histogram_stdvar)"
+      - expr: histogram_stddev(rate(histogram_stdvar_queue_wait_seconds{queue="shared"}[1m]))
+        legend: "histogram_stddev"
+  - title: "🔴 3. Variância amplifica: razão shared / dedicated"
+    description: "Razão das variâncias ≈ 4 ↔ ≈ 43. Razão dos desvios ≈ 2 ↔ ≈ 6.6. O quadrado exagera a diferença (útil p/ detecção, ruim p/ leitura)."
+    queries:
+      - expr: histogram_stdvar(rate(histogram_stdvar_queue_wait_seconds{queue="shared"}[1m])) / ignoring(queue) histogram_stdvar(rate(histogram_stdvar_queue_wait_seconds{queue="dedicated"}[1m]))
+        legend: "razão das variâncias"
+      - expr: histogram_stddev(rate(histogram_stdvar_queue_wait_seconds{queue="shared"}[1m])) / ignoring(queue) histogram_stddev(rate(histogram_stdvar_queue_wait_seconds{queue="dedicated"}[1m]))
+        legend: "razão dos desvios"
+  - title: "🟢 4. ...e a média não muda (0.5s nas duas filas)"
+    unit: s
+    min: 0
+    queries:
+      - expr: histogram_avg(rate(histogram_stdvar_queue_wait_seconds[1m]))
+        legend: "média {{queue}}"
+  - title: "🟡 5. Variância do conjunto: histogram_stdvar(sum(rate(x)))"
+    description: "Soma os histogramas das duas filas e mede a variância de TODAS as esperas: ≈0.006 ↔ ≈0.055 s². Aqui bate com a média das variâncias porque as médias e o tráfego são iguais; em geral NÃO bate."
+    decimals: 4
+    queries:
+      - expr: histogram_stdvar(sum(rate(histogram_stdvar_queue_wait_seconds[1m])))
+        legend: "✅ stdvar(sum(...)) conjunto"
+      - expr: avg(histogram_stdvar(rate(histogram_stdvar_queue_wait_seconds[1m])))
+        legend: "avg(stdvar(...)) (coincide só aqui)"
+  - title: "🟢 6. Heatmap da fila shared (classic buckets)"
+    description: "A mancha 'respira': concentrada em 0.25–1s com o vizinho quieto; espalhada de 0.1s até 2.5s com o barulhento."
+    type: heatmap
+    queries:
+      - expr: sum by (le) (rate(histogram_stdvar_queue_wait_seconds_bucket{queue="shared"}[1m]))
+        legend: "{{le}}"
+        format: heatmap
+  - title: "🟡 7. ❌ Em classic (x_bucket) o resultado é VAZIO"
+    description: "histogram_stdvar ignora floats. 'No data' aqui é o esperado."
+    width: 24
+    height: 5
+    queries:
+      - expr: histogram_stdvar(rate(histogram_stdvar_queue_wait_seconds_bucket[1m]))
+        legend: "vazio"
+        validate: empty

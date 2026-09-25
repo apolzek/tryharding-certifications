@@ -1,0 +1,76 @@
+function: predict_linear
+title: "predict_linear() — onde o gauge vai estar daqui a N segundos"
+category: "03 - Gauges (delta, deriv, previsão)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** o **marcador de combustível** + o computador de bordo: "no ritmo dos últimos 5 min, o tanque **zera em 40 km**".
+  `predict_linear(gauge[janela], t)` passa uma reta (regressão linear) pelos pontos da janela e diz **quanto o gauge valerá daqui a `t` segundos**.
+
+  O alerta clássico: `predict_linear(node_filesystem_avail_bytes[6h], 4*3600) < 0` → "**disco cheio em menos de 4h**".
+  Métrica: `predict_linear_node_filesystem_avail_bytes{mountpoint}`: `/` estável (com ruído) · `/var/log` enche em ~10h · `/data` enche em ~2h ·
+  `/scratch` job batch que enche em ~8 min (a cada 10 min).
+panels:
+  - title: "🟢 1. Espaço livre cru por mountpoint"
+    description: "/ ≈ 40 GiB parado · /var/log e /data descendo devagar · /scratch despenca de 20 GiB a 0 em ~8.5 min e é limpo a cada 10 min."
+    unit: bytes
+    queries:
+      - expr: predict_linear_node_filesystem_avail_bytes
+        legend: "{{mountpoint}}"
+  - title: "🟢 2. /scratch: agora vs previsão para DAQUI A 5 MIN"
+    description: "A previsão (reta do último 1m, projetada 300s) cruza o zero ~5 min ANTES do disco realmente encher. Esse é o aviso antecipado. (Eixo cortado em -15/+25 GiB: na limpeza do disco a reta dá um salto enorme.)"
+    unit: bytes
+    min: -16106127360
+    max: 26843545600
+    field_defaults:
+      custom:
+        thresholdsStyle: {mode: line}
+      thresholds: {mode: absolute, steps: [{color: green, value: null}, {color: red, value: 0}]}
+    queries:
+      - expr: predict_linear_node_filesystem_avail_bytes{mountpoint="/scratch"}
+        legend: "livre agora"
+      - expr: predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/scratch"}[1m], 300)
+        legend: "previsão daqui 5 min"
+  - title: "🔴 3. Alerta clássico: vai encher em menos de 4h? (predict_linear(...[5m], 4*3600) < 0)"
+    description: "Só aparece quem zera em < 4h: /data sempre (≈ -2 a -12 GiB) e /scratch enquanto o job enche (muito negativo). / e /var/log não aparecem."
+    type: bargauge
+    unit: bytes
+    decimals: 1
+    queries:
+      - expr: predict_linear(predict_linear_node_filesystem_avail_bytes[5m], 4*3600) < 0
+        legend: "{{mountpoint}}"
+        instant: true
+  - title: "🔴 4. Horas até encher = livre / -deriv (agora)"
+    description: "/var/log ≈ 9-11h · /data ≈ 0.5-3.4h · /scratch ≈ minutos (0.0x h). Só mountpoints que estão perdendo espaço."
+    type: bargauge
+    unit: h
+    decimals: 2
+    queries:
+      - expr: |
+          predict_linear_node_filesystem_avail_bytes{mountpoint!="/"}
+            / -deriv(predict_linear_node_filesystem_avail_bytes{mountpoint!="/"}[5m]) / 3600
+          and deriv(predict_linear_node_filesystem_avail_bytes{mountpoint!="/"}[5m]) < 0
+        legend: "{{mountpoint}}"
+        instant: true
+  - title: "🟡 5. /var/log: horizonte de 4h (ok) vs 24h (alerta!)"
+    description: "Previsão para daqui 4h ≈ +10 GiB (tranquilo). Para daqui 24h ≈ -25 GiB (vai encher amanhã). O t escolhe o quão cedo você quer saber."
+    unit: bytes
+    field_defaults:
+      custom:
+        thresholdsStyle: {mode: line}
+      thresholds: {mode: absolute, steps: [{color: green, value: null}, {color: red, value: 0}]}
+    queries:
+      - expr: predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/var/log"}[5m], 4*3600)
+        legend: "daqui 4h"
+      - expr: predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/var/log"}[5m], 24*3600)
+        legend: "daqui 24h"
+  - title: "🟡 6. Pegadinha: janela curta + ruído = previsão maluca ( / em 4h)"
+    description: "O disco / está parado em 40 GiB, mas com ruído de ±300 MiB. Com [1m] a reta balança e a previsão para 4h oscila dezenas de GiB (às vezes < 0: alarme falso!). Com [10m] fica perto de 40 GiB."
+    unit: bytes
+    queries:
+      - expr: predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/"}[1m], 4*3600)
+        legend: "[1m] (maluca)"
+      - expr: predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/"}[10m], 4*3600)
+        legend: "[10m] (estável)"

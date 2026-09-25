@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 5s        # curto de propósito: o lab "anda" rápido
+  evaluation_interval: 5s
+  # Ingere native histograms (protobuf) E mantém as séries clássicas _bucket.
+  scrape_native_histograms: true
+  always_scrape_classic_histograms: true
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: lab
+    static_configs:
+      - targets: ["generator:8080"]
+        labels:
+          env: lab
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

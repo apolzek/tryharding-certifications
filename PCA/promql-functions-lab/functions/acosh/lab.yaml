@@ -1,0 +1,60 @@
+function: acosh
+title: "acosh() — inversa do cosh: domínio x ≥ 1"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** o `cosh()` desenha o **U** do cabo pendurado (sempre ≥ 1). O `acosh()` faz o caminho de volta:
+  "dado esse valor do U, qual o x (positivo)?". Por isso **só aceita x ≥ 1**; abaixo disso → **NaN**.
+  Para x grande, `acosh(x) ≈ ln(2x)`: é uma **compressão logarítmica** para razões "quantas vezes maior que o normal".
+
+  Métricas: `acosh_traffic_peak_ratio{service}` (tráfego / baseline), `acosh_powerline_sag_ratio` e
+  `acosh_powerline_span_meters`.
+
+  **Casos:** 🟢 básico: painéis 1–2 (comprimir razão ≥ 1) · 🟡 nuance: 2–3 (NaN abaixo de 1, clamp_min) · 🔴 real: 1–4 (pico de tráfego tipo Black Friday; física do cabo)
+panels:
+  - title: "1. Razão tráfego/baseline (crua)"
+    description: "checkout: 1.2x, com rajada até 50x a cada 4 min. batch: 0.5x..3x (abaixo de 1 à 'noite')."
+    queries:
+      - expr: acosh_traffic_peak_ratio
+        legend: "{{service}}"
+  - title: "2. acosh(razão): compressão (e NaN abaixo de 1)"
+    description: "checkout: 1.2 → 0.62; 50 → 4.6. batch: some (NaN) toda vez que a razão cai abaixo de 1."
+    queries:
+      - expr: acosh(acosh_traffic_peak_ratio)
+        legend: "acosh {{service}}"
+  - title: "3. Correção: clamp_min(x, 1) antes do acosh"
+    description: "Abaixo do baseline vira 0 ('normal ou menos'). Sem buracos."
+    queries:
+      - expr: acosh(clamp_min(acosh_traffic_peak_ratio, 1))
+        legend: "acosh(clamp_min) {{service}}"
+  - title: "4. Física: recuperando 'a' do cabo = vão / (2·acosh(razão))"
+    description: "A razão de trações (1.008..1.057) é cosh(vão/2a). acosh() desfaz o cosh: a volta a oscilar entre 150 e 400 m."
+    unit: lengthm
+    queries:
+      - expr: acosh_powerline_span_meters / (2 * acosh(acosh_powerline_sag_ratio))
+        legend: "a recuperado {{line}}"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "acosh(1) = 0 (mínimo). acosh(0.999) = NaN. acosh(cosh(2)) = 2. acosh(+Inf) = +Inf."
+    queries:
+      - expr: acosh(vector(1))
+        legend: "acosh(1)"
+      - expr: acosh(vector(2))
+        legend: "acosh(2)"
+      - expr: acosh(cosh(vector(2)))
+        legend: "acosh(cosh(2))"
+      - expr: acosh(vector(0.999))
+        legend: "acosh(0.999)"
+      - expr: acosh(vector(-5))
+        legend: "acosh(-5)"
+      - expr: acosh(vector(+Inf))
+        legend: "acosh(+Inf)"

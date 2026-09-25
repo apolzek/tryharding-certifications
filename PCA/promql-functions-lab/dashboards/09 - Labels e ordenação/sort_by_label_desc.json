@@ -1,0 +1,407 @@
+{
+  "uid": "fn-sort_by_label_desc",
+  "title": "sort_by_label_desc() — ordenar pelo NOME (label), decrescente",
+  "tags": [
+    "promql-lab",
+    "09-labels-e-ordena-o"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "schemaVersion": 41,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "sort_by_label_desc() — ordenar pelo NOME (label), decrescente",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 6
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Analogia:** é a **caixa de entrada do e-mail ordenada por data, mais recente primeiro**, ou a lista de releases no GitHub (a mais nova em cima).\n`sort_by_label_desc(v, \"label\", ...)` = `sort_by_label` ao contrário, também em **ordem natural** (11 > 10 > 9). **Experimental**.\n\n⚠️ Só afeta **consultas instantâneas**. Ordem natural **não é semver**: `2.11.0-rc.1` fica ACIMA de `2.11.0`.\nMétricas: `sort_by_label_desc_backup_last_size_bytes{date}`, `sort_by_label_desc_app_build_info{pod,version}`, `sort_by_label_desc_kafka_log_size_bytes{topic,partition}`.\n\n📘 Guia completo: `functions/sort_by_label_desc/README.md`"
+      }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "🔴 1. Backups: o de HOJE primeiro",
+      "description": "Datas YYYY-MM-DD ordenam corretamente como texto/natural. Hoje = 14 GiB, ontem 13 GiB... há 4 dias 10 GiB.",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "env": true,
+              "job": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {},
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Time|job|instance|env|__name__)$"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sort_by_label_desc(sort_by_label_desc_backup_last_size_bytes, \"date\")",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true,
+          "editorMode": "code",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "🟡 2. Versões, mais nova primeiro — e a pegadinha do semver",
+      "description": "Natural desc: 2.11.0-rc.1 (1 pod), 2.11.0 (3), 2.10.3 (4), 2.9.1 (1). Semver colocaria 2.11.0 acima do rc!",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "env": true,
+              "job": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Time|job|instance|env|__name__)$"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sort_by_label_desc(count by (version) (sort_by_label_desc_app_build_info), \"version\")",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true,
+          "editorMode": "code",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "🟢 3. Partições Kafka: 11, 10, 9 ... 0 (natural)",
+      "description": "Ordem natural decrescente dos números da partição. Alfabética decrescente daria 9, 8, ..., 2, 11, 10, 1, 0.",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 14
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "env": true,
+              "job": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {},
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Time|job|instance|env|__name__)$"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "partition"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sort_by_label_desc(sort_by_label_desc_kafka_log_size_bytes, \"partition\")",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true,
+          "editorMode": "code",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "bargauge",
+      "title": "🟢 4. Bar gauge: partições em ordem decrescente de número",
+      "description": "Tamanho = (partição + 1) GiB, então as barras decrescem em escada: 12 GiB, 11 GiB, ..., 1 GiB.",
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 14
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlYlRd"
+          },
+          "custom": {},
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sort_by_label_desc(sort_by_label_desc_kafka_log_size_bytes, \"partition\")",
+          "legendFormat": "partition {{partition}}",
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "🟡 5. Lado a lado: sort_by_label (crescente) nas mesmas versões",
+      "description": "A 'vizinha' crescente: 2.9.1, 2.10.3, 2.11.0, 2.11.0-rc.1. Compare com o painel 2: é exatamente a ordem inversa (o rc continua 'depois' do final).",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "env": true,
+              "job": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Time|job|instance|env|__name__)$"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sort_by_label(count by (version) (sort_by_label_desc_app_build_info), \"version\")",
+          "legendFormat": "__auto",
+          "range": false,
+          "instant": true,
+          "editorMode": "code",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Todas as funções",
+      "type": "dashboards",
+      "tags": [
+        "promql-lab"
+      ],
+      "asDropdown": true
+    }
+  ]
+}

@@ -1,0 +1,507 @@
+{
+  "uid": "fn-histogram_avg",
+  "title": "histogram_avg() — a média de um native histogram",
+  "tags": [
+    "promql-lab",
+    "04-histogramas"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "schemaVersion": 41,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "histogram_avg() — a média de um native histogram",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 6
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Analogia:** a **conta do restaurante dividida pelo número de pessoas**: soma de tudo que foi observado ÷ quantidade de observações.\n`histogram_avg(rate(x[1m]))` = `histogram_sum(...) / histogram_count(...)`. **Só funciona com native histograms** (em `x_bucket`/`x_sum` → vazio).\n\nMétrica: `histogram_avg_request_duration_seconds{service}`. `web`: \\~50 req/s, média 50ms (a cada **5 min**, por **60s**, sobe a 200ms).\n`batch`: \\~2 req/s, média 1s. Equivalente clássico: `rate(x_sum[1m]) / rate(x_count[1m])`.\nLegenda dos painéis: 🟢 básico · 🟡 nuance/pegadinha · 🔴 caso real de produção.\n\n📘 Guia completo: `functions/histogram_avg/README.md`"
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "🟢 1. Média por serviço: histogram_avg(rate(x[1m]))",
+      "description": "web ≈ 50ms (sobe para ≈200ms no período lento). batch ≈ 1s constante.",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_avg(rate(histogram_avg_request_duration_seconds[1m]))",
+          "legendFormat": "{{service}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "🟢 2. Três jeitos, mesmo número (web)",
+      "description": "histogram_avg = histogram_sum/histogram_count (native) = rate(_sum)/rate(_count) (classic). As 3 linhas se sobrepõem.",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_avg(rate(histogram_avg_request_duration_seconds{service=\"web\"}[1m]))",
+          "legendFormat": "histogram_avg",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_sum(rate(histogram_avg_request_duration_seconds{service=\"web\"}[1m])) / histogram_count(rate(histogram_avg_request_duration_seconds{service=\"web\"}[1m]))",
+          "legendFormat": "histogram_sum / histogram_count",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(histogram_avg_request_duration_seconds_sum{service=\"web\"}[1m]) / rate(histogram_avg_request_duration_seconds_count{service=\"web\"}[1m])",
+          "legendFormat": "classic: rate(_sum) / rate(_count)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "🔴 3. ❌ Média das médias vs ✅ média global",
+      "description": "avg(histogram_avg(...)) = (0.05+1)/2 ≈ 0.52s: ERRADO, dá o mesmo peso ao batch (2 req/s) e ao web (50 req/s). histogram_avg(sum(rate(...))) = (50×0.05+2×1)/52 ≈ 0.087s: CERTO.",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "avg(histogram_avg(rate(histogram_avg_request_duration_seconds[1m])))",
+          "legendFormat": "❌ avg(histogram_avg(...))",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_avg(sum(rate(histogram_avg_request_duration_seconds[1m])))",
+          "legendFormat": "✅ histogram_avg(sum(rate(...)))",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "🟡 4. A média esconde a cauda (web)",
+      "description": "Média ≈ 50ms, mediana ≈ 46ms, mas p99 ≈ 117ms. Para SLO de latência use quantis ou histogram_fraction.",
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_avg(rate(histogram_avg_request_duration_seconds{service=\"web\"}[1m]))",
+          "legendFormat": "média",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, rate(histogram_avg_request_duration_seconds{service=\"web\"}[1m]))",
+          "legendFormat": "p50",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, rate(histogram_avg_request_duration_seconds{service=\"web\"}[1m]))",
+          "legendFormat": "p99",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "🟡 5. ❌ Sem rate(): média desde o início do processo",
+      "description": "histogram_avg(x) usa o acumulado desde que o gerador subiu: quase não reage ao período lento (logo após um restart do gerador o acumulado é curto e ela reage mais).",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_avg(histogram_avg_request_duration_seconds{service=\"web\"})",
+          "legendFormat": "❌ sem rate (acumulado)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_avg(rate(histogram_avg_request_duration_seconds{service=\"web\"}[1m]))",
+          "legendFormat": "✅ com rate [1m]",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "🟡 6. ❌ Em classic (x_bucket) o resultado é VAZIO",
+      "description": "histogram_avg ignora floats. Séries _bucket/_sum/_count são floats → 'No data'. Isso é esperado!",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_avg(rate(histogram_avg_request_duration_seconds_bucket[1m]))",
+          "legendFormat": "vazio",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Todas as funções",
+      "type": "dashboards",
+      "tags": [
+        "promql-lab"
+      ],
+      "asDropdown": true
+    }
+  ]
+}

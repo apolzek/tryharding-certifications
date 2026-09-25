@@ -1,0 +1,70 @@
+function: abs
+title: "abs() — tira o sinal: o tamanho do desvio, pra cima ou pra baixo"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `abs()` é a **régua** que mede a distância até o alvo sem se importar com a direção:
+  2 cm à esquerda ou 2 cm à direita são "2 cm de erro". `abs(-0.12) = 0.12`, `abs(0.08) = 0.08`.
+
+  Use quando o **tamanho** do desvio importa e o **sinal** atrapalha (drift de relógio, erro em relação a um setpoint, diferença entre réplicas).
+  Métricas: `abs_node_timex_offset_seconds{node}` (node-c está sempre **atrasado** -0.12s) e
+  `abs_temperature_celsius` vs `abs_temperature_setpoint_celsius` (22°C ± 3°C).
+panels:
+  - title: "🟢 1. Drift de relógio cru (+ adiantado / − atrasado)"
+    description: "node-a oscila ±0.08s, node-b ±0.03s, node-c fica parado em -0.12s (atrasado)."
+    unit: s
+    queries:
+      - expr: abs_node_timex_offset_seconds
+        legend: "{{node}}"
+  - title: "🟢 2. abs(drift) — o tamanho do desvio"
+    description: "Tudo vira positivo. node-c aparece como o PIOR (0.12s), o que no gráfico cru parecia 'o mais baixo'."
+    unit: s
+    queries:
+      - expr: abs(abs_node_timex_offset_seconds)
+        legend: "{{node}}"
+  - title: "🟡 3. Alerta ingênuo: drift > 0.05 (perde o node-c!)"
+    description: "Só pega o node-a quando ele está ADIANTADO. O node-c, atrasado 0.12s, nunca dispara."
+    unit: s
+    draw: points
+    queries:
+      - expr: abs_node_timex_offset_seconds > 0.05
+        legend: "{{node}}"
+  - title: "🔴 4. Alerta certo: abs(drift) > 0.05"
+    description: "Pega o node-c o tempo todo e o node-a nos dois lados da onda (adiantado E atrasado)."
+    unit: s
+    draw: points
+    queries:
+      - expr: abs(abs_node_timex_offset_seconds) > 0.05
+        legend: "{{node}}"
+  - title: "🟡 5. Erro do ar-condicionado: temp − setpoint (com sinal) vs abs()"
+    description: "Com sinal: onda entre -3 e +3. Com abs(): 'lombadas' entre 0 e 3 (a distância até 22°C)."
+    unit: celsius
+    queries:
+      - expr: abs_temperature_celsius - abs_temperature_setpoint_celsius
+        legend: "erro com sinal ({{room}})"
+      - expr: abs(abs_temperature_celsius - abs_temperature_setpoint_celsius)
+        legend: "abs(erro) ({{room}})"
+  - title: "🟡 6. Erro MÉDIO: os sinais se cancelam (≈0) × erro absoluto médio (≈1.9)"
+    description: "avg do erro com sinal ≈ 0 ('o ar está perfeito!'). avg de abs(erro) ≈ 1.91°C = 3·2/π (a verdade)."
+    unit: celsius
+    queries:
+      - expr: avg_over_time((abs_temperature_celsius - abs_temperature_setpoint_celsius)[3m:5s])
+        legend: "média do erro com sinal"
+      - expr: avg_over_time(abs(abs_temperature_celsius - abs_temperature_setpoint_celsius)[3m:5s])
+        legend: "média de abs(erro) (MAE)"
+  - title: "⚠️ 7. Casos especiais (consultas instantâneas com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: abs(vector(-5.5))
+        legend: "abs(-5.5)"
+      - expr: abs(vector(3))
+        legend: "abs(3)"
+      - expr: abs(vector(-0))
+        legend: "abs(-0)"
+      - expr: abs(vector(-Inf))
+        legend: "abs(-Inf)"
+      - expr: abs(vector(NaN))
+        legend: "abs(NaN)"

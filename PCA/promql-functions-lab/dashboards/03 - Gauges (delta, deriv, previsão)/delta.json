@@ -1,0 +1,462 @@
+{
+  "uid": "fn-delta",
+  "title": "delta() — diferença entre o começo e o fim da janela (gauges)",
+  "tags": [
+    "promql-lab",
+    "03-gauges-delta-deriv-previs-o"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "schemaVersion": 41,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "delta() — diferença entre o começo e o fim da janela (gauges)",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.\n\n**Analogia:** um **termômetro** olhado duas vezes: \"às 14h00 estava 50°C, às 14h01 está 56°C → **subiu 6°C**\".\n`delta(gauge[1m])` = **último − primeiro** ponto da janela (extrapolado para a janela inteira). Pode ser **negativo**.\n\nSó para **gauges**. Métricas: `delta_node_hwmon_temp_celsius{host}` (zeus: onda de 5 min 40↔70°C · hera: \\~45°C),\n`delta_container_memory_working_set_bytes` (vaza 1 MiB/s, com picos de +150 MiB em \\~10% dos scrapes) e `delta_http_requests_total` (counter, para a pegadinha).\n\n📘 Guia completo: `functions/delta/README.md`"
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "🟢 1. Temperatura crua (zeus esquenta e esfria a cada 5 min)",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "delta_node_hwmon_temp_celsius",
+          "legendFormat": "{{host}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "🟢 2. delta(...[1m]) — quanto a temperatura mudou no último minuto",
+      "description": "zeus: entre ≈ +18 e ≈ -18 °C/min (positivo esquentando, negativo esfriando). hera: ≈ 0.",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "delta(delta_node_hwmon_temp_celsius[1m])",
+          "legendFormat": "{{host}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "🟡 3. A janela importa: [30s] vs [5m] (zeus)",
+      "description": "[5m] = exatamente um ciclo da onda: começo e fim são iguais, delta ≈ 0 mesmo com a temperatura variando 30°C!",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "delta(delta_node_hwmon_temp_celsius{host=\"zeus\"}[30s])",
+          "legendFormat": "[30s]",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "delta(delta_node_hwmon_temp_celsius{host=\"zeus\"}[5m])",
+          "legendFormat": "[5m] (≈ 0)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "🔴 4. Gauge com picos: delta[2m] (2 pontos) vs deriv[2m]×120 (todos os pontos)",
+      "description": "Vazamento real = 120 MiB em 2 min. Se a 1ª ou a última amostra cair num pico de +150 MiB, delta[2m] pula para ~-30 ou ~270 MiB; deriv[2m]*120 fica perto de 120 MiB.",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "bytes",
+          "min": -67108864,
+          "max": 335544320
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "delta(delta_container_memory_working_set_bytes[2m])",
+          "legendFormat": "delta[2m] (nervoso)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "deriv(delta_container_memory_working_set_bytes[2m]) * 120",
+          "legendFormat": "deriv[2m]*120 (estável)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "🟡 5. Pegadinha: delta() em COUNTER com reset",
+      "description": "Counter +4/s, reseta a cada 3 min. delta[1m] ≈ 240, mas despenca para ≈ -520 a -620 no minuto após cada reset. increase[1m] fica em 240.",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "delta(delta_http_requests_total[1m])",
+          "legendFormat": "delta[1m] (errado em counter)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "increase(delta_http_requests_total[1m])",
+          "legendFormat": "increase[1m] (certo)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "bargauge",
+      "title": "🟢 6. Variação da temperatura no último minuto (agora)",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlYlRd"
+          },
+          "custom": {},
+          "unit": "celsius",
+          "min": -20,
+          "max": 20
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "delta(delta_node_hwmon_temp_celsius[1m])",
+          "legendFormat": "{{host}}",
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Todas as funções",
+      "type": "dashboards",
+      "tags": [
+        "promql-lab"
+      ],
+      "asDropdown": true
+    }
+  ]
+}

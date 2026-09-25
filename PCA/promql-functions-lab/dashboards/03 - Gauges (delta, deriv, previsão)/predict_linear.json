@@ -1,0 +1,463 @@
+{
+  "uid": "fn-predict_linear",
+  "title": "predict_linear() — onde o gauge vai estar daqui a N segundos",
+  "tags": [
+    "promql-lab",
+    "03-gauges-delta-deriv-previs-o"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "schemaVersion": 41,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "predict_linear() — onde o gauge vai estar daqui a N segundos",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.\n\n**Analogia:** o **marcador de combustível** + o computador de bordo: \"no ritmo dos últimos 5 min, o tanque **zera em 40 km**\".\n`predict_linear(gauge[janela], t)` passa uma reta (regressão linear) pelos pontos da janela e diz **quanto o gauge valerá daqui a `t` segundos**.\n\nO alerta clássico: `predict_linear(node_filesystem_avail_bytes[6h], 4*3600) < 0` → \"**disco cheio em menos de 4h**\".\nMétrica: `predict_linear_node_filesystem_avail_bytes{mountpoint}`: `/` estável (com ruído) · `/var/log` enche em \\~10h · `/data` enche em \\~2h ·\n`/scratch` job batch que enche em \\~8 min (a cada 10 min).\n\n📘 Guia completo: `functions/predict_linear/README.md`"
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "🟢 1. Espaço livre cru por mountpoint",
+      "description": "/ ≈ 40 GiB parado · /var/log e /data descendo devagar · /scratch despenca de 20 GiB a 0 em ~8.5 min e é limpo a cada 10 min.",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear_node_filesystem_avail_bytes",
+          "legendFormat": "{{mountpoint}}",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "🟢 2. /scratch: agora vs previsão para DAQUI A 5 MIN",
+      "description": "A previsão (reta do último 1m, projetada 300s) cruza o zero ~5 min ANTES do disco realmente encher. Esse é o aviso antecipado. (Eixo cortado em -15/+25 GiB: na limpeza do disco a reta dá um salto enorme.)",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "bytes",
+          "min": -16106127360,
+          "max": 26843545600,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear_node_filesystem_avail_bytes{mountpoint=\"/scratch\"}",
+          "legendFormat": "livre agora",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint=\"/scratch\"}[1m], 300)",
+          "legendFormat": "previsão daqui 5 min",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "bargauge",
+      "title": "🔴 3. Alerta clássico: vai encher em menos de 4h? (predict_linear(...[5m], 4*3600) < 0)",
+      "description": "Só aparece quem zera em < 4h: /data sempre (≈ -2 a -12 GiB) e /scratch enquanto o job enche (muito negativo). / e /var/log não aparecem.",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlYlRd"
+          },
+          "custom": {},
+          "unit": "bytes",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear(predict_linear_node_filesystem_avail_bytes[5m], 4*3600) < 0",
+          "legendFormat": "{{mountpoint}}",
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "bargauge",
+      "title": "🔴 4. Horas até encher = livre / -deriv (agora)",
+      "description": "/var/log ≈ 9-11h · /data ≈ 0.5-3.4h · /scratch ≈ minutos (0.0x h). Só mountpoints que estão perdendo espaço.",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlYlRd"
+          },
+          "custom": {},
+          "unit": "h",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear_node_filesystem_avail_bytes{mountpoint!=\"/\"}\n  / -deriv(predict_linear_node_filesystem_avail_bytes{mountpoint!=\"/\"}[5m]) / 3600\nand deriv(predict_linear_node_filesystem_avail_bytes{mountpoint!=\"/\"}[5m]) < 0",
+          "legendFormat": "{{mountpoint}}",
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "🟡 5. /var/log: horizonte de 4h (ok) vs 24h (alerta!)",
+      "description": "Previsão para daqui 4h ≈ +10 GiB (tranquilo). Para daqui 24h ≈ -25 GiB (vai encher amanhã). O t escolhe o quão cedo você quer saber.",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint=\"/var/log\"}[5m], 4*3600)",
+          "legendFormat": "daqui 4h",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint=\"/var/log\"}[5m], 24*3600)",
+          "legendFormat": "daqui 24h",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "🟡 6. Pegadinha: janela curta + ruído = previsão maluca ( / em 4h)",
+      "description": "O disco / está parado em 40 GiB, mas com ruído de ±300 MiB. Com [1m] a reta balança e a previsão para 4h oscila dezenas de GiB (às vezes < 0: alarme falso!). Com [10m] fica perto de 40 GiB.",
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint=\"/\"}[1m], 4*3600)",
+          "legendFormat": "[1m] (maluca)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint=\"/\"}[10m], 4*3600)",
+          "legendFormat": "[10m] (estável)",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Todas as funções",
+      "type": "dashboards",
+      "tags": [
+        "promql-lab"
+      ],
+      "asDropdown": true
+    }
+  ]
+}

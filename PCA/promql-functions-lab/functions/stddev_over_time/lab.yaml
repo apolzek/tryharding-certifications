@@ -1,0 +1,95 @@
+function: stddev_over_time
+title: "stddev_over_time() — o quanto um gauge 'balança' na janela"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** dois ônibus chegam **em média** a cada 10 min. Um chega sempre entre 9 e 11 min; o outro,
+  entre 2 e 18 min. A média é igual, mas a **confiabilidade** não. O desvio padrão mede essa "tremedeira".
+
+  `stddev_over_time(gauge[janela])` → desvio padrão **populacional** das amostras da janela, na **mesma unidade** do dado.
+  Métrica do cenário: `stddev_over_time_http_requests_per_second{service}` (imita uma recording rule de `rate(http_requests_total)`):
+  `checkout` (100±5 req/s, com **ataque de bot** de ~160 req/s por 20s a cada 4 min) e `search` (100±40 req/s, barulhento).
+  Clássico **z-score**: `(x − avg_over_time) / stddev_over_time` — detecção de anomalia sem limiar fixo.
+panels:
+  - title: "1. Gauge cru — mesma média, comportamento diferente"
+    description: "checkout: faixa estreita em 100 req/s (com um degrau a 160 a cada 4 min). search: nuvem larga entre 60 e 140 req/s."
+    unit: reqps
+    queries:
+      - expr: stddev_over_time_http_requests_per_second
+        legend: "{{service}}"
+  - title: "2. avg_over_time — as médias são praticamente iguais (~100 req/s)"
+    description: "Olhando só a média, os dois serviços parecem idênticos."
+    unit: reqps
+    queries:
+      - expr: avg_over_time(stddev_over_time_http_requests_per_second{service!="legacy"}[5m])
+        legend: "avg {{service}}"
+  - title: "3. stddev_over_time[5m] — a diferença aparece"
+    description: "search ≈ 23 req/s constante. checkout ≈ 3, mas sobe para ~15 enquanto a anomalia está dentro da janela de 5m."
+    unit: reqps
+    queries:
+      - expr: stddev_over_time(stddev_over_time_http_requests_per_second[5m])
+        legend: "stddev {{service}}"
+  - title: "4. Z-score: (x − avg) / stddev — detector de anomalia"
+    description: "Quantos desvios padrão o valor atual está da média. |z| > 3 = anômalo. checkout salta para z ≈ +7 no 1º ponto da anomalia e cai para ≈ +3.7 conforme a própria anomalia 'contamina' avg e stddev. search nunca passa de ~±1.7."
+    queries:
+      - expr: |
+          (stddev_over_time_http_requests_per_second{service!="legacy"} - avg_over_time(stddev_over_time_http_requests_per_second{service!="legacy"}[5m]))
+            / stddev_over_time(stddev_over_time_http_requests_per_second{service!="legacy"}[5m])
+        legend: "z {{service}}"
+    overrides:
+      - matcher: {id: byName, options: "z checkout"}
+        properties: [{id: color, value: {mode: fixed, fixedColor: green}}]
+  - title: "5. Faixa 'normal' (avg ± 2·stddev) do serviço checkout"
+    description: "Bandas de Bollinger: o valor cru sai da faixa quando a anomalia começa."
+    unit: reqps
+    width: 16
+    queries:
+      - expr: stddev_over_time_http_requests_per_second{service="checkout"}
+        legend: "valor"
+      - expr: avg_over_time(stddev_over_time_http_requests_per_second{service="checkout"}[5m]) + 2 * stddev_over_time(stddev_over_time_http_requests_per_second{service="checkout"}[5m])
+        legend: "avg + 2σ"
+      - expr: avg_over_time(stddev_over_time_http_requests_per_second{service="checkout"}[5m]) - 2 * stddev_over_time(stddev_over_time_http_requests_per_second{service="checkout"}[5m])
+        legend: "avg − 2σ"
+  - title: "6. Alerta: |z| > 3 (pontos = quando teria disparado)"
+    description: "Vazio quase sempre; aparece checkout só durante a anomalia. search nunca aparece."
+    width: 8
+    draw: points
+    queries:
+      - expr: |
+          abs(
+            (stddev_over_time_http_requests_per_second{service!="legacy"} - avg_over_time(stddev_over_time_http_requests_per_second{service!="legacy"}[5m]))
+              / stddev_over_time(stddev_over_time_http_requests_per_second{service!="legacy"}[5m])
+          ) > 3
+        legend: "|z| {{service}}"
+        validate: any
+  - title: "7. 🟡 O que dá errado: série constante → σ = 0 → z = NaN"
+    description: "legacy fica parado em 5 req/s: stddev = 0 e o z-score vira 0/0 = NaN. Com o divisor protegido (> 0), a série simplesmente sai do resultado."
+    type: table
+    width: 24
+    height: 6
+    queries:
+      - expr: stddev_over_time(stddev_over_time_http_requests_per_second{service="legacy"}[5m])
+        format: table
+      - expr: |
+          (stddev_over_time_http_requests_per_second{service="legacy"} - avg_over_time(stddev_over_time_http_requests_per_second{service="legacy"}[5m]))
+            / stddev_over_time(stddev_over_time_http_requests_per_second{service="legacy"}[5m])
+        format: table
+      - expr: |
+          (stddev_over_time_http_requests_per_second - avg_over_time(stddev_over_time_http_requests_per_second[5m]))
+            / (stddev_over_time(stddev_over_time_http_requests_per_second[5m]) > 0)
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "σ (legacy)"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "z sem proteção (legacy)"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: displayName, value: "z com (σ > 0)"}]

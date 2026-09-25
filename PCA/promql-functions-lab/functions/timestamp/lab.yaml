@@ -1,0 +1,53 @@
+function: timestamp
+title: "timestamp() — QUANDO a amostra foi coletada"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** o valor é a **carta**; `timestamp()` é o **carimbo do correio** dizendo quando ela foi postada.
+  `time() - timestamp(x)` = **"há quanto tempo não recebo notícia desse sensor"**.
+
+  Métrica: `timestamp_sensor_temperature_celsius{sensor}`: `sala-servidores` (lida a cada scrape de 5s),
+  `estufa-lora` (1 leitura a cada 60s, com timestamp explícito) e `freezer-bateria` (1 leitura a cada **7 min**:
+  some das consultas nos últimos 2 min do ciclo por causa do lookback de 5 min).
+panels:
+  - title: "1. O dado cru: temperatura (o valor)"
+    description: "Olhando só o valor, você NÃO sabe se o dado é fresco. O freezer some de vez em quando (buraco no gráfico)."
+    unit: celsius
+    queries:
+      - expr: timestamp_sensor_temperature_celsius
+        legend: "{{sensor}}"
+  - title: "2. time() - timestamp(x) = idade da última leitura"
+    description: "sala: 0-5s. estufa: dente-de-serra 0→60s. freezer: 0→300s e depois SOME (lookback de 5 min)."
+    unit: s
+    queries:
+      - expr: time() - timestamp(timestamp_sensor_temperature_celsius)
+        legend: "{{sensor}}"
+  - title: "3. Alerta: sensor sem leitura há mais de 90s"
+    description: "Só o freezer, e só enquanto ele ainda está dentro do lookback (90s a 300s de idade)."
+    type: table
+    width: 24
+    height: 6
+    unit: s
+    queries:
+      - expr: time() - timestamp(timestamp_sensor_temperature_celsius) > 90
+        legend: "{{sensor}}"
+        validate: any
+  - title: "4. Idade robusta: max_over_time(timestamp(x)[10m:]) não some"
+    description: "Guardando o maior timestamp visto nos últimos 10 min, a idade do freezer vai até ≈420s em vez de sumir aos 300s."
+    unit: s
+    queries:
+      - expr: time() - max_over_time(timestamp(timestamp_sensor_temperature_celsius)[10m:5s])
+        legend: "{{sensor}}"
+  - title: "5. Pegadinha: timestamp() de uma EXPRESSÃO = hora da avaliação"
+    description: "timestamp(last_over_time(x[10m])) NÃO é o horário da amostra: é o instante avaliado. A idade vira 0 sempre."
+    unit: s
+    queries:
+      - expr: time() - timestamp(last_over_time(timestamp_sensor_temperature_celsius[10m]))
+        legend: "ERRADO {{sensor}}"
+  - title: "6. Idade agora (stat)"
+    type: stat
+    unit: s
+    decimals: 0
+    queries:
+      - expr: time() - timestamp(timestamp_sensor_temperature_celsius)
+        legend: "{{sensor}}"

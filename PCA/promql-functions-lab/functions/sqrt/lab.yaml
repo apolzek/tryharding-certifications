@@ -1,0 +1,71 @@
+function: sqrt
+title: "sqrt() — raiz quadrada: de variância para desvio padrão, RMS e magnitude"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `sqrt()` **desfaz o "ao quadrado"**. Muita estatística eleva as coisas ao quadrado (variância, potência, x²+y²)
+  e o resultado fica numa unidade esquisita (%², V², mm²/s²). A raiz traz de volta para a unidade original: `sqrt(75 %²) ≈ 8.66 %`.
+
+  Métricas: `sqrt_cpu_usage_percent{host}` (calmo 40±2, agitado 50±15), `sqrt_ac_voltage_volts` (pico 311 V) e `sqrt_vibration_mm_s{axis}` (3, 4, 0|12).
+panels:
+  - title: "🟢 1. Variância: stdvar_over_time(cpu[2m]) — unidade %² (difícil de ler)"
+    description: "calmo ≈ 1.3 %², agitado ≈ 75 %². Números 'quadrados' que ninguém entende."
+    decimals: 2
+    queries:
+      - expr: stdvar_over_time(sqrt_cpu_usage_percent[2m])
+        legend: "variância {{host}}"
+  - title: "🟢 2. sqrt(variância) = desvio padrão (em %) — igual a stddev_over_time"
+    description: "calmo ≈ 1.15, agitado ≈ 8.66. As linhas sqrt(stdvar) e stddev_over_time se sobrepõem perfeitamente."
+    unit: percent
+    decimals: 2
+    queries:
+      - expr: sqrt(stdvar_over_time(sqrt_cpu_usage_percent[2m]))
+        legend: "sqrt(stdvar) {{host}}"
+      - expr: stddev_over_time(sqrt_cpu_usage_percent[2m])
+        legend: "stddev_over_time {{host}}"
+  - title: "🟡 3. Tensão da tomada (cru): senóide de pico ±311 V"
+    unit: volt
+    queries:
+      - expr: sqrt_ac_voltage_volts
+        legend: "{{phase}}"
+  - title: "🟡 4. Média ≈ 0 V × RMS = sqrt(avg(v²)) ≈ 220 V"
+    description: "A média de uma onda simétrica é zero. O RMS (raiz da média dos quadrados) é o '220 V' da tomada: 311/√2."
+    unit: volt
+    decimals: 1
+    queries:
+      - expr: avg_over_time(sqrt_ac_voltage_volts[2m])
+        legend: "média (avg_over_time)"
+      - expr: sqrt(avg_over_time((sqrt_ac_voltage_volts ^ 2)[2m:5s]))
+        legend: "RMS = sqrt(avg(v²))"
+  - title: "🔴 5. Vibração por eixo (cru)"
+    description: "x = 3, y = 4, z liga (12) e desliga (0) a cada 2 min."
+    unit: "suffix: mm/s"
+    queries:
+      - expr: sqrt_vibration_mm_s
+        legend: "eixo {{axis}}"
+  - title: "🔴 6. Magnitude total = sqrt(x² + y² + z²)"
+    description: "Pitágoras em 3D: 5 com z desligado (3-4-5), 13 com z = 12 (3-4-12-13). Somar os eixos daria 7 e 19 (errado)."
+    unit: "suffix: mm/s"
+    queries:
+      - expr: sqrt(sum by (motor) (sqrt_vibration_mm_s ^ 2))
+        legend: "magnitude {{motor}}"
+      - expr: sum by (motor) (sqrt_vibration_mm_s)
+        legend: "soma simples (errado) {{motor}}"
+  - title: "⚠️ 7. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: sqrt(vector(16))
+        legend: "sqrt(16)"
+      - expr: sqrt(vector(2))
+        legend: "sqrt(2)"
+      - expr: sqrt(vector(0.25))
+        legend: "sqrt(0.25) — cresce!"
+      - expr: sqrt(vector(0))
+        legend: "sqrt(0)"
+      - expr: sqrt(vector(-1))
+        legend: "sqrt(-1)"
+      - expr: sqrt(vector(+Inf))
+        legend: "sqrt(+Inf)"

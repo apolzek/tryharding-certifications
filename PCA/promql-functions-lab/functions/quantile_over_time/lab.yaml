@@ -1,0 +1,128 @@
+function: quantile_over_time
+title: "quantile_over_time() — percentil de um gauge ao longo do tempo"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** anote o tempo de espera na fila do banco a cada 5s e ordene a lista. O **p95** é o valor
+  que fica na posição de 95% da lista ordenada: "95% das vezes esperei **menos** que isso".
+  **Caso real:** p95 do `probe_duration_seconds` (blackbox_exporter) para SLO de latência de um endpoint.
+
+  `quantile_over_time(φ, gauge[janela])` → percentil φ (0..1) **das amostras** da janela, por série.
+  Métrica do cenário: `quantile_over_time_probe_duration_seconds{target}`: `checkout` ≈ 0.2s com probe lento raro de 3s
+  (~3% das amostras) e `catalog` bimodal por causa de cache (80% HIT ≈ 0.1s, 20% MISS ≈ 1.0s).
+panels:
+  - title: "1. Gauge cru — duração de cada probe (blackbox)"
+    height: 11
+    description: "checkout: ~0.2s com agulhas de 3s a cada 150s. catalog: alterna entre ~0.1s (cache HIT) e ~1.0s (MISS, 1 em 5 probes)."
+    unit: s
+    queries:
+      - expr: quantile_over_time_probe_duration_seconds
+        legend: "{{target}}"
+  - title: "2. checkout: p50 / p95 / p99 vs max vs avg (janela 5m)"
+    height: 11
+    description: "max e p99 'veem' o pico de 3s; p95 e p50 ignoram (≈0.25 e ≈0.2). avg fica no meio (≈0.29) e não descreve nada real."
+    unit: s
+    queries:
+      - expr: quantile_over_time(0.5, quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "p50"
+      - expr: quantile_over_time(0.95, quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "p95"
+      - expr: quantile_over_time(0.99, quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "p99"
+      - expr: max_over_time(quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "max"
+      - expr: avg_over_time(quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "avg"
+  - title: "3. catalog (bimodal HIT/MISS): a média mente, a mediana não"
+    description: "avg ≈ 0.28s — um valor que NUNCA acontece. p50 ≈ 0.10s (a experiência típica). p95 ≈ 1.0s (a cauda)."
+    unit: s
+    queries:
+      - expr: avg_over_time(quantile_over_time_probe_duration_seconds{target="catalog"}[5m])
+        legend: "avg"
+      - expr: quantile_over_time(0.5, quantile_over_time_probe_duration_seconds{target="catalog"}[5m])
+        legend: "p50 (mediana)"
+      - expr: quantile_over_time(0.95, quantile_over_time_probe_duration_seconds{target="catalog"}[5m])
+        legend: "p95"
+  - title: "4. Poucas amostras = interpolação estranha: p95 em [1m] vs [5m]"
+    description: "Com [1m] só há ~12 amostras. Quando um pico de 3s entra na janela, o p95 interpola entre 0.25 e 3 e dá ≈1.5s — um valor que não existe."
+    unit: s
+    queries:
+      - expr: quantile_over_time(0.95, quantile_over_time_probe_duration_seconds{target="checkout"}[1m])
+        legend: "p95 [1m] (~12 amostras)"
+      - expr: quantile_over_time(0.95, quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "p95 [5m] (~60 amostras)"
+  - title: "5. Resumo agora por target (p50 / p95 / p99 / max em [5m])"
+    type: table
+    width: 16
+    height: 7
+    unit: s
+    decimals: 3
+    queries:
+      - expr: quantile_over_time(0.5, quantile_over_time_probe_duration_seconds[5m])
+        legend: "p50"
+        format: table
+      - expr: quantile_over_time(0.95, quantile_over_time_probe_duration_seconds[5m])
+        legend: "p95"
+        format: table
+      - expr: quantile_over_time(0.99, quantile_over_time_probe_duration_seconds[5m])
+        legend: "p99"
+        format: table
+      - expr: max_over_time(quantile_over_time_probe_duration_seconds[5m])
+        legend: "max"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "p50"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "p95"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: displayName, value: "p99"}]
+      - matcher: {id: byName, options: "Value #D"}
+        properties: [{id: displayName, value: "max"}]
+  - title: "6. φ fora de [0,1]: +Inf / -Inf"
+    description: "φ > 1 devolve +Inf e φ < 0 devolve -Inf. φ = 0 é o mínimo, φ = 1 é o máximo."
+    type: table
+    width: 8
+    height: 7
+    queries:
+      - expr: quantile_over_time(1.5, quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "φ=1.5"
+        format: table
+      - expr: quantile_over_time(-1, quantile_over_time_probe_duration_seconds{target="checkout"}[5m])
+        legend: "φ=-1"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "φ = 1.5"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "φ = -1"}]
+  - title: "7. 🔴 Caso real: alerta EndpointSlowP95 (p95 do probe > 0.5s em 5m)"
+    description: "Regra de SLO do blackbox. catalog dispara (p95 ≈ 1.0s por causa dos cache MISS). checkout NÃO dispara, apesar dos probes de 3s: são raros demais (<5%)."
+    width: 12
+    queries:
+      - expr: quantile_over_time(0.95, quantile_over_time_probe_duration_seconds[5m]) > 0.5
+        legend: "ALERTA {{target}}"
+    unit: s
+  - title: "8. 🟡 O que dá errado: alertar com max_over_time"
+    description: "Se a regra usasse max_over_time > 0.5, checkout TAMBÉM dispararia (por causa de 1 probe lento a cada 150s): falso positivo."
+    width: 12
+    unit: s
+    queries:
+      - expr: max_over_time(quantile_over_time_probe_duration_seconds[5m]) > 0.5
+        legend: "max > 0.5 {{target}}"

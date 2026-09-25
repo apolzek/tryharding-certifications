@@ -1,0 +1,66 @@
+function: deg
+title: "deg() — de radianos para graus"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** um **tradutor de idioma**. Computadores, bibliotecas de controle e as funções trigonométricas
+  "falam" **radianos** (uma volta = 2π ≈ 6.283); humanos, bússolas e painéis "falam" **graus** (uma volta = 360).
+  `deg(x) = x · 180 / π`. Só multiplica: **não** normaliza para 0..360.
+
+  Métricas: `deg_antenna_azimuth_radians` (radar girando), `deg_robot_arm_joint_radians{joint}` e
+  `deg_motor_shaft_position_radians` (encoder multi-volta).
+
+  **Casos:** 🟢 básico: painéis 1–2 (radar rad → graus) · 🟡 nuance: 4–5 (sem mod 360, rad no lugar de deg) · 🔴 real: 3 (juntas de robô vs limite do fabricante)
+panels:
+  - title: "1. Azimute cru do radar (radianos)"
+    description: "0 → 6.283 (2π) a cada 2 min. Pouco intuitivo: 1.57 é leste? Precisa fazer conta de cabeça."
+    queries:
+      - expr: deg_antenna_azimuth_radians
+        legend: "rad {{antenna}}"
+  - title: "2. deg(azimute): 0° → 360°"
+    description: "Agora dá pra ler: 90° = leste, 180° = sul, 270° = oeste."
+    unit: degree
+    min: 0
+    max: 360
+    queries:
+      - expr: deg(deg_antenna_azimuth_radians)
+        legend: "graus {{antenna}}"
+  - title: "3. Juntas do braço robótico em graus"
+    description: "ombro: ±0.785 rad → ±45°. cotovelo: 0..1.571 rad → 0°..90°."
+    unit: degree
+    queries:
+      - expr: deg(deg_robot_arm_joint_radians)
+        legend: "{{joint}}"
+  - title: "4. Encoder multi-volta: deg() não faz 'mod 360'"
+    description: "O eixo acumula 5 voltas (1800°). Para ver a posição dentro da volta use deg(x) % 360."
+    unit: degree
+    queries:
+      - expr: deg(deg_motor_shaft_position_radians)
+        legend: "deg (acumulado)"
+      - expr: deg(deg_motor_shaft_position_radians) % 360
+        legend: "deg % 360 (posição na volta)"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "deg(π) = 180, deg(1) = 57.2958 (1 radiano), deg(7) = 401.07 (não volta a 41°)."
+    queries:
+      - expr: deg(vector(pi()))
+        legend: "deg(π)"
+      - expr: deg(vector(1))
+        legend: "deg(1)"
+      - expr: deg(vector(2 * pi()))
+        legend: "deg(2π)"
+      - expr: deg(vector(7))
+        legend: "deg(7)"
+      - expr: deg(atan(vector(1)))
+        legend: "deg(atan(1))"
+      - expr: rad(vector(pi()))
+        legend: "ERRADO: rad(π) no lugar de deg(π)"

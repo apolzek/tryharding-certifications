@@ -1,0 +1,76 @@
+function: clamp
+title: "clamp() — prende o valor numa faixa [min, max]"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `clamp(v, min, max)` é o **batente da porta**: a porta abre e fecha à vontade, mas nunca passa do batente.
+  Valores abaixo de `min` viram `min`, acima de `max` viram `max`, e o resto passa intacto. `clamp(108, 0, 100) = 100`, `clamp(-8, 0, 100) = 0`, `clamp(55, 0, 100) = 55`.
+  **`min > max` → resultado VAZIO.**
+
+  Métricas: `clamp_sensor_relative_humidity_percent{sensor}` (sala-1 com defeito: -8%..108%) e `clamp_http_requests_total{code}` (0..0.3% de erros, SLO 99.9%).
+panels:
+  - title: "🟢 1. Umidade crua: sala-1 sai da faixa física (-8% .. 108%)"
+    description: "Umidade relativa só existe entre 0% e 100%. O sensor da sala-1 está mal calibrado."
+    unit: percent
+    queries:
+      - expr: clamp_sensor_relative_humidity_percent
+        legend: "{{sensor}}"
+  - title: "🟢 2. clamp(x, 0, 100): topo e fundo 'achatados'"
+    description: "sala-1 fica com platôs em 0 e em 100. sala-2 (50..70) passa intacta."
+    unit: percent
+    queries:
+      - expr: clamp(clamp_sensor_relative_humidity_percent, 0, 100)
+        legend: "{{sensor}}"
+  - title: "🟡 3. O que o clamp ESCONDE: leituras impossíveis (alerte no cru!)"
+    description: "x < 0 or x > 100 mostra os momentos em que o sensor mentiu. No painel 2 eles viraram 0 e 100 'legítimos'."
+    unit: percent
+    draw: points
+    queries:
+      - expr: clamp_sensor_relative_humidity_percent < 0 or clamp_sensor_relative_humidity_percent > 100
+        legend: "leitura impossível {{sensor}}"
+  - title: "🔴 4. Taxa de erro × orçamento do SLO 99.9% (0.1%)"
+    description: "A taxa de erro oscila entre 0% e 0.3%. Acima de 0.1% o orçamento está sendo estourado."
+    unit: percentunit
+    decimals: 3
+    queries:
+      - expr: sum(rate(clamp_http_requests_total{code="500"}[1m])) / sum(rate(clamp_http_requests_total[1m]))
+        legend: "taxa de erro"
+      - expr: vector(0.001)
+        legend: "orçamento (0.1%)"
+  - title: "🔴 5. Orçamento restante: cru (vai a -200%) × clamp(…, 0, 1)"
+    description: "Cru: 1 - erro/0.001 vai de 100% até -200%. Com clamp: 0%..100%, pronto para um gauge de 'combustível'."
+    unit: percentunit
+    queries:
+      - expr: 1 - (sum(rate(clamp_http_requests_total{code="500"}[1m])) / sum(rate(clamp_http_requests_total[1m]))) / 0.001
+        legend: "cru"
+      - expr: clamp(1 - (sum(rate(clamp_http_requests_total{code="500"}[1m])) / sum(rate(clamp_http_requests_total[1m]))) / 0.001, 0, 1)
+        legend: "clamp(…, 0, 1)"
+  - title: "🔴 6. Orçamento restante (gauge)"
+    type: gauge
+    unit: percentunit
+    min: 0
+    max: 1
+    queries:
+      - expr: clamp(1 - (sum(rate(clamp_http_requests_total{code="500"}[1m])) / sum(rate(clamp_http_requests_total[1m]))) / 0.001, 0, 1)
+        legend: "orçamento restante"
+  - title: "⚠️ 7. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: clamp(vector(108), 0, 100)
+        legend: "clamp(108, 0, 100)"
+      - expr: clamp(vector(-8), 0, 100)
+        legend: "clamp(-8, 0, 100)"
+      - expr: clamp(vector(55), 0, 100)
+        legend: "clamp(55, 0, 100)"
+      - expr: clamp(vector(5), -Inf, +Inf)
+        legend: "clamp(5, -Inf, +Inf)"
+      - expr: clamp(vector(5), NaN, 10)
+        legend: "clamp(5, NaN, 10)"
+      - expr: clamp(vector(NaN), 0, 100)
+        legend: "clamp(NaN, 0, 100)"
+      - expr: clamp(vector(5), 100, 0)
+        legend: "clamp(5, 100, 0) → vazio"
+        validate: empty

@@ -1,0 +1,76 @@
+function: ceil
+title: "ceil() — arredonda PRA CIMA: quantos pods/GB eu preciso?"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `ceil()` é o **elevador** que sempre sobe até o próximo andar inteiro. Se 130 pessoas precisam
+  de vans de 60 lugares, você precisa de **3 vans** (130/60 = 2.17 → `ceil` = 3), não de 2.
+
+  Caso real: **capacity planning**. 1 pod aguenta **60 req/s**; `ceil(sum(rate(http_requests_total[1m])) / 60)` = pods necessários, comparado com `kube_deployment_spec_replicas` (5).
+  Métricas: `ceil_http_requests_total` (30..450 req/s), `ceil_kube_deployment_spec_replicas` e `ceil_storage_used_bytes` (0.3..5.1 GB).
+panels:
+  - title: "🟢 1. Carga: sum(rate(http_requests_total[1m])) e capacidade de 1 pod (60)"
+    description: "A carga oscila de ~30 a ~450 req/s a cada 4 min. Um pod aguenta 60 req/s (valor do teste de carga)."
+    unit: reqps
+    queries:
+      - expr: sum by (service) (rate(ceil_http_requests_total[1m]))
+        legend: "carga {{service}}"
+      - expr: vector(60)
+        legend: "capacidade de 1 pod"
+  - title: "🟡 2. Pods necessários: razão crua × ceil() × round()"
+    description: "carga/60 é fracionado (ex.: 2.17). ceil sobe pra 3 (seguro). round desce pra 2 (subdimensiona!)."
+    decimals: 2
+    queries:
+      - expr: sum by (service) (rate(ceil_http_requests_total[1m])) / 60
+        legend: "razão crua (carga / 60)"
+      - expr: ceil(sum by (service) (rate(ceil_http_requests_total[1m])) / 60)
+        legend: "ceil() → pods necessários"
+      - expr: round(sum by (service) (rate(ceil_http_requests_total[1m])) / 60)
+        legend: "round() → pode faltar pod"
+  - title: "🔴 3. Pods necessários (ceil) × réplicas configuradas (kube_deployment_spec_replicas)"
+    description: "Quando a escada do ceil passa de 5, o deployment está subdimensionado."
+    queries:
+      - expr: ceil(sum(rate(ceil_http_requests_total[1m])) / 60)
+        legend: "necessários (ceil)"
+      - expr: sum(ceil_kube_deployment_spec_replicas)
+        legend: "configurados (spec)"
+  - title: "🔴 4. Alerta: ceil(carga/60) > spec_replicas  (só aparece quando dispara)"
+    description: "Pontos = momentos em que o alerta 'ReplicasInsuficientes' estaria ativo (carga > 300 req/s). O valor é quantos pods seriam necessários."
+    draw: points
+    queries:
+      - expr: ceil(sum(rate(ceil_http_requests_total[1m])) / 60) > scalar(sum(ceil_kube_deployment_spec_replicas))
+        legend: "pods necessários (alerta ativo)"
+  - title: "🟢 5. Armazenamento usado (bytes)"
+    description: "Cresce de 0.3 GB até 5.1 GB em 5 minutos e recomeça."
+    unit: decbytes
+    queries:
+      - expr: ceil_storage_used_bytes
+        legend: "{{bucket}}"
+  - title: "🟢 6. GB cobrados = ceil(bytes / 1e9) — escadinha"
+    description: "A cobrança é por GB iniciado: 1.01 GB já cobra 2 GB. A linha crua fica sempre ABAIXO (ou igual) da escada."
+    decimals: 2
+    queries:
+      - expr: ceil_storage_used_bytes / 1e9
+        legend: "GB usados (cru)"
+      - expr: ceil(ceil_storage_used_bytes / 1e9)
+        legend: "GB cobrados (ceil)"
+  - title: "⚠️ 7. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: ceil(vector(1.49))
+        legend: "ceil(1.49)"
+      - expr: ceil(vector(1.78))
+        legend: "ceil(1.78)"
+      - expr: ceil(vector(2))
+        legend: "ceil(2)"
+      - expr: ceil(vector(-1.5))
+        legend: "ceil(-1.5)"
+      - expr: ceil(vector(-0.5))
+        legend: "ceil(-0.5) = -0"
+      - expr: ceil(vector(+Inf))
+        legend: "ceil(+Inf)"
+      - expr: ceil((vector(0.1) + 0.2) * 10)
+        legend: "ceil((0.1+0.2)*10) ⚠️"

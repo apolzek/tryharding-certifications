@@ -1,0 +1,72 @@
+function: count_over_time
+title: "count_over_time() — quantas amostras cada série tem na janela"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** a **lista de chamada**. O professor não quer saber a nota de ninguém, só **quantas vezes o aluno respondeu "presente"** no mês.
+  `count_over_time(x[1m])` ignora o valor e conta **quantas amostras** a série teve na janela. Com scrape de 5s, uma série saudável tem **12** por minuto.
+
+  Métricas: `count_over_time_node_hwmon_temp_celsius{exporter}` (stable: todo scrape; **flaky: some por 30s a cada 2 min**)
+  e `count_over_time_request_latency_ms` (~80 ms; ~300 ms nos primeiros 20s de cada minuto).
+panels:
+  - title: "1. 🟢 Cru: o exporter flaky tem buracos"
+    description: "stable aparece em todo scrape. flaky some da exposição por 30s a cada 2 min (sem amostra = buraco, não zero)."
+    queries:
+      - expr: count_over_time_node_hwmon_temp_celsius
+        legend: "{{exporter}}"
+  - title: "2. 🟢 count_over_time(x[1m]) — scrapes por minuto"
+    description: "stable = 12 (60s / 5s). flaky cai até 6 quando os 30s de buraco estão na janela."
+    min: 0
+    queries:
+      - expr: count_over_time(count_over_time_node_hwmon_temp_celsius[1m])
+        legend: "{{exporter}} [1m]"
+  - title: "3. 🟡 Janela = período do buraco: [2m]"
+    description: "Com [2m] a janela sempre contém exatamente um buraco: stable = 24, flaky = 18 (constante)."
+    min: 0
+    queries:
+      - expr: count_over_time(count_over_time_node_hwmon_temp_celsius[2m])
+        legend: "{{exporter}} [2m]"
+  - title: "4. 🟡 % de scrapes recebidos: count_over_time / esperado"
+    description: "12 amostras esperadas por minuto. flaky chega a 50%; alerta com < 0.9."
+    unit: percentunit
+    min: 0
+    max: 1
+    queries:
+      - expr: count_over_time(count_over_time_node_hwmon_temp_celsius[1m]) / 12
+        legend: "{{exporter}}"
+  - title: "5. 🟡 count(x) vs count_over_time(x[1m])"
+    description: "count() conta SÉRIES agora (2, cai para 1 quando flaky some). count_over_time conta AMOSTRAS de cada série."
+    queries:
+      - expr: count(count_over_time_node_hwmon_temp_celsius)
+        legend: "count() = séries agora"
+      - expr: count_over_time(count_over_time_node_hwmon_temp_celsius[1m])
+        legend: "count_over_time {{exporter}}"
+  - title: "6. 🔴 Latência crua (ms)"
+    description: "~80 ms, com 20s a ~300 ms no começo de cada minuto (4 scrapes lentos por minuto)."
+    queries:
+      - expr: count_over_time_request_latency_ms
+        legend: "latência"
+      - expr: vector(200)
+        legend: "limite 200 ms"
+  - title: "7. 🔴 Subquery: quantas amostras lentas (> 200 ms) em 5 min"
+    description: "count_over_time((x > 200)[5m:5s]): o filtro remove os pontos rápidos, e count conta o que sobrou. ≈ 20 (4 por minuto)."
+    queries:
+      - expr: count_over_time((count_over_time_request_latency_ms > 200)[5m:5s])
+        legend: "amostras > 200 ms em 5m"
+      - expr: count_over_time(count_over_time_request_latency_ms[5m])
+        legend: "total de amostras em 5m"
+  - title: "8. 🔴 Scrapes no último minuto (stat)"
+    type: stat
+    queries:
+      - expr: count_over_time(count_over_time_node_hwmon_temp_celsius[1m])
+        legend: "{{exporter}}"
+        instant: true
+  - title: "9. ❌ Janela curta: count_over_time(flaky[20s]) SOME no buraco (não vira 0)"
+    description: "Durante os 30s sem amostras a série some do resultado. Um alerta 'count_over_time(x[20s]) < 2' não dispararia: use absent_over_time."
+    min: 0
+    queries:
+      - expr: count_over_time(count_over_time_node_hwmon_temp_celsius{exporter="flaky"}[20s])
+        legend: "flaky [20s]"
+    width: 24
+    height: 7

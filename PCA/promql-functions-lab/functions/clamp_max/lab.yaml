@@ -1,0 +1,74 @@
+function: clamp_max
+title: "clamp_max() — teto: nada fica acima do máximo"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `clamp_max(v, max)` é o **teto baixo do porão**: você pode andar à vontade, mas nada passa da altura do teto.
+  `clamp_max(30, 2) = 2`, `clamp_max(0.25, 2) = 0.25`. Usos: **cortar outliers** que achatam o gráfico e **limitar porcentagens a 100%**.
+  ⚠️ Corta a **informação** também: médias e alertas devem usar o valor cru.
+
+  Métricas: `clamp_max_http_request_duration_seconds_p99` (0.25 s com picos de 30 s) e `clamp_max_container_cpu_usage_seconds_total` ÷ `clamp_max_kube_pod_container_resource_requests` (0.5 core).
+panels:
+  - title: "🟢 1. p99 cru: picos de 30 s achatam o dia a dia (0.25 s) no zero"
+    description: "A cada 2 min, 20 s de timeout (30 s). O resto do tempo, 0.2..0.3 s, vira uma linha colada no eixo."
+    unit: s
+    queries:
+      - expr: clamp_max_http_request_duration_seconds_p99
+        legend: "p99 {{service}}"
+  - title: "🟢 2. clamp_max(p99, 2): o dia a dia volta a aparecer"
+    description: "Os picos viram platôs em 2 s (o teto) e a ondinha de 0.2..0.3 s fica visível."
+    unit: s
+    queries:
+      - expr: clamp_max(clamp_max_http_request_duration_seconds_p99, 2)
+        legend: "clamp_max(p99, 2)"
+  - title: "🟡 3. O que dá errado: média de 4 min do cru (~5.2 s) × do cortado (~0.54 s)"
+    description: "O clamp_max 'some' com 28 s de cada pico. Para SLO/alerta use o cru; o cortado é só para visualização."
+    unit: s
+    queries:
+      - expr: avg_over_time(clamp_max_http_request_duration_seconds_p99[4m])
+        legend: "média do cru"
+      - expr: avg_over_time(clamp_max(clamp_max_http_request_duration_seconds_p99, 2)[4m:5s])
+        legend: "média do clamp_max (subestima!)"
+  - title: "🔴 4. Uso de CPU (cores) × request (0.5 core)"
+    description: "rate(container_cpu_usage_seconds_total[1m]) oscila de 0.2 a 1.2 cores; o request é 0.5."
+    queries:
+      - expr: sum by (pod) (rate(clamp_max_container_cpu_usage_seconds_total[1m]))
+        legend: "uso {{pod}}"
+      - expr: sum by (pod) (clamp_max_kube_pod_container_resource_requests{resource="cpu"})
+        legend: "request {{pod}}"
+  - title: "🔴 5. Uso / request: cru (até 240%) × clamp_max(…, 1)"
+    description: "Cru passa de 100% (o pod usa mais que pediu). clamp_max(…, 1) para um gauge 'quanto do request está em uso'."
+    unit: percentunit
+    queries:
+      - expr: sum by (pod) (rate(clamp_max_container_cpu_usage_seconds_total[1m])) / sum by (pod) (clamp_max_kube_pod_container_resource_requests{resource="cpu"})
+        legend: "cru {{pod}}"
+      - expr: clamp_max(sum by (pod) (rate(clamp_max_container_cpu_usage_seconds_total[1m])) / sum by (pod) (clamp_max_kube_pod_container_resource_requests{resource="cpu"}), 1)
+        legend: "clamp_max(…, 1) {{pod}}"
+  - title: "🔴 6. Request em uso (gauge 0..100%)"
+    type: gauge
+    unit: percentunit
+    min: 0
+    max: 1
+    queries:
+      - expr: clamp_max(sum by (pod) (rate(clamp_max_container_cpu_usage_seconds_total[1m])) / sum by (pod) (clamp_max_kube_pod_container_resource_requests{resource="cpu"}), 1)
+        legend: "{{pod}}"
+  - title: "⚠️ 7. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: clamp_max(vector(30), 2)
+        legend: "clamp_max(30, 2)"
+      - expr: clamp_max(vector(0.25), 2)
+        legend: "clamp_max(0.25, 2)"
+      - expr: clamp_max(vector(-5), 0)
+        legend: "clamp_max(-5, 0)"
+      - expr: clamp_max(vector(5), +Inf)
+        legend: "clamp_max(5, +Inf)"
+      - expr: clamp_max(vector(5), -Inf)
+        legend: "clamp_max(5, -Inf)"
+      - expr: clamp_max(vector(5), NaN)
+        legend: "clamp_max(5, NaN)"
+      - expr: clamp_max(vector(NaN), 2)
+        legend: "clamp_max(NaN, 2)"

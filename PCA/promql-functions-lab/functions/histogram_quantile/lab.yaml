@@ -1,0 +1,94 @@
+function: histogram_quantile
+title: "histogram_quantile() — percentis (p50, p90, p99) a partir de histogramas"
+category: "04 - Histogramas"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** o histograma é a **fila da maratona separada por faixas de tempo de chegada**. `histogram_quantile(0.99, ...)`
+  responde: "até que tempo chegaram **99%** dos corredores?". Funciona com **classic** (`x_bucket{le}`) e **native** (`x`).
+
+  Classic: `histogram_quantile(0.99, sum by (le) (rate(x_bucket[1m])))` · Native: `histogram_quantile(0.99, sum(rate(x[1m])))`.
+  Métrica: `histogram_quantile_http_request_duration_seconds{route,pod}`. A cada **5 min**, por **90s**, o **pod-b** de `/api/users` fica lento
+  (mediana 50ms → 400ms). Extra: `histogram_quantile_coarse_duration_seconds` (buckets clássicos grosseiros: 0.1, 0.5, 1).
+  Legenda dos painéis: 🟢 básico · 🟡 nuance/pegadinha · 🔴 caso real de produção.
+panels:
+  - title: "🟢 1. Heatmap dos buckets clássicos (/api/users)"
+    height: 8
+    description: "Cada coluna é o histograma de um instante. A 'mancha' fica em 25–100ms e, a cada 5 min, uma parte sobe para 250ms–1s (pod-b degradado)."
+    type: heatmap
+    queries:
+      - expr: sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[1m]))
+        legend: "{{le}}"
+        format: heatmap
+  - title: "🟢 2. p50 / p90 / p99 — CLASSIC (sum by (le))"
+    height: 8
+    description: "Normal: p50≈50ms, p90≈95ms, p99≈230ms (inflado pela interpolação linear no bucket 0.1–0.25). Na degradação: p50≈140ms, p90≈600–700ms, p99≈1.6–1.7s."
+    unit: s
+    queries:
+      - expr: histogram_quantile(0.5, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[1m])))
+        legend: "p50 classic"
+      - expr: histogram_quantile(0.9, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[1m])))
+        legend: "p90 classic"
+      - expr: histogram_quantile(0.99, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[1m])))
+        legend: "p99 classic"
+  - title: "🟡 3. p99 CLASSIC vs NATIVE (mesmos dados!)"
+    height: 8
+    description: "Native tem buckets ~9% de largura: p99≈160ms (normal) e ≈1.1–1.2s (degradado), perto do valor real. Classic erra para cima: ≈230ms e ≈1.6–1.7s."
+    unit: s
+    queries:
+      - expr: histogram_quantile(0.99, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[1m])))
+        legend: "p99 classic (x_bucket + le)"
+      - expr: histogram_quantile(0.99, sum(rate(histogram_quantile_http_request_duration_seconds{route="/api/users"}[1m])))
+        legend: "p99 native (sem le!)"
+  - title: "🟡 4. p99 por pod (native: sum by (pod))"
+    height: 8
+    description: "pod-a fica estável em ≈160ms. pod-b salta para ≈1.3–1.5s por 90s a cada 5 min. Quebrar por pod mostra QUEM está lento."
+    unit: s
+    queries:
+      - expr: histogram_quantile(0.99, sum by (pod) (rate(histogram_quantile_http_request_duration_seconds{route="/api/users"}[1m])))
+        legend: "p99 {{pod}}"
+  - title: "🟡 5. p99 por rota (classic: sum by (route, le))"
+    height: 8
+    description: "Com classic, o le TEM que estar no by. /api/report ≈ 0.76s real (classic mostra ~0.9s). /api/users oscila como no painel 2."
+    unit: s
+    queries:
+      - expr: histogram_quantile(0.99, sum by (route, le) (rate(histogram_quantile_http_request_duration_seconds_bucket[1m])))
+        legend: "p99 {{route}}"
+  - title: "🟡 6. ❌ Média dos p99 dos pods ≠ p99 do serviço"
+    height: 8
+    description: "Na degradação: avg(p99 pod-a, p99 pod-b) ≈ (0.16+1.4)/2 ≈ 0.8s, mas o p99 REAL do serviço é ≈1.2s. Quantis não se somam nem se tiram média: agregue os BUCKETS antes."
+    unit: s
+    queries:
+      - expr: avg(histogram_quantile(0.99, sum by (pod) (rate(histogram_quantile_http_request_duration_seconds{route="/api/users"}[1m]))))
+        legend: "❌ avg dos p99 por pod"
+      - expr: histogram_quantile(0.99, sum(rate(histogram_quantile_http_request_duration_seconds{route="/api/users"}[1m])))
+        legend: "✅ p99 do histograma somado"
+  - title: "🟡 7. ❌ Esqueceu o rate(): quantil desde o início do processo"
+    height: 8
+    description: "Sem rate(), o histograma é o acumulado desde que o gerador subiu: a linha quase não reage à degradação. Com rate(..[1m]) você vê o 'agora'. (Se o gerador acabou de reiniciar, o acumulado é curto e as linhas se parecem; espere alguns ciclos.)"
+    unit: s
+    queries:
+      - expr: histogram_quantile(0.99, sum(histogram_quantile_http_request_duration_seconds{route="/api/users"}))
+        legend: "❌ sem rate (acumulado)"
+      - expr: histogram_quantile(0.99, sum(rate(histogram_quantile_http_request_duration_seconds{route="/api/users"}[1m])))
+        legend: "✅ com rate [1m]"
+  - title: "🟡 8. Buckets clássicos grosseiros (0.1, 0.5, 1) erram feio"
+    height: 8
+    description: "Mesmo tráfego do pod-a (p99 real ≈160ms). Classic com buckets 0.1/0.5/1 interpola linearmente dentro de 0.1–0.5 e diz ≈450ms. Native diz ≈160ms."
+    unit: s
+    queries:
+      - expr: histogram_quantile(0.99, rate(histogram_quantile_coarse_duration_seconds_bucket[1m]))
+        legend: "p99 classic grosseiro"
+      - expr: histogram_quantile(0.99, rate(histogram_quantile_coarse_duration_seconds[1m]))
+        legend: "p99 native"
+  - title: "🔴 9. Alerta de SLO: p99 por pod vs limite de 300ms"
+    description: "Regra real: p99 por pod com [5m] > 0.3 por 10m. pod-a ≈ 0.23s: nunca dispara. pod-b ≈ 1.0–1.1s O TEMPO TODO: a janela de 5 min sempre contém os 90s lentos do ciclo de 5 min, então o alerta ficaria ativo direto. A janela define o que o alerta enxerga."
+    unit: s
+    min: 0
+    width: 24
+    height: 8
+    queries:
+      - expr: histogram_quantile(0.99, sum by (pod, le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[5m])))
+        legend: "p99 [5m] {{pod}}"
+      - expr: vector(0.3)
+        legend: "limite do SLO (300ms)"

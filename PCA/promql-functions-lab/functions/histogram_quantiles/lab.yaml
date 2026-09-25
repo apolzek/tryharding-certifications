@@ -1,0 +1,56 @@
+function: histogram_quantiles
+title: "histogram_quantiles() — vários percentis numa query só (experimental)"
+category: "04 - Histogramas"
+time_from: now-15m
+intro: |
+  **Analogia:** em vez de perguntar ao juiz da maratona 3 vezes ("até que tempo chegaram 50%? e 90%? e 99%?"), você entrega
+  **uma lista** e ele responde tudo de uma vez, cada resposta com uma etiqueta. Requer `--enable-feature=promql-experimental-functions`.
+
+  `histogram_quantiles(v, "quantile", 0.5, 0.9, 0.99)` → 3 séries com o label `quantile="0.5"|"0.9"|"0.99"` (de 1 a 10 quantis).
+  Métrica: `histogram_quantiles_api_latency_seconds{service}`. `catalog` estável; `checkout`: a cada **4 min**, por **90s**,
+  5% das requisições levam ~1.5s → o p50 nem se mexe, mas o p99 explode.
+  Legenda dos painéis: 🟢 básico · 🟡 nuance/pegadinha · 🔴 caso real de produção.
+panels:
+  - title: "🟢 1. Uma query, três linhas: checkout (native)"
+    description: "Normal: p50≈120ms, p90≈190ms, p99≈270ms. No 'caminho lento': p50≈123ms, p90≈210ms, p99≈1.8s."
+    unit: s
+    queries:
+      - expr: histogram_quantiles(sum(rate(histogram_quantiles_api_latency_seconds{service="checkout"}[1m])), "quantile", 0.5, 0.9, 0.99)
+        legend: "p{{quantile}}"
+  - title: "🟢 2. O jeito antigo: três histogram_quantile()"
+    description: "Mesmo resultado do painel 1, mas o Prometheus lê e soma o histograma 3 vezes e você mantém 3 queries."
+    unit: s
+    queries:
+      - expr: histogram_quantile(0.5, sum(rate(histogram_quantiles_api_latency_seconds{service="checkout"}[1m])))
+        legend: "p0.5"
+      - expr: histogram_quantile(0.9, sum(rate(histogram_quantiles_api_latency_seconds{service="checkout"}[1m])))
+        legend: "p0.9"
+      - expr: histogram_quantile(0.99, sum(rate(histogram_quantiles_api_latency_seconds{service="checkout"}[1m])))
+        legend: "p0.99"
+  - title: "🟡 3. Classic também funciona (sum by (le))"
+    description: "Com classic, os buckets são 0.1/0.25/0.5/1/2.5: p50≈115ms, p99≈300–380ms normal e ≈2–2.3s no caminho lento (interpolação linear)."
+    unit: s
+    queries:
+      - expr: histogram_quantiles(sum by (le) (rate(histogram_quantiles_api_latency_seconds_bucket{service="checkout"}[1m])), "quantile", 0.5, 0.9, 0.99)
+        legend: "classic p{{quantile}}"
+  - title: "🔴 4. Por serviço, com label de nome próprio (\"pct\")"
+    description: "O 2º argumento escolhe o NOME do label. Aqui 'pct'. catalog: p50≈80ms, p99≈160ms, sempre. checkout p99 salta."
+    unit: s
+    queries:
+      - expr: histogram_quantiles(sum by (service) (rate(histogram_quantiles_api_latency_seconds[1m])), "pct", 0.5, 0.99)
+        legend: "{{service}} p{{pct}}"
+  - title: "🔴 5. Tabela instantânea: todos os quantis por serviço"
+    type: table
+    width: 12
+    height: 8
+    queries:
+      - expr: histogram_quantiles(sum by (service) (rate(histogram_quantiles_api_latency_seconds[2m])), "quantile", 0.5, 0.75, 0.9, 0.95, 0.99, 0.999)
+        instant: true
+  - title: "🟡 6. Mínimo e máximo estimados (quantis 0 e 1)"
+    description: "histogram_quantiles(..., 0, 1) dá o menor e o maior valor ESTIMADO (limites dos buckets). checkout max vai a ~2.5s+ no caminho lento."
+    unit: s
+    width: 12
+    height: 8
+    queries:
+      - expr: histogram_quantiles(sum by (service) (rate(histogram_quantiles_api_latency_seconds[1m])), "quantile", 0, 1)
+        legend: "{{service}} q={{quantile}}"

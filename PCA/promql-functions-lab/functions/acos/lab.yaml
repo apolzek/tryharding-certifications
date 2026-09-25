@@ -1,0 +1,76 @@
+function: acos
+title: "acos() — arco-cosseno: o ângulo da escada"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** uma **escada de 5 m** encostada na parede. Se o pé dela está a 2.5 m da parede,
+  `2.5 / 5 = 0.5` é o cosseno do ângulo com o chão; `acos(0.5)` = **60°**. Se o pé passa de 5 m... a escada **caiu**:
+  não existe ângulo, e `acos()` devolve **NaN**.
+
+  Domínio **[-1, 1]**; resultado em **radianos** entre **0 e π** (use `deg()`).
+  Métricas: `acos_ladder_base_distance_meters{ladder}` e `acos_ladder_length_meters{ladder}` (5 m).
+
+  **Casos:** 🟢 básico: painéis 1–2 (escada → ângulo) · 🟡 nuance: 3–4 e 6 (NaN silencia o alerta) · 🔴 real: 5 (distância do CD pelo GPS da frota)
+panels:
+  - title: "1. Distância do pé da escada até a parede (m)"
+    description: "segura: 1.0..2.5 m. caindo: escorrega de 1 m até 5.5 m a cada 3 min (passa do comprimento 5 m)."
+    unit: lengthm
+    queries:
+      - expr: acos_ladder_base_distance_meters
+        legend: "{{ladder}}"
+      - expr: acos_ladder_length_meters{ladder="segura"}
+        legend: "comprimento da escada"
+  - title: "2. Ângulo com o chão = deg(acos(distância / comprimento))"
+    description: "segura: 60°..78°. caindo: 78° → 0° e depois SOME (NaN) quando distância > 5 m."
+    unit: degree
+    queries:
+      - expr: deg(acos(acos_ladder_base_distance_meters / acos_ladder_length_meters))
+        legend: "{{ladder}}"
+  - title: "3. Alerta de segurança: ângulo < 70° (escada perigosa)"
+    description: "Regra de segurança: escada deve ficar ~75°. Note que NaN não passa em comparação nenhuma: quando a escada cai, o alerta SOME!"
+    unit: degree
+    queries:
+      - expr: deg(acos(acos_ladder_base_distance_meters / acos_ladder_length_meters)) < 70
+        legend: "perigo {{ladder}}"
+  - title: "4. Pegando o NaN: razão > 1 (geometria impossível)"
+    description: "Valor = razão distância/comprimento, só quando passa de 1. É isso que deveria disparar o alerta de 'escada caiu'."
+    queries:
+      - expr: acos_ladder_base_distance_meters / acos_ladder_length_meters > 1
+        legend: "caiu! {{ladder}}"
+        validate: any
+  - title: "5. Caso real: distância do CD via GPS = 6371 · acos(...) (km)"
+    description: "Lei esférica dos cossenos. caminhao-1: 0 → ~84 km (Campinas) → 0. moto-2 parada no CD: 0 km (acos(1) = 0). clamp(-1, 1) protege contra arredondamento > 1."
+    width: 24
+    height: 8
+    unit: lengthkm
+    queries:
+      - expr: |
+          6371 * acos(clamp(
+              sin(rad(acos_vehicle_latitude_degrees)) * scalar(sin(rad(vector(-23.55))))
+            + cos(rad(acos_vehicle_latitude_degrees)) * scalar(cos(rad(vector(-23.55))))
+              * cos(rad(acos_vehicle_longitude_degrees + 46.63))
+          , -1, 1))
+        legend: "{{vehicle}}"
+  - title: "6. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "acos(1) = 0, acos(0) = π/2, acos(-1) = π. acos(1.01) = NaN."
+    queries:
+      - expr: acos(vector(1))
+        legend: "acos(1)"
+      - expr: deg(acos(vector(0.5)))
+        legend: "deg(acos(0.5))"
+      - expr: acos(vector(0))
+        legend: "acos(0) = π/2"
+      - expr: acos(vector(-1))
+        legend: "acos(-1) = π"
+      - expr: acos(vector(1.01))
+        legend: "acos(1.01)"

@@ -1,0 +1,63 @@
+function: atan
+title: "atan() — arco-tangente: ângulo de subida e direção"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** o **ângulo de subida de um avião**. Se ele sobe 3 m para cada 5 m que avança, a inclinação é
+  3/5 = 0.6 e `atan(0.6)` = **31°**. É o inverso de `tan()`: aceita **qualquer número** (sem NaN!) e devolve
+  um ângulo entre **-90° e +90°** (em radianos: -π/2..π/2).
+
+  Métricas: `atan_drone_altitude_meters`, `atan_drone_ground_speed_mps` (5 m/s) e `atan_wind_direction_degrees`
+  (vento oscilando em volta do norte, 345°..15°).
+
+  **Casos:** 🟢 básico: painéis 1–2 (ângulo de subida com deriv) · 🟡 nuance: 3–4 (média de ângulos: avg errado vs atan2) · 🔴 real: 4 (direção média do vento de estação meteorológica)
+panels:
+  - title: "1. Altitude do drone (m)"
+    description: "Sobe 60s a 3 m/s, cruza a 180 m, desce 60s a 3 m/s, fica pousado 60s."
+    unit: lengthm
+    queries:
+      - expr: atan_drone_altitude_meters
+        legend: "{{drone}}"
+  - title: "2. Ângulo de subida = deg(atan(deriv(alt[30s]) / vel_horizontal))"
+    description: "Subindo: atan(3/5) ≈ +31°. Cruzeiro/pousado: 0°. Descendo: ≈ -31°."
+    unit: degree
+    queries:
+      - expr: deg(atan(deriv(atan_drone_altitude_meters[30s]) / atan_drone_ground_speed_mps))
+        legend: "ângulo {{drone}}"
+  - title: "3. Vento em volta do norte (graus): o valor pula 359 ↔ 0"
+    description: "O vento vem do NORTE o tempo todo, mas o número salta entre ~345 e ~15."
+    unit: degree
+    queries:
+      - expr: atan_wind_direction_degrees
+        legend: "{{station}}"
+  - title: "4. Média de ângulos: avg_over_time (ERRADO) vs atan2 (certo)"
+    description: "avg_over_time dá ~180° (SUL!). A média vetorial com sin/cos + operador atan2 acerta: ~0° (norte)."
+    unit: degree
+    queries:
+      - expr: avg_over_time(atan_wind_direction_degrees[2m])
+        legend: "avg_over_time ingênuo"
+      - expr: deg(avg_over_time(sin(rad(atan_wind_direction_degrees))[2m:5s]) atan2 avg_over_time(cos(rad(atan_wind_direction_degrees))[2m:5s]))
+        legend: "atan2(média sin, média cos)"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "atan nunca dá NaN para números finitos ou ±Inf: atan(+Inf) = π/2. atan(1) = 45°."
+    queries:
+      - expr: deg(atan(vector(1)))
+        legend: "deg(atan(1))"
+      - expr: deg(atan(vector(0.6)))
+        legend: "deg(atan(3/5))"
+      - expr: atan(vector(+Inf))
+        legend: "atan(+Inf)"
+      - expr: atan(vector(-Inf))
+        legend: "atan(-Inf)"
+      - expr: deg(atan(vector(-1)))
+        legend: "deg(atan(-1))"

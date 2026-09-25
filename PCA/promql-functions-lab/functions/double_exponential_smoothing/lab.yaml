@@ -1,0 +1,62 @@
+function: double_exponential_smoothing
+title: "double_exponential_smoothing() — suavizar ruído sem perder a tendência"
+category: "03 - Gauges (delta, deriv, previsão)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** um **piloto de avião** olhando o altímetro que treme com a turbulência. Ele não reage a cada tremida (**sf**, *smoothing factor*:
+  quanto confiar no valor novo) mas percebe que o avião está **subindo** e antecipa (**tf**, *trend factor*: quanto confiar na tendência).
+
+  `double_exponential_smoothing(gauge[janela], sf, tf)` (antigo `holt_winters`, também chamado "Holt linear"). **Experimental**: precisa de
+  `--enable-feature=promql-experimental-functions`. `0 < sf < 1` e `0 < tf < 1`. Métricas: `double_exponential_smoothing_node_load1`
+  (rampa 1→7→1 em 6 min, ruído ±1.2) e `double_exponential_smoothing_probe_duration_seconds` (degrau 0.1s ↔ 0.3s a cada 2 min).
+panels:
+  - title: "🟢 1. load1 cru (ruidoso) vs suavizado (sf=0.3, tf=0.3)"
+    description: "O cru treme ±1.2 em volta da rampa. A linha suavizada segue a rampa 1→7→1 quase sem atraso e sem a tremedeira."
+    queries:
+      - expr: double_exponential_smoothing_node_load1
+        legend: "cru"
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.3, 0.3)
+        legend: "DES sf=0.3 tf=0.3"
+  - title: "🟡 2. sf (suavização): sf=0.1 liso e atrasado vs sf=0.8 nervoso"
+    description: "tf fixo em 0.1. sf baixo = dá mais peso ao passado (liso, mas corta os picos e atrasa). sf alto = quase o dado cru."
+    queries:
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.1, 0.1)
+        legend: "sf=0.1 (liso/atrasado)"
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.8, 0.1)
+        legend: "sf=0.8 (nervoso)"
+  - title: "🟡 3. tf (tendência): tf=0.1 vs tf=0.5 com sf=0.1"
+    description: "Com o mesmo sf=0.1, aumentar o tf faz a curva 'entender' que está subindo/descendo e alcançar a rampa. tf=0.1 fica para trás."
+    queries:
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.1, 0.1)
+        legend: "tf=0.1 (ignora tendência)"
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.1, 0.5)
+        legend: "tf=0.5 (segue tendência)"
+  - title: "🟡 4. DES vs avg_over_time[2m]: a média móvel atrasa na rampa"
+    description: "A média simples olha 2 min para trás e fica 'no meio' da rampa (atrasada ~1 min). O DES projeta a tendência e fica em cima."
+    queries:
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.3, 0.3)
+        legend: "DES sf=0.3 tf=0.3"
+      - expr: avg_over_time(double_exponential_smoothing_node_load1[2m])
+        legend: "avg_over_time[2m]"
+  - title: "🔴 5. Degrau (probe 0.1s ↔ 0.3s): tf alto dá overshoot"
+    description: "Depois da virada, tf=0.9 passa do ponto (≈0.38s na subida, ≈0.03s na descida) antes de acomodar. tf=0.1 chega mais devagar, sem exagero."
+    unit: s
+    width: 24
+    queries:
+      - expr: double_exponential_smoothing_probe_duration_seconds
+        legend: "cru"
+      - expr: double_exponential_smoothing(double_exponential_smoothing_probe_duration_seconds[2m], 0.3, 0.1)
+        legend: "sf=0.3 tf=0.1"
+      - expr: double_exponential_smoothing(double_exponential_smoothing_probe_duration_seconds[2m], 0.3, 0.9)
+        legend: "sf=0.3 tf=0.9 (overshoot)"
+  - title: "🟡 6. ERRADO: janela curta demais ([30s]) — pior que o dado cru"
+    description: "Com só 6 amostras, a tendência inicial (x1 − x0, puro ruído) domina: a curva [30s] erra MAIS que o próprio dado cru e chega a ficar negativa (load < 0!). A [5m] com os mesmos sf/tf fica em cima da rampa."
+    width: 24
+    queries:
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[30s], 0.3, 0.3)
+        legend: "[30s] sf=0.3 tf=0.3 (errado)"
+      - expr: double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.3, 0.3)
+        legend: "[5m] sf=0.3 tf=0.3 (certo)"

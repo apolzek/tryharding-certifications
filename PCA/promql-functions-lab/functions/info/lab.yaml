@@ -1,0 +1,86 @@
+function: info
+title: "info() — enriquecer séries com labels de target_info (sem group_left)"
+category: "09 - Labels e ordenação"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** o **crachá** de cada funcionário tem só nome e matrícula; a **ficha no RH** (target_info) tem cargo, área, cidade. `info()` é o RH "grampeando" a ficha no crachá de cada série, usando `job` + `instance` como matrícula.
+  `info(v, {seletor-de-data-labels})` → adiciona os **data labels** do `target_info` com o mesmo `job`/`instance`. **Experimental.**
+
+  Métricas: `target_info{k8s_cluster_name, k8s_namespace_name, version}` (estilo OpenTelemetry; `version` alterna 1.4.0 ↔ 1.5.0 a cada 3 min), `info_build_info{goversion,revision}` e o counter `info_http_server_requests_total{route}`.
+panels:
+  - title: "🟢 1. A \"ficha do RH\": target_info (valor sempre 1)"
+    type: table
+    height: 5
+    width: 24
+    description: "job e instance vêm do scrape (identificam o alvo); k8s_cluster_name, k8s_namespace_name e version são os DATA labels."
+    overrides: &hide
+      - matcher: {id: byRegexp, options: "^(Time|env|__name__)$"}
+        properties: [{id: custom.hidden, value: true}]
+    queries:
+      - expr: target_info
+  - title: "🟡 2. O jeito clássico: * on(job, instance) group_left(k8s_cluster_name) target_info"
+    unit: reqps
+    description: "Funciona, mas é verboso: você precisa saber o nome do info metric, os labels de identidade e quais labels trazer. /api/orders ≈ 20, /api/users ≈ 5."
+    queries:
+      - expr: |
+          rate(info_http_server_requests_total[1m])
+            * on (job, instance) group_left (k8s_cluster_name)
+          target_info
+        legend: "{{route}} @ {{k8s_cluster_name}}"
+  - title: "🟢 3. Com info(..., {k8s_cluster_name=~\".+\"}): mesmo resultado, sem join"
+    unit: reqps
+    description: "O seletor diz QUAIS data labels trazer. Só k8s_cluster_name é adicionado."
+    queries:
+      - expr: info(rate(info_http_server_requests_total[1m]), {k8s_cluster_name=~".+"})
+        legend: "{{route}} @ {{k8s_cluster_name}}"
+  - title: "🟢 4. info(v) sem 2º argumento: TODOS os data labels do target_info"
+    type: table
+    height: 6
+    width: 24
+    unit: reqps
+    description: "Ganham k8s_cluster_name, k8s_namespace_name e version."
+    overrides: *hide
+    queries:
+      - expr: info(rate(info_http_server_requests_total[1m]))
+  - title: "🟡 5. Data label que muda: req/s por version (1.4.0 ↔ 1.5.0 a cada 3 min)"
+    unit: reqps
+    width: 24
+    height: 8
+    stack: true
+    description: "A cada 3 min o target_info troca de version (deploy/rollback). info() sempre usa a ficha mais nova: a linha 'passa o bastão' de uma versão para a outra, total ≈ 25 req/s."
+    queries:
+      - expr: sum by (version) (info(rate(info_http_server_requests_total[1m])))
+        legend: "version={{version}}"
+  - title: "🟡 6. Outro info metric: {__name__=~\"target_info|info_build_info\"}"
+    type: table
+    height: 5
+    width: 24
+    unit: reqps
+    description: "Por padrão info() só olha target_info. Com um matcher em __name__ ele também traz goversion e revision de info_build_info."
+    overrides: *hide
+    queries:
+      - expr: info(rate(info_http_server_requests_total[1m]), {__name__=~"target_info|info_build_info"})
+  - title: "🟡 7. info(up): o alvo 'prometheus' não tem target_info → volta SEM enriquecimento"
+    type: table
+    height: 6
+    width: 6
+    description: "Sem 2º argumento (ou com matchers que aceitam vazio), séries sem info correspondente são mantidas como estão."
+    overrides: *hide
+    queries:
+      - expr: info(up)
+  - title: "🟡 8. info(up, {k8s_cluster_name=~\".+\"}): o alvo sem info é DESCARTADO"
+    type: table
+    height: 6
+    width: 6
+    description: "Matcher que NÃO aceita string vazia (.+) = 'enriquecimento obrigatório'. up{job=\"prometheus\"} some do resultado."
+    overrides: *hide
+    queries:
+      - expr: info(up, {k8s_cluster_name=~".+"})
+  - title: "🟡 9. ERRADO: rate(...) * target_info sem on()/group_left → VAZIO"
+    type: stat
+    height: 6
+    description: "Sem on(job, instance), o * tenta casar TODOS os labels: route existe de um lado, k8s_cluster_name do outro → nenhum par → No data. (E com on() mas sem group_left seria erro 'many-to-one matching must be explicit'.)"
+    queries:
+      - expr: rate(info_http_server_requests_total[1m]) * target_info
+        validate: empty

@@ -1,0 +1,72 @@
+function: changes
+title: "changes() — quantas vezes o valor mudou"
+category: "02 - Counters (rate, increase...)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** um **placar de futebol**: `changes(placar[90m])` conta **quantas vezes o placar mudou** no jogo,
+  não importa se para cima ou para baixo. Se o valor ficou igual entre duas amostras, não conta.
+
+  Ideal para **gauges "de estado"**: generation de deployment, `probe_success`/`up` (flapping), `process_start_time_seconds` (restarts). Métricas:
+  `changes_kube_deployment_status_observed_generation{deployment}` (api: deploy a cada 2 min · worker: 5 min · legacy: nunca),
+  `changes_probe_success{target}` (frete cai/volta a cada 15s), `changes_process_start_time_seconds{pod}` (api-1 reinicia a cada 3 min)
+  e `changes_http_requests_total` (counter, para a pegadinha).
+panels:
+  - title: "🟢 1. Generation do Deployment (cada degrau = um rollout)"
+    description: "api sobe um degrau a cada 2 min (eixo esquerdo), worker a cada 5 min (eixo direito). legacy fica parado em 42 (escondido para não achatar a escala)."
+    decimals: 0
+    field_defaults:
+      custom:
+        lineInterpolation: stepAfter
+    overrides:
+      - matcher: {id: byName, options: worker}
+        properties:
+          - {id: custom.axisPlacement, value: right}
+    queries:
+      - expr: changes_kube_deployment_status_observed_generation{deployment!="legacy"}
+        legend: "{{deployment}}"
+  - title: "🟢 2. changes(...[10m]) — deploys nos últimos 10 min"
+    description: "api ≈ 5, worker ≈ 2, legacy = 0 (com 10 min de dados; oscila ±1 conforme os degraus entram/saem da janela)."
+    unit: short
+    queries:
+      - expr: changes(changes_kube_deployment_status_observed_generation[10m])
+        legend: "{{deployment}}"
+  - title: "🔴 3. probe_success 0/1 — frete cai e volta (flapping)"
+    description: "pagamentos = 1 sempre. frete alterna 1/0 a cada 15s."
+    queries:
+      - expr: changes_probe_success
+        legend: "{{target}}"
+  - title: "🔴 4. Flapping: changes(probe_success[5m]) > 4"
+    description: "frete ≈ 20 mudanças em 5 min → alerta. pagamentos = 0."
+    unit: short
+    queries:
+      - expr: changes(changes_probe_success[5m])
+        legend: "changes[5m] {{target}}"
+      - expr: changes(changes_probe_success[5m]) > 4
+        legend: "🔥 flapping {{target}}"
+  - title: "🔴 5. Restarts via process_start_time_seconds: changes(...[10m])"
+    description: "api-1 reinicia a cada 3 min → ≈ 3 mudanças em 10 min. api-2 nunca reiniciou → 0."
+    unit: short
+    queries:
+      - expr: changes(changes_process_start_time_seconds[10m])
+        legend: "restarts {{pod}}"
+  - title: "🟡 6. Pegadinha: changes() num counter vivo = nº de amostras - 1"
+    description: "Counter +3/s muda em TODO scrape: changes[1m] ≈ 11 (12 amostras com scrape de 5s). Não diz nada útil; use rate()/increase()."
+    unit: short
+    min: 0
+    queries:
+      - expr: changes(changes_http_requests_total[1m])
+        legend: "changes(counter[1m])"
+      - expr: count_over_time(changes_http_requests_total[1m]) - 1
+        legend: "amostras - 1"
+  - title: "🔴 7. Deploys nos últimos 10 min, por deployment"
+    type: bargauge
+    unit: short
+    width: 24
+    height: 6
+    queries:
+      - expr: changes(changes_kube_deployment_status_observed_generation[10m])
+        legend: "{{deployment}}"
+        instant: true

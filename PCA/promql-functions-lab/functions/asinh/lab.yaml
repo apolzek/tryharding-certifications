@@ -1,0 +1,71 @@
+function: asinh
+title: "asinh() — o 'log simétrico' que aceita zero e negativos"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** uma **lupa para o que é pequeno + zoom out para o que é gigante**, sem ligar para o sinal.
+  `asinh(x)` ≈ `x` perto de zero e ≈ `ln(2x)` para valores grandes, e é **ímpar**: `asinh(-x) = -asinh(x)`.
+  É o "log" que **não quebra** com 0 (ln dá -Inf) nem com negativos (ln dá NaN).
+
+  Métrica: `asinh_queue_net_growth_per_second{queue}`: crescimento líquido (entradas − saídas) de 3 filas com
+  escalas de 5, 2 000 e 50 000 msgs/s.
+
+  **Casos:** 🟢 básico: painéis 1–2 (log simétrico) · 🟡 nuance: 3–4 (ln quebra; sinh desfaz) · 🔴 real: 5–6 (offset de relógio, node_timex_offset_seconds)
+panels:
+  - title: "1. Cru (linear): 'emails' parece zero"
+    description: "eventos domina (±50 000). emails (±5) e relatorios (0 ou 2 000) ficam grudados no zero."
+    queries:
+      - expr: asinh_queue_net_growth_per_second
+        legend: "{{queue}}"
+  - title: "2. asinh(x): as três filas visíveis no mesmo gráfico"
+    description: "eventos: ±11.5. relatorios: 0 → 8.3. emails: ±2.3. Todas cruzam o zero naturalmente."
+    queries:
+      - expr: asinh(asinh_queue_net_growth_per_second)
+        legend: "asinh {{queue}}"
+  - title: "3. ln(x) quebra: NaN nos negativos, -Inf no zero"
+    description: "Metade da onda some (NaN) e 'relatorios' em 0 vira -Inf (fora do gráfico)."
+    queries:
+      - expr: ln(asinh_queue_net_growth_per_second)
+        legend: "ln {{queue}}"
+        validate: any
+  - title: "4. Voltando à unidade: sinh(asinh(x)) = x"
+    description: "sinh é a inversa. Útil p/ calcular numa escala comprimida e voltar para msgs/s."
+    queries:
+      - expr: sinh(asinh(asinh_queue_net_growth_per_second{queue="emails"}))
+        legend: "sinh(asinh(emails))"
+  - title: "5. Caso real: offset do relógio (node_timex_offset_seconds) em ms"
+    description: "Cru: o db-1 (±0.3 ms) é invisível perto do vm-7 (-200..+2000 ms)."
+    unit: ms
+    queries:
+      - expr: asinh_node_timex_offset_seconds * 1000
+        legend: "{{host}}"
+  - title: "6. asinh(offset em ms): os dois servidores legíveis"
+    description: "db-1: ±0.3 ms → ±0.30. vm-7: -200 ms → -6.0; +2000 ms → +8.3. O sinal (adiantado/atrasado) é preservado."
+    queries:
+      - expr: asinh(asinh_node_timex_offset_seconds * 1000)
+        legend: "asinh {{host}}"
+  - title: "7. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "asinh(0) = 0, asinh(1) = 0.88. asinh(1e6) = 14.509 ≈ ln(2e6). Sem NaN para números reais."
+    queries:
+      - expr: asinh(vector(0))
+        legend: "asinh(0)"
+      - expr: asinh(vector(1))
+        legend: "asinh(1)"
+      - expr: asinh(vector(-1))
+        legend: "asinh(-1)"
+      - expr: asinh(vector(1e6))
+        legend: "asinh(1e6)"
+      - expr: ln(vector(2e6))
+        legend: "ln(2e6)"
+      - expr: asinh(vector(-Inf))
+        legend: "asinh(-Inf)"

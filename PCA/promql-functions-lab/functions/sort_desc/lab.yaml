@@ -1,0 +1,70 @@
+function: sort_desc
+title: "sort_desc() — ordenar pelo valor (decrescente): o \"Top N\""
+category: "09 - Labels e ordenação"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é a **tabela do campeonato**: quem tem mais pontos aparece em cima. `sort_desc(v)` ordena do **maior para o menor valor**; não muda valores nem labels.
+
+  ⚠️ Só faz efeito em **consultas instantâneas** (tabela, bar gauge). Em gráficos é ignorado. **NaN vai para o fim** (não para o topo).
+  Métricas: `sort_desc_container_cpu_usage_seconds_total{namespace,pod}` (imita cAdvisor; o 1º lugar muda com o tempo) e `sort_desc_http_requests_total{service,code}`.
+panels:
+  - title: "🟢 1. CPU por pod ao longo do tempo (api-7f9c-a e api-7f9c-b disputam o topo)"
+    unit: short
+    width: 24
+    height: 11
+    description: "rate() do counter de CPU = cores em uso."
+    queries:
+      - expr: sum by (pod) (rate(sort_desc_container_cpu_usage_seconds_total[1m]))
+        legend: "{{pod}}"
+  - title: "🟢 2. sort_desc(): ranking completo, quem mais consome primeiro"
+    type: table
+    height: 9
+    decimals: 3
+    description: "Tabela 'Top pods por CPU' (cores). A 1ª linha é o pod mais alto NESTE instante; compare com o gráfico."
+    overrides: &hide
+      - matcher: {id: byRegexp, options: "^(Time|job|instance|env|__name__)$"}
+        properties: [{id: custom.hidden, value: true}]
+    queries:
+      - expr: sort_desc(sum by (namespace, pod) (rate(sort_desc_container_cpu_usage_seconds_total[1m])))
+  - title: "🔴 3. Top 3: sort_desc(topk(3, ...))"
+    type: bargauge
+    height: 9
+    decimals: 2
+    description: "topk escolhe QUAIS 3; sort_desc garante a ORDEM (topk sozinho não promete ordem)."
+    queries:
+      - expr: sort_desc(topk(3, sum by (pod) (rate(sort_desc_container_cpu_usage_seconds_total[1m]))))
+        legend: "{{pod}}"
+  - title: "🟡 4. Taxa de erro por serviço: NaN vai para o FIM"
+    type: table
+    height: 7
+    unit: percentunit
+    description: "payments 12% → checkout 5% → cart 1% → recommendations NaN (0 req/s = 0/0). O NaN NÃO sobe para o topo."
+    overrides: *hide
+    queries:
+      - expr: |
+          sort_desc(
+            sum by (service) (rate(sort_desc_http_requests_total{code=~"5.."}[1m]))
+              / sum by (service) (rate(sort_desc_http_requests_total[1m]))
+          )
+  - title: "🟡 5. Filtrando o NaN antes de ordenar (x == x)"
+    type: table
+    height: 7
+    unit: percentunit
+    description: "x == x só é falso para NaN. Assim o ranking mostra só serviços com tráfego."
+    overrides: *hide
+    queries:
+      - expr: |
+          sort_desc(
+            (sum by (service) (rate(sort_desc_http_requests_total{code=~"5.."}[1m]))
+              / sum by (service) (rate(sort_desc_http_requests_total[1m])))
+            == (sum by (service) (rate(sort_desc_http_requests_total{code=~"5.."}[1m]))
+              / sum by (service) (rate(sort_desc_http_requests_total[1m])))
+          )
+  - title: "🟡 6. sort_desc() num gráfico: NÃO faz nada (idêntico ao painel 1; veja o ⚠️)"
+    width: 24
+    height: 11
+    description: "Range queries têm ordem fixa. Para ordenar a LEGENDA use 'Legend > Sort by' do Grafana."
+    queries:
+      - expr: sort_desc(sum by (pod) (rate(sort_desc_container_cpu_usage_seconds_total[1m])))
+        legend: "{{pod}}"

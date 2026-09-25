@@ -1,0 +1,68 @@
+function: clamp_min
+title: "clamp_min() — piso: nada fica abaixo do mínimo"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `clamp_min(v, min)` é o **chão** de um prédio: você pode subir quanto quiser, mas não afunda abaixo do térreo.
+  `clamp_min(-6, 0) = 0`, `clamp_min(8, 0) = 8`. Usos clássicos: **zerar negativos depois de uma subtração**, **evitar divisão por zero** (`x / clamp_min(y, 1)`) e **cortar previsões impossíveis**.
+
+  Métricas: `clamp_min_kube_resourcequota{type}` (hard 20 × used 12..26), `clamp_min_kube_deployment_status_replicas_available` (cai a 0) e `clamp_min_node_filesystem_avail_bytes` (40 → 4 GiB em 15 min).
+panels:
+  - title: "🟢 1. Quota de CPU: hard (20) × used (12..26 cores)"
+    description: "A quota foi reduzida para 20, mas o namespace ainda usa até 26 cores."
+    queries:
+      - expr: clamp_min_kube_resourcequota
+        legend: "{{type}}"
+  - title: "🟢 2. Restante = hard - used: cru (até -6) × clamp_min(…, 0)"
+    description: "Cru fica negativo ('sobram -6 cores'). clamp_min(…, 0) mostra 0: não sobrou nada."
+    queries:
+      - expr: clamp_min_kube_resourcequota{type="hard"} - ignoring(type) clamp_min_kube_resourcequota{type="used"}
+        legend: "restante (cru)"
+      - expr: clamp_min(clamp_min_kube_resourcequota{type="hard"} - ignoring(type) clamp_min_kube_resourcequota{type="used"}, 0)
+        legend: "restante clamp_min(…, 0)"
+  - title: "🟡 3. Mensagens por réplica: msgs / réplicas → +Inf quando réplicas = 0"
+    description: "A cada 3 min o deployment fica 30 s sem réplicas: a divisão vira +Inf e o gráfico 'some' nesses trechos."
+    queries:
+      - expr: sum(clamp_min_rabbitmq_queue_messages) / sum(clamp_min_kube_deployment_status_replicas_available)
+        legend: "msgs / réplicas (quebra)"
+      - expr: sum(clamp_min_kube_deployment_status_replicas_available)
+        legend: "réplicas disponíveis"
+  - title: "🟡 4. msgs / clamp_min(réplicas, 1): sempre finito"
+    description: "~200 msgs/réplica normalmente, ~600 quando não há réplica (toda a fila 'para 1 réplica imaginária')."
+    queries:
+      - expr: sum(clamp_min_rabbitmq_queue_messages) / clamp_min(sum(clamp_min_kube_deployment_status_replicas_available), 1)
+        legend: "msgs / clamp_min(réplicas, 1)"
+  - title: "🔴 5. Espaço livre agora × predict_linear(…[2m], 10 min) — previsão NEGATIVA"
+    description: "O disco perde 2.4 GiB/min. A previsão para daqui a 10 min fica negativa (até ~-20 GiB) quando restam < 24 GiB: impossível. (Os 2 min após cada limpeza ficam ocultos: a janela pegaria o salto e a previsão dispararia.)"
+    unit: bytes
+    queries:
+      - expr: clamp_min_node_filesystem_avail_bytes
+        legend: "livre agora"
+      - expr: predict_linear(clamp_min_node_filesystem_avail_bytes[2m], 600) and (clamp_min_node_filesystem_avail_bytes < clamp_min_node_filesystem_avail_bytes offset 2m)
+        legend: "previsto +10 min (cru)"
+  - title: "🔴 6. clamp_min(predict_linear(…), 0): 'o disco vai encher'"
+    description: "A previsão não passa de 0 bytes. Pronto para um painel de 'espaço livre previsto'."
+    unit: bytes
+    queries:
+      - expr: clamp_min(predict_linear(clamp_min_node_filesystem_avail_bytes[2m], 600), 0) and (clamp_min_node_filesystem_avail_bytes < clamp_min_node_filesystem_avail_bytes offset 2m)
+        legend: "previsto +10 min clamp_min(…, 0)"
+  - title: "⚠️ 7. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: clamp_min(vector(-6), 0)
+        legend: "clamp_min(-6, 0)"
+      - expr: clamp_min(vector(8), 0)
+        legend: "clamp_min(8, 0)"
+      - expr: clamp_min(vector(0), 1)
+        legend: "clamp_min(0, 1)"
+      - expr: clamp_min(vector(5), -Inf)
+        legend: "clamp_min(5, -Inf)"
+      - expr: clamp_min(vector(5), +Inf)
+        legend: "clamp_min(5, +Inf)"
+      - expr: clamp_min(vector(5), NaN)
+        legend: "clamp_min(5, NaN)"
+      - expr: clamp_min(vector(NaN), 0)
+        legend: "clamp_min(NaN, 0)"

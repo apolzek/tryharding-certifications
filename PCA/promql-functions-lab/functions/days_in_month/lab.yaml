@@ -1,0 +1,63 @@
+function: days_in_month
+title: "days_in_month() — quantos dias tem o mês (28 a 31, UTC)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `days_in_month()` é o **"30 dias tem novembro..."** do calendário: diz o tamanho do mês do timestamp (28, 29, 30 ou 31).
+  Uso clássico: **projeção de custo mensal**: `gasto_até_agora / day_of_month() * days_in_month()`.
+
+  Métricas: `days_in_month_simulated_clock_timestamp_seconds` (**relógio acelerado**: 1 mês a cada 12s, 2027-2028),
+  `days_in_month_cloud_cost_month_to_date_dollars{team}` (platform ≈40 USD/dia, data ≈25 USD/dia) e `days_in_month_cloud_budget_monthly_dollars{team}` (1000 e 900).
+panels:
+  - title: "1. Relógio acelerado: 31, 28, 31, 30 ... e 29 em fev/2028"
+    description: "Cada degrau = 1 mês (12s). O vale de 28 (fev/2027) e o de 29 (fev/2028) se alternam."
+    decimals: 0
+    queries:
+      - expr: days_in_month(days_in_month_simulated_clock_timestamp_seconds)
+        legend: "dias no mês (acelerado)"
+  - title: "2. Este mês (UTC)"
+    type: stat
+    decimals: 0
+    queries:
+      - expr: days_in_month()
+        legend: "dias no mês"
+      - expr: day_of_month()
+        legend: "dia de hoje"
+      - expr: days_in_month() - day_of_month()
+        legend: "dias restantes"
+  - title: "3. Custo acumulado no mês (dado cru)"
+    description: "Rampa que zera no dia 1 de cada mês (UTC)."
+    unit: currencyUSD
+    queries:
+      - expr: days_in_month_cloud_cost_month_to_date_dollars
+        legend: "{{team}}"
+  - title: "4. Projeção de fim de mês vs orçamento"
+    description: "custo / dia_do_mês × dias_no_mês. platform ≈ 40×dias_no_mês (1200 num mês de 30 dias, estoura 1000). data ≈ 25×dias (750, cabe em 900)."
+    type: bargauge
+    unit: currencyUSD
+    queries:
+      - expr: days_in_month_cloud_cost_month_to_date_dollars / scalar(day_of_month()) * scalar(days_in_month())
+        legend: "{{team}} projeção simples"
+        instant: true
+      - expr: days_in_month_cloud_cost_month_to_date_dollars / scalar(day_of_month() - 1 + hour() / 24 + minute() / 1440) * scalar(days_in_month())
+        legend: "{{team}} projeção precisa"
+        instant: true
+      - expr: days_in_month_cloud_budget_monthly_dollars
+        legend: "{{team}} orçamento"
+        instant: true
+  - title: "5. Pegadinha: sem scalar(), a divisão volta VAZIA"
+    description: "x{team=...} / days_in_month() não casa labels (um lado tem team, o outro não tem label nenhuma). Resultado: nada."
+    type: table
+    width: 24
+    height: 6
+    queries:
+      - expr: days_in_month_cloud_cost_month_to_date_dollars / day_of_month() * days_in_month()
+        legend: "sem scalar()"
+        validate: empty
+  - title: "6. Estilo OpenCost: custo/hora × 24 × days_in_month()"
+    description: "0.096 + 0.096 + 0.34 = 0.532 USD/h. Em setembro (30 dias): 0.532 × 24 × 30 ≈ 383 USD. Em outubro seria ≈ 396."
+    type: stat
+    unit: currencyUSD
+    queries:
+      - expr: sum(days_in_month_node_total_hourly_cost) * 24 * scalar(days_in_month())
+        legend: "projeção mensal do cluster"

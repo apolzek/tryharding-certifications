@@ -1,0 +1,67 @@
+function: max_of
+title: "max_of() — o maior de dois escalares (um \"piso\" dinâmico)"
+category: "10 - Tipos e conversões"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é o **salário mínimo**: "pague o valor calculado, **mas nunca menos que** o mínimo". `max_of(a, b)` compara **dois escalares** e devolve o maior.
+  Serve para aplicar um **piso** a um número calculado. **Experimental** (`promql-experimental-functions`). Só aceita **escalares**: para vetores use `clamp_min`; para várias séries, o agregador `max`.
+
+  Métricas: `max_of_node_cpu_usage_percent{node}`, `max_of_cpu_baseline_percent` (limiar aprendido, 60..95), `max_of_rabbitmq_queue_messages_ready` (0..1000), `max_of_kube_horizontalpodautoscaler_spec_min_replicas` (2) e `max_of_backup_threshold_percent{replica}` (2 séries = armadilha).
+panels:
+  - title: "🟢 1. Baseline aprendido × max_of(baseline, 80)"
+    unit: percent
+    description: "O baseline oscila de 60 a 95. Com max_of(scalar(baseline), 80) o limiar nunca fica abaixo de 80: a parte de baixo da onda é 'aplainada'."
+    queries:
+      - expr: scalar(max_of_cpu_baseline_percent)
+        legend: "baseline (60..95)"
+      - expr: max_of(scalar(max_of_cpu_baseline_percent), 80)
+        legend: "max_of(baseline, 80)"
+  - title: "🔴 2. Alerta de CPU com limiar dinâmico com piso de 80%"
+    unit: percent
+    description: "Linhas: CPU dos nós e o limiar efetivo. Pontos acima do limiar = alerta. node-2 (50..70) NUNCA alerta graças ao piso; sem o piso ele alertaria quando o baseline cai para 60."
+    queries:
+      - expr: max_of_node_cpu_usage_percent
+        legend: "{{node}}"
+      - expr: max_of(scalar(max_of_cpu_baseline_percent), 80)
+        legend: "limiar efetivo"
+  - title: "🟡 3. Lado a lado: quem alerta SEM piso × COM piso"
+    unit: percent
+    draw: points
+    description: "Sem piso (limiar = baseline puro) o node-2 também 'alerta' quando o baseline desce abaixo de 70. Com max_of(..., 80) só o node-1 aparece."
+    queries:
+      - expr: max_of_node_cpu_usage_percent > scalar(max_of_cpu_baseline_percent)
+        legend: "SEM piso: {{node}}"
+      - expr: max_of_node_cpu_usage_percent > max_of(scalar(max_of_cpu_baseline_percent), 80)
+        legend: "COM piso: {{node}}"
+  - title: "🔴 4. Réplicas: ceil(fila/100) × max_of(..., minReplicas=2)"
+    description: "Sem piso as réplicas iriam a 0 quando a fila esvazia (cold start!). Com max_of(..., scalar(minReplicas)) nunca ficam abaixo de 2."
+    queries:
+      - expr: scalar(ceil(max_of_rabbitmq_queue_messages_ready / 100))
+        legend: "desejado (sem piso)"
+      - expr: max_of(scalar(ceil(max_of_rabbitmq_queue_messages_ready / 100)), scalar(max_of_kube_horizontalpodautoscaler_spec_min_replicas))
+        legend: "max_of(desejado, minReplicas)"
+  - title: "🟡 5a. ERRADO: max_of(scalar(métrica com 2 séries), 80) = NaN"
+    type: stat
+    width: 6
+    height: 8
+    description: "max_of_backup_threshold_percent tem 2 réplicas → scalar() = NaN → max_of(NaN, 80) = NaN. O piso NÃO protege contra NaN."
+    queries:
+      - expr: max_of(scalar(max_of_backup_threshold_percent), 80)
+        legend: "max_of(NaN, 80)"
+  - title: "🟡 5b. CERTO: max_of(scalar(max(...)), 80) = 85"
+    type: stat
+    width: 6
+    height: 8
+    description: "Agregando antes, scalar() recebe 1 elemento (85). max_of(85, 80) = 85."
+    queries:
+      - expr: max_of(scalar(max(max_of_backup_threshold_percent)), 80)
+        legend: "max_of(85, 80)"
+  - title: "🟡 6. max_of (escalar) × clamp_min (vetor por nó)"
+    unit: percent
+    width: 12
+    height: 8
+    description: "clamp_min(v, 80) aplica o piso em CADA série e mantém os labels (node-2 vira 80 o tempo todo; node-1 só quando cai abaixo de 80)."
+    queries:
+      - expr: clamp_min(max_of_node_cpu_usage_percent, 80)
+        legend: "clamp_min({{node}}, 80)"

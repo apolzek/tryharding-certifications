@@ -1,0 +1,67 @@
+function: cos
+title: "cos() — cosseno (em radianos!)"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** uma **lanterna** apontada para uma parede. De frente (0°) ela ilumina com força total;
+  inclinada, a luz se espalha e cada ponto recebe menos: a fração que chega é o **cosseno do ângulo**.
+  É exatamente assim que um **painel solar** perde potência.
+
+  `cos(v)` recebe **radianos** e devolve **-1..1**. Métricas: `cos_solar_incidence_angle_degrees{panel}` (graus!),
+  `cos_solar_panel_rated_watts{panel}` (400 W) e `cos_robot_arm_angle_radians` (braço de 2 m girando).
+
+  **Casos:** 🟢 básico: painel 4 (braço robótico x/y) · 🟡 nuance: 3 e 5 (esqueceu o rad(), cos(π/2) ≠ 0) · 🔴 real: 1–2 (potência esperada de painel solar)
+panels:
+  - title: "1. Ângulo de incidência do sol (graus)"
+    description: "Painel fixo: 80° → 0° → 80° a cada 4 min. Tracker: sempre ~5°."
+    unit: degree
+    queries:
+      - expr: cos_solar_incidence_angle_degrees
+        legend: "{{panel}}"
+  - title: "2. Potência esperada = 400 · cos(rad(ângulo))"
+    description: "Fixo: 400 W com sol de frente (0°), ~69 W a 80°. Tracker: ~398 W o tempo todo."
+    unit: watt
+    queries:
+      - expr: cos_solar_panel_rated_watts * cos(rad(cos_solar_incidence_angle_degrees))
+        legend: "{{panel}}"
+  - title: "3. Pegadinha: cos(graus) direto = lixo"
+    description: "Sem rad(), 60 vira '60 radianos'. O resultado oscila sem sentido e até fica negativo (potência negativa?!)."
+    unit: watt
+    queries:
+      - expr: cos_solar_panel_rated_watts{panel="fixo"} * cos(cos_solar_incidence_angle_degrees{panel="fixo"})
+        legend: "ERRADO (sem rad)"
+      - expr: cos_solar_panel_rated_watts{panel="fixo"} * cos(rad(cos_solar_incidence_angle_degrees{panel="fixo"}))
+        legend: "certo (com rad)"
+  - title: "4. Braço robótico: x = 2·cos(θ), y = 2·sin(θ)"
+    description: "cos dá a coordenada horizontal, sin a vertical. As duas ondas são iguais, defasadas de 1/4 de volta."
+    unit: lengthm
+    queries:
+      - expr: 2 * cos(cos_robot_arm_angle_radians)
+        legend: "x = 2·cos(θ)"
+      - expr: 2 * sin(cos_robot_arm_angle_radians)
+        legend: "y = 2·sin(θ)"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "cos(π/2) não é 0 exato (6.1e-17). cos é PAR: cos(-x) = cos(x). cos(±Inf) = NaN."
+    queries:
+      - expr: cos(vector(0))
+        legend: "cos(0)"
+      - expr: cos(rad(vector(60)))
+        legend: "cos(60°)"
+      - expr: cos(vector(pi() / 2))
+        legend: "cos(π/2)"
+      - expr: cos(vector(pi()))
+        legend: "cos(π)"
+      - expr: cos(rad(vector(-60)))
+        legend: "cos(-60°)"
+      - expr: cos(vector(-Inf))
+        legend: "cos(-Inf)"

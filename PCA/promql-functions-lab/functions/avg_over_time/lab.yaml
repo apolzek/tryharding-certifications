@@ -1,0 +1,83 @@
+function: avg_over_time
+title: "avg_over_time() — média de CADA série ao longo do tempo"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** imagine uma **planilha**: cada **linha** é uma série (um pod) e cada **coluna** é um instante (um scrape).
+  `avg_over_time(x[1m])` faz a média **da linha** (→ horizontal, um pod ao longo do tempo) e devolve **uma série por pod**.
+  `avg(x)` faz a média **da coluna** (↓ vertical, todos os pods no mesmo instante) e devolve **uma série só**.
+
+  Métricas do cenário: `avg_over_time_cpu_usage_percent{pod}` (pod-a ~20, pod-b ~50, pod-c ~80, ruído ±15),
+  `avg_over_time_rabbitmq_queue_messages_ready` (onda de 4 min, 20..180) e `avg_over_time_probe_success{service}` (search cai 30s a cada 2 min).
+panels:
+  - title: "1. 🟢 Dado cru — 3 pods, muito ruído"
+    description: "Cada scrape oscila ±15 em volta da média real do pod. Difícil de ler."
+    unit: percent
+    queries:
+      - expr: avg_over_time_cpu_usage_percent
+        legend: "cru {{pod}}"
+  - title: "2. 🟢 avg_over_time(x[1m]) — média HORIZONTAL (cada pod no tempo)"
+    description: "Uma série por pod, suavizada: ≈ 20, 50 e 80. O ruído some, a identidade de cada pod fica."
+    unit: percent
+    queries:
+      - expr: avg_over_time(avg_over_time_cpu_usage_percent[1m])
+        legend: "avg_over_time {{pod}}"
+  - title: "3. 🟢 avg(x) — média VERTICAL (entre pods, em cada instante)"
+    description: "UMA série só, ≈ 50 (média de 20, 50 e 80), ainda ruidosa: o avg() não olha o passado."
+    unit: percent
+    queries:
+      - expr: avg(avg_over_time_cpu_usage_percent)
+        legend: "avg() entre pods"
+  - title: "4. 🟡 Os dois juntos: avg(avg_over_time(x[1m]))"
+    description: "Primeiro suaviza cada pod no tempo, depois tira a média entre pods: uma linha lisa em ≈ 50."
+    unit: percent
+    queries:
+      - expr: avg(avg_over_time_cpu_usage_percent)
+        legend: "avg() cru (ruidoso)"
+      - expr: avg(avg_over_time(avg_over_time_cpu_usage_percent[1m]))
+        legend: "avg(avg_over_time[1m]) (liso)"
+  - title: "5. 🟡 Janela vs período: onda de 4 min com [1m] e [4m]"
+    description: "[1m] segue a onda com atraso e amplitude menor. [4m] = 1 período inteiro → linha reta em ≈ 100."
+    queries:
+      - expr: avg_over_time_rabbitmq_queue_messages_ready
+        legend: "cru"
+      - expr: avg_over_time(avg_over_time_rabbitmq_queue_messages_ready[1m])
+        legend: "avg_over_time [1m]"
+      - expr: avg_over_time(avg_over_time_rabbitmq_queue_messages_ready[4m])
+        legend: "avg_over_time [4m]"
+  - title: "6. 🔴 Disponibilidade: avg_over_time(up 0/1 [10m])"
+    description: "Média de um 0/1 = fração do tempo em 1. checkout = 100%, search ≈ 75% (30s fora a cada 2 min)."
+    unit: percentunit
+    min: 0
+    max: 1
+    queries:
+      - expr: avg_over_time(avg_over_time_probe_success[10m])
+        legend: "{{service}}"
+  - title: "7. 🔴 Cru do health check (0/1)"
+    description: "search cai para 0 durante 30s a cada 2 min."
+    min: 0
+    max: 1
+    queries:
+      - expr: avg_over_time_probe_success
+        legend: "{{service}}"
+  - title: "8. 🔴 SLI agora (stat): disponibilidade nos últimos 10 min"
+    type: stat
+    unit: percentunit
+    decimals: 1
+    queries:
+      - expr: avg_over_time(avg_over_time_probe_success[10m])
+        legend: "{{service}}"
+        instant: true
+  - title: "9. ❌ Alerta de fila cheia com a média: avg_over_time[4m] > 150 nunca dispara"
+    description: "A fila crua chega a ~180, mas a média de 4 min fica em ~100. Para limites, use max_over_time (≈ 180)."
+    queries:
+      - expr: max_over_time(avg_over_time_rabbitmq_queue_messages_ready[4m])
+        legend: "max_over_time[4m] (dispararia)"
+      - expr: avg_over_time(avg_over_time_rabbitmq_queue_messages_ready[4m])
+        legend: "avg_over_time[4m] (nunca dispara)"
+      - expr: vector(150)
+        legend: "limite do alerta = 150"
+    min: 0
+    width: 24
+    height: 7

@@ -1,0 +1,49 @@
+function: minute
+title: "minute() — minuto da hora (0 a 59)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `minute()` é o **ponteiro grande** do relógio: devolve 0-59 de um timestamp. Bom para padrões tipo **cron**
+  ("a cada 10 min", "nos minutos 0-2") e para checar **em que minuto** um job rodou.
+
+  Métricas: `minute_kube_cronjob_status_last_schedule_time{cronjob}` (cleanup a cada 5 min; report nos minutos 2/17/32/47) e
+  `minute_api_errors_ratio` (sobe para ≈20% durante um deploy nos minutos x0-x2 de cada dezena).
+panels:
+  - title: "1. minute() ao longo do tempo"
+    description: "Rampa de 1 em 1 por minuto; volta a 0 na virada da hora. Em Brasília é igual (fuso de hora cheia)."
+    decimals: 0
+    queries:
+      - expr: minute()
+        legend: "minute()"
+      - expr: minute() % 10
+        legend: "minute() % 10 (posição na dezena)"
+  - title: "2. Em que minuto os jobs rodaram?"
+    description: "cleanup: 0,5,10,...,55 (escada de 5 em 5). report: 2,17,32,47."
+    decimals: 0
+    queries:
+      - expr: minute(minute_kube_cronjob_status_last_schedule_time)
+        legend: "{{cronjob}}"
+  - title: "3. Taxa de erro crua (picos no deploy x0-x2)"
+    description: "Picos de ≈20% por 3 min a cada 10 min; ≈1% no resto."
+    unit: percentunit
+    queries:
+      - expr: minute_api_errors_ratio
+        legend: "erro"
+  - title: "4. Mesma taxa, ignorando a janela de deploy: unless on() (minute() % 10 < 3)"
+    description: "Os 3 minutos de deploy viram buracos. O que sobra fica em ≈1%. Repare num espigão de 1 ponto logo no fim do buraco (x3:00): nesse instante minute() já é 3, mas a amostra mais recente (lookback) ainda é a das x2:5x, com 20%."
+    unit: percentunit
+    queries:
+      - expr: minute_api_errors_ratio unless on() (minute() % 10 < 3)
+        legend: "erro (fora do deploy)"
+  - title: "5. O job 'report' rodou no minuto certo?"
+    description: "Checagem de agenda: minute(última execução) % 15 == 2 → 1 = ok."
+    type: stat
+    queries:
+      - expr: minute(minute_kube_cronjob_status_last_schedule_time{cronjob="report"}) % 15 == bool 2
+        legend: "report no horário (1 = ok)"
+  - title: "6. ERRADO: unless sem on() não remove nada"
+    description: "Sem on(), o unless procura séries com os MESMOS labels do lado direito (que não tem labels): não acha, e os picos de 20% continuam lá."
+    unit: percentunit
+    queries:
+      - expr: minute_api_errors_ratio unless (minute() % 10 < 3)
+        legend: "unless SEM on() (picos continuam)"

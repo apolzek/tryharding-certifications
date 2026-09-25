@@ -1,0 +1,74 @@
+function: sgn
+title: "sgn() — só o sinal: +1, 0 ou -1 (subindo, parado, descendo)"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `sgn()` é a **seta** do placar da bolsa: ▲ (+1), ▬ (0) ou ▼ (-1). Ela joga fora o **tamanho** e guarda só a **direção**.
+  `sgn(4.2) = 1`, `sgn(-0.03) = -1`, `sgn(0) = 0`. Clássico: `sgn(deriv(kafka_consumergroup_lag[1m]))` = o consumidor está atrasando ou recuperando?
+
+  Métricas: `sgn_kafka_consumergroup_lag{consumergroup}` (billing sobe/desce, emails parado, payments "tremendo") e `sgn_http_requests_total` (onda de 10 min).
+panels:
+  - title: "🟢 1. Lag dos consumer groups (cru)"
+    description: "billing: triângulo 0→500→0 a cada 4 min. emails: parado em 42. payments: ~100 com ruído."
+    queries:
+      - expr: sgn_kafka_consumergroup_lag
+        legend: "{{consumergroup}}"
+  - title: "🟢 2. deriv(lag[1m]) — velocidade (msgs/s)"
+    description: "billing: +4.2 atrasando, -4.2 recuperando. emails: 0 exato. payments: ruído pequeno em volta de 0."
+    decimals: 2
+    queries:
+      - expr: deriv(sgn_kafka_consumergroup_lag[1m])
+        legend: "{{consumergroup}}"
+  - title: "🟡 3. sgn(deriv(lag[1m])) — tendência ▲ +1 / ▬ 0 / ▼ -1"
+    description: "billing alterna +1/-1 a cada 2 min. emails fica em 0. payments PISCA entre +1 e -1: sgn amplifica ruído!"
+    min: -1.2
+    max: 1.2
+    queries:
+      - expr: sgn(deriv(sgn_kafka_consumergroup_lag[1m]))
+        legend: "{{consumergroup}}"
+  - title: "🔴 4. Tendência com 'zona morta': ignora |deriv| < 0.5 msg/s"
+    description: "Multiplica o sinal por (abs(deriv) > bool 0.5). payments agora fica em 0 (estável de verdade)."
+    min: -1.2
+    max: 1.2
+    queries:
+      - expr: sgn(deriv(sgn_kafka_consumergroup_lag[1m])) * (abs(deriv(sgn_kafka_consumergroup_lag[1m])) > bool 0.5)
+        legend: "{{consumergroup}}"
+  - title: "🔴 5. Tráfego agora × 5 min atrás (req/s)"
+    description: "Onda de 10 min: 'agora' e 'offset 5m' ficam em oposição de fase."
+    unit: reqps
+    queries:
+      - expr: rate(sgn_http_requests_total[1m])
+        legend: "agora"
+      - expr: rate(sgn_http_requests_total[1m] offset 5m)
+        legend: "5 min atrás (offset 5m)"
+  - title: "🔴 6. sgn(agora − 5 min atrás): mais (+1) ou menos (-1) tráfego?"
+    description: "Onda quadrada: +1 quando o tráfego atual é maior que o de 5 min atrás, -1 quando é menor."
+    min: -1.2
+    max: 1.2
+    queries:
+      - expr: sgn(rate(sgn_http_requests_total[1m]) - rate(sgn_http_requests_total[1m] offset 5m))
+        legend: "{{service}}"
+  - title: "🔴 7. Consumer groups atrasando agora"
+    description: "count(sgn(deriv(lag[1m])) == 1): 0 a 2 (billing quando sobe, payments quando o ruído sobe)."
+    type: stat
+    width: 6
+    height: 5
+    queries:
+      - expr: count(sgn(deriv(sgn_kafka_consumergroup_lag[1m])) == 1) or vector(0)
+        legend: "grupos com lag crescendo"
+  - title: "⚠️ 8. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 18
+    height: 5
+    queries:
+      - expr: sgn(vector(42))
+        legend: "sgn(42)"
+      - expr: sgn(vector(-0.0001))
+        legend: "sgn(-0.0001)"
+      - expr: sgn(vector(0))
+        legend: "sgn(0)"
+      - expr: sgn(vector(-Inf))
+        legend: "sgn(-Inf)"
+      - expr: sgn(vector(NaN))
+        legend: "sgn(NaN)"

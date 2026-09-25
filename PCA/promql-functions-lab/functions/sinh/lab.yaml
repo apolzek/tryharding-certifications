@@ -1,0 +1,66 @@
+function: sinh
+title: "sinh() — seno hiperbólico: o amplificador simétrico"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** um **amplificador de pânico**. Desvios pequenos passam quase iguais (`sinh(0.5) = 0.52`), mas
+  desvios grandes são **exponencialmente amplificados** (`sinh(3) = 10`), preservando o **sinal** (+/-).
+  Fórmula: `sinh(x) = (eˣ − e⁻ˣ) / 2`. Nada a ver com ângulos: é uma função "hiperbólica".
+
+  Métricas: `sinh_latency_zscore{service}` (z-score -3..+3), `sinh_powerline_catenary_param_meters` e
+  `sinh_powerline_span_meters` (cabo de energia pendurado).
+
+  **Casos:** 🟢 básico: painéis 1–2 (amplificar z-score) · 🟡 nuance: 5 (overflow, esquecer de normalizar) · 🔴 real: 3–4 (comprimento de cabo de linha de transmissão)
+panels:
+  - title: "1. Z-score cru da latência"
+    description: "checkout oscila entre -3σ e +3σ. search fica em ~0.3σ."
+    queries:
+      - expr: sinh_latency_zscore
+        legend: "{{service}}"
+  - title: "2. sinh(z-score): pequenos quase iguais, grandes explodem"
+    description: "search: 0.3 → 0.30 (igual). checkout: ±3 → ±10.02. A 'barriga' da onda vira um pico pontudo."
+    queries:
+      - expr: sinh(sinh_latency_zscore)
+        legend: "sinh {{service}}"
+      - expr: sinh_latency_zscore{service="checkout"}
+        legend: "linear (referência)"
+  - title: "3. Parâmetro 'a' da catenária do cabo (m)"
+    description: "a = tração horizontal / peso por metro. Frio: cabo esticado (a=400). Quente: dilata (a=150)."
+    unit: lengthm
+    queries:
+      - expr: sinh_powerline_catenary_param_meters
+        legend: "a {{line}}"
+  - title: "4. Comprimento real do cabo = 2a · sinh(vão / 2a)"
+    description: "Vão de 100 m. a=400 → 100.26 m. a=150 → 101.85 m. O cabo 'cresce' ~1.6 m quando esquenta."
+    unit: lengthm
+    decimals: 2
+    queries:
+      - expr: 2 * sinh_powerline_catenary_param_meters * sinh(sinh_powerline_span_meters / (2 * sinh_powerline_catenary_param_meters))
+        legend: "comprimento {{line}}"
+      - expr: sinh_powerline_span_meters
+        legend: "vão (linha reta)"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "sinh é ÍMPAR: sinh(-x) = -sinh(x). Estoura para ±Inf a partir de ~710 (eˣ passa do maior float64)."
+    queries:
+      - expr: sinh(vector(0))
+        legend: "sinh(0)"
+      - expr: sinh(vector(1))
+        legend: "sinh(1)"
+      - expr: sinh(vector(-3))
+        legend: "sinh(-3)"
+      - expr: sinh(vector(710))
+        legend: "sinh(710)"
+      - expr: sinh(vector(-Inf))
+        legend: "sinh(-Inf)"
+      - expr: sinh(sinh_powerline_span_meters)
+        legend: "ERRADO: sinh(vão) sem /2a"

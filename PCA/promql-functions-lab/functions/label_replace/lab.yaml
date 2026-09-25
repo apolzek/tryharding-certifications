@@ -1,0 +1,77 @@
+function: label_replace
+title: "label_replace() — criar/reescrever um label com regex"
+category: "09 - Labels e ordenação"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é o **"Localizar e substituir com regex"** do editor de texto, aplicado a **um label** de cada série:
+  lê o label de origem, aplica a regex e grava o resultado (`$1`, `$nome`...) num label de destino.
+
+  `label_replace(v, "destino", "substituição", "origem", "regex")` → regex **ancorada** (casa o valor **inteiro**). Se **não casar**, a série volta **intacta**. O valor nunca muda.
+  Métricas (imitando node_exporter / cAdvisor / kube-state-metrics): `label_replace_node_cpu_usage_percent{endpoint}`, `label_replace_kube_node_info{node,internal_ip}`,
+  `label_replace_container_memory_working_set_bytes{pod,image}`, `label_replace_http_requests_per_second{service}`, `label_replace_kube_deployment_status_replicas_available{deployment}`.
+panels:
+  - title: "🟢 1. Antes: endpoint é IP:porta (como o instance do node_exporter)"
+    type: table
+    height: 6
+    unit: percent
+    description: "Dado cru. Queremos só o IP, sem a porta :9100."
+    overrides: &hide
+      - matcher: {id: byRegexp, options: "^(Time|job|instance|env|__name__)$"}
+        properties: [{id: custom.hidden, value: true}]
+    queries:
+      - expr: label_replace_node_cpu_usage_percent
+  - title: "🟢 2. Depois: internal_ip extraído com \"(.*):.*\" → $1"
+    type: table
+    height: 6
+    unit: percent
+    description: "Novo label internal_ip=10.0.0.5 / .6 / .7. O endpoint original continua lá."
+    overrides: *hide
+    queries:
+      - expr: label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*")
+  - title: "🔴 3. Join com kube_node_info: CPU por NOME do nó (worker-1 ≈70, worker-2 ≈40, worker-3 ≈20)"
+    unit: percent
+    description: "Caso real: node_exporter só sabe o IP:porta; kube_node_info sabe o nome do nó. label_replace cria internal_ip e o group_left(node) traz o nome."
+    queries:
+      - expr: |
+          label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*")
+            * on (internal_ip) group_left (node)
+          label_replace_kube_node_info
+        legend: "{{node}}"
+  - title: "🔴 4. pod → deployment: memória somada por deployment"
+    unit: bytes
+    description: "Regex (.*)-[a-z0-9]+-[a-z0-9]+ tira os 2 sufixos do pod. checkout ≈ 600 MiB, payments ≈ 640 MiB. redis-0 (StatefulSet) NÃO casa -> fica sem label (deployment=) ≈ 512 MiB."
+    queries:
+      - expr: |
+          sum by (deployment) (
+            label_replace(label_replace_container_memory_working_set_bytes, "deployment", "$1", "pod", "(.*)-[a-z0-9]+-[a-z0-9]+")
+          )
+        legend: "deployment={{deployment}}"
+  - title: "🟡 5. Grupos nomeados: $name@$tag a partir da imagem"
+    type: table
+    unit: bytes
+    description: "Regex .*/(?P<name>[^:]+):(?P<tag>.+) no label image -> app_version=checkout@1.8.2, payments@2.1.0, redis@7.2."
+    overrides: *hide
+    queries:
+      - expr: label_replace(label_replace_container_memory_working_set_bytes, "app_version", "$name@$tag", "image", ".*/(?P<name>[^:]+):(?P<tag>.+)")
+  - title: "🟡 6. Regex ancorada: \"checkout\" NÃO casa com \"checkout-7d9f...\""
+    type: table
+    unit: bytes
+    description: "A regex precisa casar o valor INTEIRO. Nenhuma série ganha o label team: todas voltam inalteradas. Com \"checkout.*\" funcionaria."
+    overrides: *hide
+    queries:
+      - expr: label_replace(label_replace_container_memory_working_set_bytes, "team", "loja", "pod", "checkout")
+  - title: "🔴 7. Join service × deployment: req/s por réplica disponível"
+    description: "requests usa service=..., kube-state-metrics usa deployment=... label_replace copia deployment -> service. checkout 120/3 = 40, payments 60/2 = 30, cart 30/1 = 30."
+    queries:
+      - expr: |
+          label_replace_http_requests_per_second
+            / on (service)
+          label_replace(label_replace_kube_deployment_status_replicas_available, "service", "$1", "deployment", "(.*)")
+        legend: "{{service}} req/s por réplica"
+  - title: "🟡 8. Sem o label_replace o join fica VAZIO (No data)"
+    type: stat
+    description: "À direita ninguém tem service (vale \"\"), à esquerda todos têm -> nenhum par -> vazio. Sem o filtro {deployment=\"checkout\"} é pior: ERRO 'found duplicate series for the match group {}'."
+    queries:
+      - expr: label_replace_http_requests_per_second / on (service) label_replace_kube_deployment_status_replicas_available{deployment="checkout"}
+        validate: empty

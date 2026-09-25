@@ -1,0 +1,64 @@
+function: day_of_month
+title: "day_of_month() — que dia do mês é (1 a 31, em UTC)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `day_of_month()` é a **folhinha de parede**: arranca o número do dia de um timestamp. Sem argumento, usa `time()` (hoje).
+  **Sempre em UTC**: no Brasil (UTC-3), das 21h à meia-noite o Prometheus já está no dia seguinte.
+
+  Métricas: `day_of_month_simulated_clock_timestamp_seconds` (**relógio acelerado**: 1 dia a cada 10s, jan→fev/2027),
+  `day_of_month_invoice_due_timestamp_seconds{customer}` (vencimentos), `day_of_month_billing_pending_invoices` e
+  `day_of_month_js_event_timestamp_milliseconds` (timestamp em ms, pegadinha).
+panels:
+  - title: "1. Hoje: day_of_month() em UTC vs Brasília"
+    description: "Das 21h às 23h59 de Brasília as duas linhas diferem em 1 (UTC já virou o dia)."
+    decimals: 0
+    queries:
+      - expr: day_of_month()
+        legend: "UTC"
+      - expr: day_of_month(vector(time() - 3 * 3600))
+        legend: "Brasília (UTC-3)"
+  - title: "2. Relógio acelerado: 1..31 (janeiro) e 1..28 (fevereiro)"
+    description: "Cada degrau = 1 dia simulado (10s reais). O dente cai para 1 na virada do mês."
+    decimals: 0
+    queries:
+      - expr: day_of_month(day_of_month_simulated_clock_timestamp_seconds)
+        legend: "dia (relógio acelerado)"
+  - title: "3. Alerta só nos 5 primeiros dias do mês (fechamento)"
+    description: "Faturas pendentes AND dia <= 5. A linha só existe nos dias 1-5 do relógio acelerado; some no resto do mês."
+    draw: bars
+    queries:
+      - expr: day_of_month_billing_pending_invoices and on() day_of_month(day_of_month_simulated_clock_timestamp_seconds) <= 5
+        legend: "pendentes (só dias 1-5)"
+  - title: "4. Dia do vencimento de cada fatura"
+    description: "acme 5, globex 15, umbrella 1 (UTC). Mas umbrella vence 01:00 UTC = 22:00 do ÚLTIMO dia do mês em Brasília."
+    type: table
+    width: 24
+    height: 6
+    decimals: 0
+    overrides:
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "dia (UTC)"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "dia (Brasília)"}]
+    queries:
+      - expr: day_of_month(day_of_month_invoice_due_timestamp_seconds)
+        legend: "UTC"
+        format: table
+      - expr: day_of_month(day_of_month_invoice_due_timestamp_seconds - 3 * 3600)
+        legend: "Brasília"
+        format: table
+  - title: "5. Pegadinha: timestamp em milissegundos"
+    description: "Sem dividir por 1000, o Prometheus acha que o evento é do ano ≈58700: o dia sai qualquer coisa (às vezes até acerta por acaso!), o ano denuncia. Com /1000 tudo bate com hoje."
+    type: stat
+    width: 24
+    decimals: 0
+    queries:
+      - expr: day_of_month(day_of_month_js_event_timestamp_milliseconds)
+        legend: "dia ERRADO (ms)"
+      - expr: year(day_of_month_js_event_timestamp_milliseconds)
+        legend: "ano ERRADO (ms)"
+      - expr: day_of_month(day_of_month_js_event_timestamp_milliseconds / 1000)
+        legend: "dia CERTO (/1000)"
+      - expr: year(day_of_month_js_event_timestamp_milliseconds / 1000)
+        legend: "ano CERTO (/1000)"

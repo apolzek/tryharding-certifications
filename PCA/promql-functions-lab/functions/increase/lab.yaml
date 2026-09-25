@@ -1,0 +1,79 @@
+function: increase
+title: "increase() — quanto um counter cresceu na janela"
+category: "02 - Counters (rate, increase...)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** o counter é o **hodômetro**. `increase(x[1h])` responde "**quantos km** eu rodei na última hora?".
+  É exatamente `rate(x[janela]) × segundos da janela`: mesmo cálculo, unidade mais humana (total, não por segundo).
+
+  Compensa resets e **extrapola** até as bordas da janela (por isso dá 5.45 e não 6). Métricas:
+  `increase_http_requests_total{code}` (200: +2/s · 500: +1 a cada 10s), `increase_worker_jobs_processed_total` (2 jobs/s, reinicia a cada 3 min)
+  e `increase_kube_pod_container_status_restarts_total` (checkout reinicia a cada 2 min).
+panels:
+  - title: "🟢 1. Counter cru — requisições acumuladas por código"
+    description: "O total desde sempre. Não responde 'quantas requisições no último minuto?'."
+    queries:
+      - expr: increase_http_requests_total
+        legend: "cru code={{code}}"
+  - title: "🟢 2. increase(...[1m]) — requisições por minuto"
+    description: "200 ≈ 120/min. 500 ≈ 6/min, mas oscilando (5.45 / 6.55) por causa da extrapolação."
+    unit: short
+    queries:
+      - expr: increase(increase_http_requests_total[1m])
+        legend: "code={{code}} no último 1m"
+  - title: "🟡 3. increase = rate × segundos (as linhas se sobrepõem)"
+    description: "increase(x[5m]) e rate(x[5m]) * 300 são o MESMO número (≈ 600). increase é açúcar sintático."
+    unit: short
+    queries:
+      - expr: increase(increase_http_requests_total{code="200"}[5m])
+        legend: "increase[5m]"
+      - expr: rate(increase_http_requests_total{code="200"}[5m]) * 300
+        legend: "rate[5m] * 300"
+  - title: "🟡 4. Extrapolação: erros 500 sobem de 1 em 1, mas o increase não é inteiro"
+    description: "+1 a cada 10s = 6 por minuto. Mas os pontos da janela cobrem ~55s e o Prometheus extrapola para 60s: 5.45 ou 6.55."
+    unit: short
+    decimals: 2
+    queries:
+      - expr: increase(increase_http_requests_total{code="500"}[1m])
+        legend: "increase[1m] code=500"
+      - expr: increase(increase_http_requests_total{code="500"}[5m])
+        legend: "increase[5m] code=500 (≈ 30)"
+  - title: "🟡 5. Counter com reset: cru despenca a cada 3 min"
+    description: "Pod reinicia: o valor volta a 0."
+    queries:
+      - expr: increase_worker_jobs_processed_total
+        legend: "cru {{pod}}"
+  - title: "🟡 6. increase compensa o reset; a subtração ingênua não"
+    description: "increase[1m] ≈ 120 sempre. 'x - x offset 1m' fica ≈ -240 durante o minuto seguinte a cada reset."
+    unit: short
+    queries:
+      - expr: increase(increase_worker_jobs_processed_total[1m])
+        legend: "increase[1m] (certo)"
+      - expr: increase_worker_jobs_processed_total - increase_worker_jobs_processed_total offset 1m
+        legend: "x - x offset 1m (errado)"
+  - title: "🔴 7. Caso real: restarts de container nos últimos 10 min (kube-state-metrics)"
+    description: "checkout-7d9f ≈ 4 a 5 restarts em 10 min (1 a cada 2 min) → alerta. catalog-5b2c = 0."
+    unit: short
+    queries:
+      - expr: increase(increase_kube_pod_container_status_restarts_total[10m])
+        legend: "{{pod}}"
+  - title: "🔴 8. Taxa de erro nos últimos 5 min (500 / total)"
+    type: stat
+    unit: percentunit
+    decimals: 2
+    queries:
+      - expr: sum(increase(increase_http_requests_total{code="500"}[5m])) / sum(increase(increase_http_requests_total[5m]))
+        legend: "erros 5xx"
+        instant: true
+  - title: "🔴 9. Requisições nos últimos 5 min, por código"
+    type: bargauge
+    unit: short
+    width: 24
+    height: 6
+    queries:
+      - expr: sum by (code) (increase(increase_http_requests_total[5m]))
+        legend: "code={{code}}"
+        instant: true

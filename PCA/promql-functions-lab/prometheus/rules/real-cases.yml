@@ -1,0 +1,133 @@
+# Alertas e recording rules de CASOS REAIS, adaptados às métricas fake do lab.
+# Os nomes de alerta imitam os do kube-prometheus / node-mixin / blackbox-exporter
+# (os que caem na PCA). Os `for:` estão curtos para você ver pending -> firing
+# em poucos minutos em http://localhost:9095/alerts.
+#
+# Cada expressão tem, no comentário, a versão "de produção" com a métrica real.
+
+groups:
+  # ------------------------------------------------------------------ RED / SLO
+  - name: http-slo
+    rules:
+      # recording rules: convenção nível:métrica:operações
+      - record: code:lab_http_requests:rate1m
+        expr: sum by (code) (rate(increase_http_requests_total[1m]))
+      # produção: sum by (job, code) (rate(http_requests_total[5m]))
+
+      - record: job:lab_http_errors:ratio_rate1m
+        expr: |
+          sum(code:lab_http_requests:rate1m{code=~"5.."})
+          / sum(code:lab_http_requests:rate1m)
+
+      - alert: HighErrorRate
+        expr: job:lab_http_errors:ratio_rate1m > 0.02
+        for: 1m
+        labels: { severity: page, lesson: rate }
+        annotations:
+          summary: "Taxa de erro 5xx em {{ $value | humanizePercentage }}"
+          description: "Veja functions/rate e functions/increase."
+
+      - alert: LatencyP99SLOBreach
+        # produção: histogram_quantile(0.99, sum by (le, job) (rate(http_request_duration_seconds_bucket[5m]))) > 0.3
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, pod) (rate(histogram_quantile_http_request_duration_seconds_bucket[1m]))
+          ) > 0.3
+        for: 1m
+        labels: { severity: warning, lesson: histogram_quantile }
+        annotations:
+          summary: "p99 de {{ $labels.pod }} = {{ $value | humanizeDuration }} (SLO 300ms)"
+
+      - record: job:lab_requests_under_200ms:ratio_rate1m
+        # "% de requisições boas" (SLI) direto do native histogram
+        expr: histogram_fraction(0, 0.2, sum(rate(histogram_fraction_http_request_duration_seconds[1m])))
+
+  # ------------------------------------------------------------------ node_exporter
+  - name: node
+    rules:
+      - alert: NodeFilesystemFillingUp
+        # produção (node-mixin): predict_linear(node_filesystem_avail_bytes{fstype!=""}[6h], 24*60*60) < 0
+        expr: predict_linear(predict_linear_node_filesystem_avail_bytes[5m], 3600) < 0
+        for: 1m
+        labels: { severity: warning, lesson: predict_linear }
+        annotations:
+          summary: "{{ $labels.mountpoint }} vai encher em menos de 1h"
+
+      - alert: NodeClockSkewDetected
+        # produção: (node_timex_offset_seconds > 0.05 and deriv(node_timex_offset_seconds[5m]) >= 0)
+        #        or (node_timex_offset_seconds < -0.05 and deriv(node_timex_offset_seconds[5m]) <= 0)
+        expr: abs(abs_node_timex_offset_seconds) > 0.05
+        for: 1m
+        labels: { severity: warning, lesson: abs }
+        annotations:
+          summary: "Relógio de {{ $labels.node }} desviado em {{ $value | humanizeDuration }}"
+
+      - alert: ContainerMemoryLeak
+        # produção: deriv(container_memory_working_set_bytes{container!=""}[30m]) > 0 (com for: 2h)
+        expr: deriv(deriv_container_memory_working_set_bytes[5m]) > 500 * 1024
+        for: 2m
+        labels: { severity: warning, lesson: deriv }
+        annotations:
+          summary: "{{ $labels.pod }} crescendo {{ $value | humanize1024 }}B/s (vazamento?)"
+
+  # ------------------------------------------------------------------ Kubernetes
+  - name: kubernetes
+    rules:
+      - alert: KubePodCrashLooping
+        # produção (kube-prometheus antigo): increase(kube_pod_container_status_restarts_total[10m]) > 0
+        expr: increase(increase_kube_pod_container_status_restarts_total[5m]) > 2
+        for: 1m
+        labels: { severity: warning, lesson: increase }
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }} reiniciou {{ $value | printf \"%.0f\" }}x em 5m"
+
+  # ------------------------------------------------------------------ blackbox_exporter
+  - name: blackbox
+    rules:
+      - alert: SSLCertExpiringSoon
+        # produção: probe_ssl_earliest_cert_expiry - time() < 86400 * 7
+        expr: (time_probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        labels: { severity: warning, lesson: time }
+        annotations:
+          summary: "Certificado de {{ $labels.domain }} expira em {{ $value | printf \"%.1f\" }} dias"
+
+      - alert: ProbeFlapping
+        # produção: changes(probe_success[10m]) > 4
+        expr: changes(changes_probe_success[5m]) > 4
+        labels: { severity: warning, lesson: changes }
+        annotations:
+          summary: "{{ $labels.target }} oscilando ({{ $value }} mudanças em 5m)"
+
+  # ------------------------------------------------------------------ batch / cron
+  - name: batch
+    rules:
+      - alert: BatchHeartbeatMissing
+        # produção: absent(up{job="reports-batch"}) ou absent_over_time(job_heartbeat[15m])
+        expr: absent(absent_batch_heartbeat{batch="reports"})
+        for: 30s
+        labels: { severity: critical, lesson: absent }
+        annotations:
+          summary: "Heartbeat do batch 'reports' sumiu"
+
+      - alert: BackupTooOld
+        # produção: time() - backup_last_success_timestamp_seconds > 26 * 3600
+        expr: time() - time_backup_last_success_timestamp_seconds > 2 * 3600
+        labels: { severity: critical, lesson: time }
+        annotations:
+          summary: "Último backup de {{ $labels.backup }} há {{ $value | humanizeDuration }}"
+
+  # ------------------------------------------------------------------ meta-monitoramento
+  - name: meta
+    rules:
+      - alert: TargetDown
+        # clássico da prova: up == 0
+        expr: up == 0
+        for: 30s
+        labels: { severity: critical, lesson: absent }
+        annotations:
+          summary: "{{ $labels.job }}/{{ $labels.instance }} fora do ar"
+      - alert: LabGeneratorMissing
+        expr: absent(up{job="lab"})
+        labels: { severity: critical, lesson: absent }
+        annotations:
+          summary: "Job lab não existe mais no Prometheus"

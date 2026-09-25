@@ -1,0 +1,52 @@
+function: range
+title: "range() — a duração da janela do gráfico (experimental)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `range()` é a **duração do filme** (`end() - start()`), em segundos. É o `$__range` do Grafana, só que dentro do PromQL.
+  Numa janela de 15 min, `range()` = 900. Numa consulta **instantânea**, `range()` = **0**.
+
+  Precisa de `--enable-feature=promql-experimental-functions`. Pode ser usado como **duração**: `increase(x[range()] @ end())` = total do período visível.
+  Métricas: `range_http_requests_total` (≈10 req/s, pico de ≈30 req/s por 60s a cada 7 min) e `range_cpu_usage_ratio` (onda 0.5 ± 0.3).
+panels:
+  - title: "1. range() num gráfico = duração da janela"
+    description: "Linha reta em 900 (15 min). Mude o zoom para 1h: vira 3600."
+    unit: s
+    queries:
+      - expr: range()
+        legend: "range()"
+  - title: "2. % da janela já percorrida: (time() - start()) / range()"
+    description: "Rampa de 0% (borda esquerda) a 100% (borda direita)."
+    unit: percentunit
+    queries:
+      - expr: (time() - start()) / range()
+        legend: "% da janela"
+  - title: "3. CPU vs média da janela visível: avg_over_time(x[range()] @ end())"
+    description: "Linha reta ≈ 0.5: a média de TUDO que está no gráfico."
+    unit: percentunit
+    queries:
+      - expr: range_cpu_usage_ratio
+        legend: "cpu"
+      - expr: avg_over_time(range_cpu_usage_ratio[range()] @ end())
+        legend: "média da janela"
+  - title: "4. Total de requisições no período visível (stat com consulta RANGE)"
+    description: "increase(x[range()] @ end()). Em 15 min: 9000 (10/s × 900s) + 1200 por pico (2 ou 3 picos) ≈ 11400 a 12600. Este stat usa instant: false."
+    type: stat
+    decimals: 0
+    queries:
+      - expr: increase(range_http_requests_total[range()] @ end())
+        legend: "requisições no período"
+        instant: false
+  - title: "5. Numa consulta instantânea: range() = 0"
+    description: "Por isso increase(x[range()]) em stat/alerta dá ERRO 'duration must be greater than 0'."
+    type: stat
+    queries:
+      - expr: range()
+        legend: "range() (instant)"
+  - title: "6. Com vs sem @ end(): constante vs curva"
+    description: "Com @ end(): um número só (total do período visível, linha reta). Sem @ end(): em cada ponto, a janela de 15 min que TERMINA naquele ponto: sobe quando um pico entra, desce quando sai (11400 ↔ 12600). As duas se encontram na borda direita."
+    queries:
+      - expr: increase(range_http_requests_total[range()] @ end())
+        legend: "[range()] @ end()"
+      - expr: increase(range_http_requests_total[range()])
+        legend: "[range()] sem @ end()"

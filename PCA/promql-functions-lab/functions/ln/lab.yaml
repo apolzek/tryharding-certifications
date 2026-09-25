@@ -1,0 +1,70 @@
+function: ln
+title: "ln() — logaritmo natural: taxa de crescimento, tempo de dobra e média geométrica"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `ln(x)` responde "**quanto tempo de juros contínuos** (a 100%) leva para chegar em x?". Ele transforma
+  **multiplicação em soma**: uma curva que dobra sempre no mesmo intervalo vira uma **reta**. `ln(1) = 0`, `ln(e) = 1`, `ln(0) = -Inf`, `ln(-1) = NaN`.
+
+  Métricas: `ln_rabbitmq_queue_messages` (tempestade de retries: 100 → 12 800 em 5 min) e `ln_probe_duration_seconds{target}` (4 sites rápidos + 1 de ~8 s).
+panels:
+  - title: "🟢 1. Fila de retry (cru): parece 'nada, nada... EXPLODIU'"
+    description: "Na escala linear, os primeiros 3 minutos parecem planos. A fila dobra a cada ~43 s o tempo todo."
+    queries:
+      - expr: ln_rabbitmq_queue_messages
+        legend: "{{queue}}"
+  - title: "🟢 2. ln(fila): a exponencial vira uma RETA"
+    description: "De ln(100)=4.6 até ln(12800)=9.46. Inclinação constante = crescimento percentual constante."
+    decimals: 2
+    queries:
+      - expr: ln(ln_rabbitmq_queue_messages)
+        legend: "ln({{queue}})"
+  - title: "🟡 3. Taxa contínua r = deriv(ln(x)[1m:])  (por segundo)"
+    description: "≈ 0.0162 /s, igual do início ao fim da explosão (no gráfico cru a 'velocidade' parecia só aumentar)."
+    decimals: 4
+    queries:
+      - expr: deriv(ln(ln_rabbitmq_queue_messages)[1m:5s])
+        legend: "r {{queue}}"
+  - title: "🔴 4. Tempo de dobra = ln(2) / r = 0.6931 / r  (segundos)"
+    description: "≈ 43 s: 'a fila de retry dobra a cada 43 segundos'. É o número que o on-call precisa ouvir."
+    unit: s
+    decimals: 1
+    queries:
+      - expr: 0.6931 / deriv(ln(ln_rabbitmq_queue_messages)[1m:5s]) > 0
+        legend: "tempo de dobra {{queue}}"
+  - title: "🟢 5. Duração das sondas por site (cru)"
+    description: "4 sites em 20..40 ms, legado em ~8 s. Na escala linear, os rápidos viram uma linha só no zero."
+    unit: s
+    queries:
+      - expr: ln_probe_duration_seconds
+        legend: "{{target}}"
+  - title: "🟡 6. Média aritmética × média geométrica exp(avg(ln(x))) × mediana"
+    description: "avg ≈ 1.62 s (culpa do legado). Geométrica ≈ 0.086 s. Mediana ≈ 0.030 s."
+    unit: s
+    queries:
+      - expr: avg(ln_probe_duration_seconds)
+        legend: "média aritmética"
+      - expr: exp(avg(ln(ln_probe_duration_seconds)))
+        legend: "média geométrica exp(avg(ln))"
+      - expr: quantile(0.5, ln_probe_duration_seconds)
+        legend: "mediana"
+  - title: "⚠️ 7. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: ln(vector(1))
+        legend: "ln(1)"
+      - expr: ln(exp(vector(1)))
+        legend: "ln(e)"
+      - expr: ln(vector(2))
+        legend: "ln(2)"
+      - expr: ln(vector(0))
+        legend: "ln(0)"
+      - expr: ln(vector(-1))
+        legend: "ln(-1)"
+      - expr: ln(vector(+Inf))
+        legend: "ln(+Inf)"
+      - expr: ln(vector(NaN))
+        legend: "ln(NaN)"

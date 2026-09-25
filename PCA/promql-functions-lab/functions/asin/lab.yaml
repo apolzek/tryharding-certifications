@@ -1,0 +1,63 @@
+function: asin
+title: "asin() — arco-seno: do sensor de volta ao ângulo"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** o `sin()` pergunta "com esse ângulo, qual a altura?". O `asin()` faz o caminho **inverso**:
+  "com essa altura (proporção), qual é o ângulo?". Um **inclinômetro** mede quanto da gravidade cai no eixo X
+  (`9.81 · sin(inclinação)`), e `asin(a / 9.81)` devolve a inclinação.
+
+  Domínio: **[-1, 1]**. Fora disso → **NaN**. Resultado em **radianos** entre -π/2 e π/2 (use `deg()`).
+  Métricas: `asin_accelerometer_x_mps2{device}` (guindaste limpo; betoneira com vibração) e `asin_gravity_mps2`.
+
+  **Casos:** 🟢 básico: painéis 1–2 (inclinômetro → ângulo) · 🟡 nuance: 3–5 (fora de [-1,1] = NaN, clamp) · 🔴 real: guindaste/betoneira (alerta de inclinação + sensor inválido)
+panels:
+  - title: "1. Aceleração crua no eixo X (m/s²)"
+    description: "Guindaste: ±8.5 m/s². Betoneira: ~4.9 m/s², mas vibra (picos acima de 9.81) por 40s a cada 5 min."
+    unit: accMS2
+    queries:
+      - expr: asin_accelerometer_x_mps2
+        legend: "{{device}}"
+      - expr: asin_gravity_mps2
+        legend: "g = 9.81 (limite)"
+  - title: "2. Inclinação = deg(asin(a / g))"
+    description: "Guindaste: onda entre -60° e +60°. Betoneira: 30° estável; na vibração aparecem BURACOS (NaN)."
+    unit: degree
+    queries:
+      - expr: deg(asin(asin_accelerometer_x_mps2 / scalar(asin_gravity_mps2)))
+        legend: "{{device}}"
+  - title: "3. Detectando o problema: amostras fora de [-1, 1]"
+    description: "Quantas leituras nos últimos 5 min estavam fora do domínio (viraram NaN)."
+    queries:
+      - expr: count_over_time((abs(asin_accelerometer_x_mps2 / scalar(asin_gravity_mps2)) > 1)[5m:5s])
+        legend: "fora do domínio {{device}}"
+        validate: any
+  - title: "4. Correção: clamp(x, -1, 1) antes do asin"
+    description: "Sem buracos: leituras > 1 viram 90°. Útil para o gráfico, mas ESCONDE a vibração: decida conscientemente."
+    unit: degree
+    queries:
+      - expr: deg(asin(clamp(asin_accelerometer_x_mps2{device="betoneira"} / scalar(asin_gravity_mps2), -1, 1)))
+        legend: "betoneira (clamp)"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "asin(0.5) = 30° (com 'sujeira' de float). asin(1.0001) = NaN: nem 0.01% fora do domínio é tolerado."
+    queries:
+      - expr: deg(asin(vector(0.5)))
+        legend: "deg(asin(0.5))"
+      - expr: asin(vector(1))
+        legend: "asin(1) = π/2"
+      - expr: asin(vector(-1))
+        legend: "asin(-1)"
+      - expr: asin(vector(1.0001))
+        legend: "asin(1.0001)"
+      - expr: asin(vector(-2))
+        legend: "asin(-2)"

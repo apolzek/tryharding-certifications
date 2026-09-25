@@ -1,0 +1,68 @@
+function: irate
+title: "irate() — velocidade instantânea de um counter"
+category: "02 - Counters (rate, increase...)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** `rate()` é a **velocidade média da viagem**; `irate()` é o **velocímetro olhado agora**:
+  usa só os **2 últimos pontos** da janela. A janela `[x]` só diz *até onde olhar para trás* para achar esses 2 pontos.
+
+  `irate(counter[janela])` → **por segundo**, entre as 2 últimas amostras, compensa resets. Bom para **gráficos** de counters nervosos;
+  ruim para **alertas** e para counters lentos. Métricas: `irate_http_requests_total` (5 req/s + rajada de 100 req/s por 15s a cada 60s),
+  `irate_node_network_transmit_errs_total` (+1 a cada 40s) e `irate_worker_jobs_processed_total` (3 jobs/s, pod reinicia a cada 2 min).
+panels:
+  - title: "🟢 1. Counter cru com rajadas (degraus mais íngremes a cada 60s)"
+    description: "Valor acumulado de /api/orders. Olhe com atenção: a cada minuto a inclinação fica bem mais forte por 15s."
+    queries:
+      - expr: irate_http_requests_total
+        legend: "cru {{route}}"
+  - title: "🟢 2. irate vs rate[1m] — irate vê as rajadas, rate esconde"
+    description: "irate: 5 req/s com picos de ~100 a cada 60s. rate[1m]: platô em ~31 com leves entalhes em ~22 (média real 28.75 = 45s×5 + 15s×100). Nunca mostra nem o 5 nem o 100."
+    unit: reqps
+    queries:
+      - expr: irate(irate_http_requests_total[1m])
+        legend: "irate[1m]"
+      - expr: rate(irate_http_requests_total[1m])
+        legend: "rate[1m]"
+  - title: "🟡 3. irate[1m] vs irate[5m] — a janela NÃO muda o resultado"
+    description: "As duas linhas se sobrepõem: irate só usa as 2 últimas amostras. A janela é só o 'até onde procurar'."
+    unit: reqps
+    queries:
+      - expr: irate(irate_http_requests_total[1m])
+        legend: "irate[1m]"
+      - expr: irate(irate_http_requests_total[5m])
+        legend: "irate[5m]"
+  - title: "🔴 4. Counter LENTO (+1 erro a cada 40s): irate vira um pente"
+    description: "irate: 0 quase sempre, pico de 0.2/s (1 erro / 5s) quando cai um erro. rate[5m]: 0.025 erros/s, legível."
+    unit: short
+    queries:
+      - expr: irate(irate_node_network_transmit_errs_total[1m])
+        legend: "irate[1m] (pente)"
+      - expr: rate(irate_node_network_transmit_errs_total[5m])
+        legend: "rate[5m] (média honesta)"
+  - title: "🟡 5. Counter com reset (pod reinicia a cada 2 min)"
+    description: "Dente-de-serra: sobe até ~360 e despenca para 0."
+    queries:
+      - expr: irate_worker_jobs_processed_total
+        legend: "cru {{pod}}"
+  - title: "🟡 6. ...irate compensa o reset: ~3 jobs/s, nunca negativo"
+    description: "No reset, irate assume que o counter recomeçou do zero e usa o valor novo como incremento (pequena queda, nunca negativo)."
+    unit: ops
+    min: 0
+    queries:
+      - expr: irate(irate_worker_jobs_processed_total[1m])
+        legend: "irate {{pod}}"
+  - title: "🟢 7. Agora: irate vs rate (instantâneo)"
+    type: bargauge
+    unit: reqps
+    width: 24
+    height: 6
+    queries:
+      - expr: irate(irate_http_requests_total[1m])
+        legend: "irate[1m] /api/orders"
+        instant: true
+      - expr: rate(irate_http_requests_total[1m])
+        legend: "rate[1m] /api/orders"
+        instant: true

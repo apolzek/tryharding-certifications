@@ -1,0 +1,66 @@
+function: min_over_time
+title: "min_over_time() — o vale de cada série na janela"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** `min_over_time` é o **nível mínimo da caixa d'água** no dia: mesmo que agora ela esteja cheia,
+  você quer saber **se quase secou** em algum momento.
+
+  Por série, olhando **no tempo** (→). `min(x)` é outra coisa: o menor **entre séries** num instante (↓).
+  Métricas: `min_over_time_hikaricp_connections_idle{pool}` (main ~40 livres, **cai para 1-2 por 15s a cada 3 min**; replica ~20)
+  e `min_over_time_probe_success{service}` (0/1; api cai por 10s a cada 2 min).
+panels:
+  - title: "1. 🟢 Conexões livres cruas (resolução de 5s)"
+    description: "O pool main quase esgota (1-2 livres) por 15s a cada 3 min. Com resolução de scrape, dá pra ver o vale."
+    queries:
+      - expr: min_over_time_hikaricp_connections_idle
+        legend: "cru {{pool}}"
+  - title: "2. 🟡 O mesmo dado visto 1x por minuto: o vale SOME"
+    description: "Simula um gráfico de resolução de 1 min. A queda acontece nos segundos 80..95 do ciclo e nunca coincide com a virada do minuto."
+    queries:
+      - expr: last_over_time(min_over_time_hikaricp_connections_idle[1m:1m])
+        legend: "amostrado 1x/min {{pool}}"
+  - title: "3. 🟢 min_over_time(x[5m]): o pior momento dos últimos 5 min"
+    description: "main ≈ 1 (quase esgotou!), replica ≈ 18."
+    queries:
+      - expr: min_over_time(min_over_time_hikaricp_connections_idle[5m])
+        legend: "min_over_time[5m] {{pool}}"
+  - title: "4. ❌ Alertar com avg_over_time[5m] < 5 nunca dispara: min vs avg (pool main)"
+    description: "avg_over_time[5m] ≈ 38: parece tranquilo. min_over_time[5m] ≈ 1: estava a 1 conexão de travar."
+    queries:
+      - expr: min_over_time(min_over_time_hikaricp_connections_idle{pool="main"}[5m])
+        legend: "min_over_time[5m]"
+      - expr: avg_over_time(min_over_time_hikaricp_connections_idle{pool="main"}[5m])
+        legend: "avg_over_time[5m]"
+  - title: "5. 🔴 Health check 0/1 cru"
+    description: "api cai para 0 por 10s (2 scrapes) a cada 2 min. db sempre 1."
+    min: 0
+    max: 1
+    queries:
+      - expr: min_over_time_probe_success
+        legend: "{{service}}"
+  - title: "6. 🔴 min_over_time(0/1 [1m]) — 'falhou pelo menos 1 vez no último minuto?'"
+    description: "api fica 0 por ~1 min depois de cada flap e volta a 1. db = 1 sempre."
+    min: 0
+    max: 1
+    queries:
+      - expr: min_over_time(min_over_time_probe_success[1m])
+        legend: "{{service}}"
+  - title: "7. 🔴 Alerta: quais serviços falharam nos últimos 5 min? (min_over_time(x[5m]) == 0)"
+    description: "Só api aparece: com [5m] sempre há pelo menos um flap na janela."
+    type: table
+    width: 12
+    height: 6
+    queries:
+      - expr: min_over_time(min_over_time_probe_success[5m]) == 0
+        instant: true
+  - title: "8. 🔴 Folga mínima do pool em % (stat)"
+    type: stat
+    unit: percentunit
+    width: 12
+    height: 6
+    queries:
+      - expr: min_over_time(min_over_time_hikaricp_connections_idle[5m]) / 50
+        legend: "{{pool}}"
+        instant: true

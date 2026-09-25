@@ -1,0 +1,47 @@
+function: end
+title: "end() — o fim da janela do gráfico (experimental)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** se o gráfico é um **filme**, `end()` é o horário do **último quadro** (a borda direita, normalmente "agora").
+  É o mesmo número em todos os pontos. Numa consulta **instantânea**, `end()` = `time()`.
+
+  Precisa de `--enable-feature=promql-experimental-functions`. Combos: `x @ end()` (valor atual como linha de referência) e
+  `max_over_time(x[range()] @ end())` (máximo da janela inteira). Métrica: `end_temperature_celsius{room}` (datacenter 24 ± 4 °C, escritório 21 ± 2 °C).
+panels:
+  - title: "1. end() - time(): contagem regressiva até a borda direita"
+    description: "Começa em ≈900 na borda esquerda (janela de 15 min) e chega a 0 na direita."
+    unit: s
+    queries:
+      - expr: end() - time()
+        legend: "segundos até end()"
+  - title: "2. Valor ATUAL como linha de referência: x @ end()"
+    description: "A linha reta é a temperatura no último ponto do gráfico, repetida em toda a largura."
+    unit: celsius
+    queries:
+      - expr: end_temperature_celsius{room="datacenter"}
+        legend: "datacenter"
+      - expr: end_temperature_celsius{room="datacenter"} @ end()
+        legend: "datacenter agora (@ end())"
+  - title: "3. Diferença para o valor atual: x - x @ end()"
+    description: "Quanto cada ponto do passado estava acima (+) ou abaixo (-) do valor de agora. Termina em 0 na borda direita."
+    unit: celsius
+    queries:
+      - expr: end_temperature_celsius - end_temperature_celsius @ end()
+        legend: "{{room}}"
+  - title: "4. Máximo e mínimo da janela inteira (linhas retas)"
+    description: "max_over_time(x[range()] @ end()) = o maior valor visível no gráfico. Mudou o zoom, mudou a linha."
+    unit: celsius
+    queries:
+      - expr: end_temperature_celsius{room="datacenter"}
+        legend: "datacenter"
+      - expr: max_over_time(end_temperature_celsius{room="datacenter"}[range()] @ end())
+        legend: "máx. da janela"
+      - expr: min_over_time(end_temperature_celsius{room="datacenter"}[range()] @ end())
+        legend: "mín. da janela"
+  - title: "5. Numa consulta instantânea (stat): end() = time()"
+    type: stat
+    decimals: 0
+    queries:
+      - expr: end() - time()
+        legend: "end() - time()"

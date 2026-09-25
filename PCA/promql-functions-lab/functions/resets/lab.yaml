@@ -1,0 +1,62 @@
+function: resets
+title: "resets() — quantas vezes um counter voltou para trás"
+category: "02 - Counters (rate, increase...)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** o counter é o **hodômetro**. Cada vez que você **troca de carro** (restart do processo), o hodômetro volta a zero.
+  `resets(x[10m])` conta **quantas trocas de carro** houve nos últimos 10 min. Qualquer **queda** entre duas amostras conta como 1 reset.
+
+  Use em **counters** para detectar restarts/crashloops. Métricas: `resets_process_cpu_seconds_total{pod}`
+  (estavel: nunca reinicia · instavel: a cada 2 min · crashloop: a cada 30s) e `resets_rabbitmq_queue_messages` (um **gauge**, para a pegadinha).
+panels:
+  - title: "🟢 1. Counters crus dos 3 pods"
+    description: "estavel sobe para sempre; instavel é um dente-de-serra de 2 min; crashloop despenca a cada 30s."
+    queries:
+      - expr: resets_process_cpu_seconds_total{pod!="estavel"}
+        legend: "{{pod}}"
+  - title: "🟢 2. resets(...[10m]) — restarts nos últimos 10 min"
+    description: "estavel = 0, instavel = 5, crashloop = 20 (com 10 min de dados)."
+    unit: short
+    queries:
+      - expr: resets(resets_process_cpu_seconds_total[10m])
+        legend: "{{pod}}"
+  - title: "🔴 3. Alerta de crashloop: resets(...[5m]) > 3"
+    description: "Só o crashloop (≈10 resets em 5 min) passa do limite. instavel fica em 2-3 e não dispara."
+    unit: short
+    min: 0
+    queries:
+      - expr: resets(resets_process_cpu_seconds_total[5m]) > 3
+        legend: "🔥 {{pod}}"
+  - title: "🔴 4. Restarts por pod agora: janela de 5m e de 10m"
+    type: bargauge
+    unit: short
+    queries:
+      - expr: resets(resets_process_cpu_seconds_total[5m])
+        legend: "{{pod}} [5m]"
+        instant: true
+      - expr: resets(resets_process_cpu_seconds_total[10m])
+        legend: "{{pod}} [10m]"
+        instant: true
+  - title: "🟡 5. Pegadinha: um GAUGE (fila sobe e desce)"
+    description: "Fila de mensagens: é um gauge, ele DESCE normalmente."
+    queries:
+      - expr: resets_rabbitmq_queue_messages
+        legend: "fila"
+  - title: "🟡 6. ...resets() num gauge conta toda descida: número sem sentido"
+    description: "Em 5 min (60 amostras), metade são descidas: ~30 'resets' que não existem. Para gauges use changes() ou delta()."
+    unit: short
+    queries:
+      - expr: resets(resets_rabbitmq_queue_messages[5m])
+        legend: "resets(gauge[5m]) — lixo"
+  - title: "🟡 7. ERRADO: resets() no counter de restarts do k8s = 0"
+    description: "kube_pod_container_status_restarts_total CONTA restarts (sobe +1 a cada 2 min) e nunca cai: resets() = 0. O número de restarts é o increase(): ≈ 5 em 10 min."
+    width: 24
+    unit: short
+    queries:
+      - expr: resets(resets_kube_pod_container_status_restarts_total[10m])
+        legend: "resets[10m] (errado) {{pod}}"
+      - expr: increase(resets_kube_pod_container_status_restarts_total[10m])
+        legend: "increase[10m] (certo) {{pod}}"

@@ -1,0 +1,53 @@
+function: sort_by_label
+title: "sort_by_label() — ordenar pelo NOME (label), em ordem natural"
+category: "09 - Labels e ordenação"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é a **lista de arquivos do seu computador**: ordena pelo **nome**, e "foto2" vem antes de "foto10" (ordem **natural**).
+  `sort_by_label(v, "label1", "label2", ...)` ordena de forma crescente pelos valores dos labels; empates caem para o conjunto completo de labels. **Experimental** (`--enable-feature=promql-experimental-functions`).
+
+  ⚠️ Assim como `sort`, só afeta **consultas instantâneas** (tabelas). Métricas: `sort_by_label_node_load1{zone,node}` (node-1..node-12, loads "embaralhados") e `sort_by_label_app_build_info{pod,version}`.
+panels:
+  - title: "🟢 1. sort_by_label(v, \"node\"): node-1, node-2, ..., node-9, node-10, node-11, node-12"
+    type: table
+    height: 14
+    width: 8
+    decimals: 2
+    description: "Ordem NATURAL: node-2 vem antes de node-10. Alfabética pura daria node-1, node-10, node-11, node-12, node-2..."
+    overrides: &hide
+      - matcher: {id: byRegexp, options: "^(Time|job|instance|env|__name__)$"}
+        properties: [{id: custom.hidden, value: true}]
+    queries:
+      - expr: sort_by_label(sort_by_label_node_load1, "node")
+  - title: "🟡 2. Lado a lado: sort_desc(v) ordena pelo VALOR"
+    type: table
+    height: 14
+    width: 8
+    decimals: 2
+    description: "Mesmos dados, outra pergunta: 'quem está mais carregado?'. node-10 (3.1), node-6 (2.9), node-3 (2.6)... A ordem por valor muda quando os valores mudam; a por nome, nunca."
+    overrides: *hide
+    queries:
+      - expr: sort_desc(sort_by_label_node_load1)
+  - title: "🟡 3. Vários labels: primeiro zone, depois node"
+    type: table
+    height: 14
+    width: 8
+    decimals: 2
+    description: "us-east-1a: node-1, 3, 5, 7, 9, 11 — depois us-east-1b: node-2, 4, 6, 8, 10, 12."
+    overrides: *hide
+    queries:
+      - expr: sort_by_label(sort_by_label_node_load1, "zone", "node")
+  - title: "🔴 4. Pods por versão em ordem natural: 1.2.0 < 1.9.2 < 1.10.0 < 1.10.12"
+    type: table
+    height: 14
+    description: "count by (version) do *_build_info (caso real: acompanhar um rollout). Pods: 1, 2, 5, 3. Alfabeticamente 1.10.x viria antes de 1.2.0!"
+    overrides: *hide
+    queries:
+      - expr: sort_by_label(count by (version) (sort_by_label_app_build_info), "version")
+  - title: "🟡 5. sort_by_label num gráfico: NÃO faz nada"
+    height: 14
+    description: "Em range queries a ordem é fixa: por labels, LEXICOGRÁFICA (node-1, node-10, node-11, node-12, node-2...). O ⚠️ no título é o aviso do Prometheus: 'sort is ineffective for range queries'."
+    queries:
+      - expr: sort_by_label(sort_by_label_node_load1, "node")
+        legend: "{{node}}"

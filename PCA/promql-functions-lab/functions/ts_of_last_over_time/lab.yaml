@@ -1,0 +1,71 @@
+function: ts_of_last_over_time
+title: "ts_of_last_over_time() — quando foi a última amostra? (experimental)"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** o "visto por último às 14:02" do WhatsApp. `ts_of_last_over_time(x[janela])` devolve o
+  **timestamp Unix (s)** da amostra mais recente de cada série **dentro da janela** — mesmo que a série já tenha sumido.
+
+  Truque: `time() - ts_of_last_over_time(x[10m])` = "há quantos segundos não recebo dado". **Experimental**.
+  Métrica: `ts_of_last_over_time_sensor_temperature_celsius{sensor}`: `healthy` sempre reporta;
+  `flaky` reporta 90s e **some** 90s (ciclo de 3 min); `retired` reporta só 60s a cada 15 min (fica mais tempo calado que a janela [10m]).
+panels:
+  - title: "1. Gauge cru — o sensor flaky tem buracos de 90s"
+    unit: celsius
+    queries:
+      - expr: ts_of_last_over_time_sensor_temperature_celsius
+        legend: "{{sensor}}"
+  - title: "2. time() − ts_of_last_over_time[10m] — segundos sem dado"
+    description: "healthy: 0..5s (idade do último scrape). flaky: 0..5s enquanto reporta; depois sobe até ~90s e despenca quando volta."
+    unit: s
+    queries:
+      - expr: time() - ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m])
+        legend: "{{sensor}}"
+  - title: "3. timestamp(x) some junto com a série; ts_of_last_over_time não"
+    description: "timestamp() precisa de um instant vector: com a série stale, não há nada. ts_of_last_over_time olha a janela e ainda 'lembra' da última amostra."
+    unit: s
+    queries:
+      - expr: time() - timestamp(ts_of_last_over_time_sensor_temperature_celsius{sensor="flaky"})
+        legend: "time() − timestamp(x)  (some)"
+      - expr: time() - ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius{sensor="flaky"}[10m])
+        legend: "time() − ts_of_last_over_time(x[10m])  (continua)"
+  - title: "4. Alerta: sensor sem dado há mais de 60s"
+    description: "Aparece flaky nos últimos ~30s de cada buraco. Diferente de absent(), mantém os labels da série que sumiu."
+    unit: s
+    draw: points
+    queries:
+      - expr: (time() - ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m])) > 60
+        legend: "{{sensor}} parado"
+        validate: any
+  - title: "5. Último valor e quando ele chegou (tabela)"
+    description: "last_over_time dá o valor; ts_of_last_over_time dá o horário (×1000 para o Grafana)."
+    type: table
+    width: 24
+    height: 6
+    queries:
+      - expr: last_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m])
+        legend: "último valor"
+        format: table
+      - expr: ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m]) * 1000
+        legend: "quando"
+        format: table
+      - expr: time() - ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m])
+        legend: "há (s)"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "__name__"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: unit, value: celsius}, {id: displayName, value: "último valor"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: unit, value: dateTimeAsIso}, {id: displayName, value: "visto por último"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: unit, value: s}, {id: displayName, value: "há quanto tempo"}]

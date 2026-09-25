@@ -1,0 +1,54 @@
+function: day_of_year
+title: "day_of_year() — dia do ano (1 a 365/366, UTC)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `day_of_year()` é o **contador de páginas de uma agenda anual**: 1 em 1º de janeiro, 365 (ou **366** em ano bissexto) em 31 de dezembro.
+  Ótimo para **"% do ano que já passou"** e metas/orçamentos anuais.
+
+  Métricas: `day_of_year_simulated_clock_timestamp_seconds` (**relógio acelerado**: 2 dias por segundo, 2027 → 2028 bissexto),
+  `day_of_year_annual_budget_dollars{team}` e `day_of_year_budget_spent_year_to_date_dollars{team}` (platform gasta 20% acima do ritmo, data 10% abaixo).
+panels:
+  - title: "1. Relógio acelerado: dente-de-serra até 365 e depois 366"
+    description: "2027 termina em 365; 2028 (bissexto) termina em 366. Ciclo de ≈6 min."
+    decimals: 0
+    queries:
+      - expr: day_of_year(day_of_year_simulated_clock_timestamp_seconds)
+        legend: "dia do ano (acelerado)"
+  - title: "2. Hoje: day_of_year() e % do ano decorrido"
+    type: stat
+    decimals: 1
+    queries:
+      - expr: day_of_year()
+        legend: "dia do ano (UTC)"
+      - expr: day_of_year() / 365 * 100
+        legend: "% do ano (aprox.)"
+  - title: "3. Orçamento anual: % gasto vs % do ano"
+    description: "Se % gasto > % do ano, o time está acima do ritmo. platform ≈ 1.2 × %ano; data ≈ 0.9 × %ano."
+    type: bargauge
+    unit: percentunit
+    queries:
+      - expr: day_of_year_budget_spent_year_to_date_dollars / day_of_year_annual_budget_dollars
+        legend: "{{team}} gasto"
+        instant: true
+      - expr: day_of_year() / 365
+        legend: "ano decorrido"
+        instant: true
+  - title: "4. Projeção de fim de ano: gasto / dia_do_ano × 365"
+    description: "platform ≈ 144 mil (orçamento 120 mil, estoura). data ≈ 54 mil (orçamento 60 mil). Note o scalar()!"
+    type: bargauge
+    unit: currencyUSD
+    queries:
+      - expr: day_of_year_budget_spent_year_to_date_dollars / scalar(day_of_year()) * 365
+        legend: "{{team}} projetado"
+        instant: true
+      - expr: day_of_year_annual_budget_dollars
+        legend: "{{team}} orçamento"
+        instant: true
+  - title: "5. ERRADO: sem scalar(), a divisão volta vazia"
+    description: "x{team} / day_of_year(): um lado tem labels, o outro não. Vector matching não encontra pares → resultado vazio."
+    type: stat
+    queries:
+      - expr: day_of_year_budget_spent_year_to_date_dollars / day_of_year() * 365
+        legend: "sem scalar()"
+        validate: empty

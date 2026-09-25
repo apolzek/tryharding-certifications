@@ -1,0 +1,60 @@
+function: present_over_time
+title: "present_over_time() — a série apareceu na janela? (sempre 1)"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** o **carimbo no passaporte**. Não importa quanto tempo você ficou nem o que fez: se entrou no país nos últimos X dias, tem carimbo (= **1**).
+  Se não entrou, **não há carimbo** (a série some do resultado, não vira 0). `present_over_time` ignora os valores.
+
+  Métrica: `present_over_time_worker_active_tasks{worker}` (valores 3, 5 e 8, que **não importam**):
+  worker-a **sempre vivo** · worker-b **vivo 60s, morto 120s** (ciclo 3 min) · worker-c **cron: vivo 20s a cada 5 min**.
+panels:
+  - title: "1. 🟢 Cru: quem está vivo agora"
+    description: "worker-a contínuo, worker-b aparece 1 min a cada 3 min, worker-c só 20s a cada 5 min."
+    queries:
+      - expr: present_over_time_worker_active_tasks
+        legend: "{{worker}}"
+  - title: "2. 🟢 present_over_time(x[1m]) — visto no último minuto?"
+    description: "Sempre 1 (o valor 3/5/8 é ignorado). worker-b fica 1 por ~2 min (60s vivo + 60s de janela), worker-c por ~80s."
+    type: state-timeline
+    options: {showValue: never, mergeValues: true, rowHeight: 0.8, legend: {showLegend: true, displayMode: list, placement: bottom}}
+    field_defaults: {custom: {fillOpacity: 80, lineWidth: 0}}
+    queries:
+      - expr: present_over_time(present_over_time_worker_active_tasks[1m])
+        legend: "{{worker}}"
+  - title: "3. 🟡 present_over_time(x[5m]) — os 3 sempre 'presentes'"
+    description: "Com janela ≥ maior intervalo de ausência (5 min do worker-c), todos ficam 1 o tempo inteiro."
+    type: state-timeline
+    options: {showValue: never, mergeValues: true, rowHeight: 0.8, legend: {showLegend: true, displayMode: list, placement: bottom}}
+    field_defaults: {custom: {fillOpacity: 80, lineWidth: 0}}
+    queries:
+      - expr: present_over_time(present_over_time_worker_active_tasks[5m])
+        legend: "{{worker}}"
+  - title: "4. 🟡 count(x) vs count(present_over_time(x[5m]))"
+    description: "count() = workers vivos AGORA (1 a 3). count(present_over_time[5m]) = workers distintos vistos em 5 min (3)."
+    min: 0
+    queries:
+      - expr: count(present_over_time_worker_active_tasks)
+        legend: "vivos agora"
+      - expr: count(present_over_time(present_over_time_worker_active_tasks[5m]))
+        legend: "vistos nos últimos 5m"
+  - title: "5. 🔴 Quem sumiu? present_over_time(x[5m]) unless x"
+    description: "Workers vistos nos últimos 5 min que NÃO estão presentes agora. (Cada faixa = worker sumido. Blips curtos em worker-a = restart do gerador.) Base de alerta 'sumiu' que não exige listar os labels à mão (ao contrário de absent())."
+    type: state-timeline
+    options: {showValue: never, mergeValues: true, rowHeight: 0.8, legend: {showLegend: true, displayMode: list, placement: bottom}}
+    field_defaults: {custom: {fillOpacity: 80, lineWidth: 0}}
+    queries:
+      - expr: present_over_time(present_over_time_worker_active_tasks[5m]) unless present_over_time_worker_active_tasks
+        legend: "sumiu: {{worker}}"
+  - title: "6. 🔴 Workers vistos nos últimos 5 min (table)"
+    type: table
+    queries:
+      - expr: present_over_time(present_over_time_worker_active_tasks[5m])
+        instant: true
+  - title: "7. ❌ present_over_time(x[1m]) == 0 NUNCA retorna nada"
+    description: "Não existe 'presença 0': quem não apareceu simplesmente não está no resultado. Este painel fica vazio de propósito."
+    queries:
+      - expr: present_over_time(present_over_time_worker_active_tasks[1m]) == 0
+        legend: "{{worker}}"
+        validate: empty

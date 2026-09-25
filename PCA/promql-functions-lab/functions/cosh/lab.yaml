@@ -1,0 +1,63 @@
+function: cosh
+title: "cosh() — cosseno hiperbólico: a curva do cabo pendurado"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** segure uma **corrente** pelas duas pontas. A curva que ela forma **não** é uma parábola:
+  é uma **catenária**, `y = a · cosh(x / a)`. Fios de alta tensão, pontes pênseis e varais seguem essa curva.
+  `cosh(x) = (eˣ + e⁻ˣ) / 2`: simétrica (formato de **U**), **nunca menor que 1**.
+
+  Métricas: `cosh_powerline_catenary_param_meters` (a: 150..400 m), `cosh_powerline_span_meters` (100 m) e
+  `cosh_temperature_deviation_celsius` (desvio do rack em relação a 22 °C, -4..+4).
+
+  **Casos:** 🟢 básico: painéis 3–4 (penalidade em U) · 🟡 nuance: 2 (cos no lugar de cosh) e 5 · 🔴 real: 1–2 (flecha de cabo de alta tensão)
+panels:
+  - title: "1. Parâmetro 'a' do cabo (m): menor = mais frouxo"
+    description: "Oscila entre 150 (cabo quente, dilatado) e 400 (cabo frio, esticado)."
+    unit: lengthm
+    queries:
+      - expr: cosh_powerline_catenary_param_meters
+        legend: "a {{line}}"
+  - title: "2. Flecha do cabo = a · (cosh(vão / 2a) − 1)"
+    description: "a=400 → 3.13 m. a=150 → 8.41 m. ERRADO (cos em vez de cosh): flecha NEGATIVA de -3.1 a -8.3 m, como se o cabo subisse."
+    unit: lengthm
+    decimals: 2
+    queries:
+      - expr: cosh_powerline_catenary_param_meters * (cosh(cosh_powerline_span_meters / (2 * cosh_powerline_catenary_param_meters)) - 1)
+        legend: "flecha {{line}}"
+      - expr: cosh_powerline_catenary_param_meters * (cos(cosh_powerline_span_meters / (2 * cosh_powerline_catenary_param_meters)) - 1)
+        legend: "ERRADO: cos no lugar de cosh"
+  - title: "3. Desvio de temperatura do rack (°C)"
+    description: "Oscila entre -4 °C (frio demais) e +4 °C (quente demais)."
+    unit: celsius
+    queries:
+      - expr: cosh_temperature_deviation_celsius
+        legend: "{{rack}}"
+  - title: "4. Penalidade em U: cosh(desvio / 2)"
+    description: "Mínimo 1 no ideal (desvio 0). ±2 °C → 1.54; ±4 °C → 3.76. Frio e quente penalizam IGUAL (função par)."
+    queries:
+      - expr: cosh(cosh_temperature_deviation_celsius / 2)
+        legend: "penalidade {{rack}}"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "cosh(0) = 1 (mínimo). cosh(-x) = cosh(x). cosh(±Inf) = +Inf (sempre positivo!). Estoura em ~710."
+    queries:
+      - expr: cosh(vector(0))
+        legend: "cosh(0)"
+      - expr: cosh(vector(2))
+        legend: "cosh(2)"
+      - expr: cosh(vector(-2))
+        legend: "cosh(-2)"
+      - expr: cosh(vector(710))
+        legend: "cosh(710)"
+      - expr: cosh(vector(-Inf))
+        legend: "cosh(-Inf)"

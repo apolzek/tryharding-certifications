@@ -1,0 +1,62 @@
+function: floor
+title: "floor() — arredonda PRA BAIXO: quantos lotes CHEIOS / minutos COMPLETOS?"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `floor()` é o **chão**: de qualquer ponto entre o 2º e o 3º andar, você "cai" para o **2º**.
+  Com 999 mensagens e lotes de 100, você tem **9 lotes cheios** (9.99 → `floor` = 9) e sobram 99 (`999 % 100`).
+
+  Use para contar unidades **completas**: lotes prontos, caixas cheias, minutos/dias completos de uptime.
+  Métricas: `floor_rabbitmq_queue_messages_ready` (0..999 a cada 3 min) e `floor_process_start_time_seconds` (reinicia a cada 15 min).
+panels:
+  - title: "🟢 1. Mensagens prontas na fila (cru)"
+    description: "Sobe de 0 a 999 mensagens em 3 min e zera (fila drenada)."
+    queries:
+      - expr: floor_rabbitmq_queue_messages_ready
+        legend: "msgs {{queue}}"
+  - title: "🟢 2. Lotes de 100: razão crua × floor() (lotes cheios) × % (sobra/100)"
+    description: "msgs/100 é fracionado. floor = lotes CHEIOS (0..9). (msgs % 100)/100 = fração do próximo lote."
+    decimals: 2
+    queries:
+      - expr: floor_rabbitmq_queue_messages_ready / 100
+        legend: "msgs / 100 (cru)"
+      - expr: floor(floor_rabbitmq_queue_messages_ready / 100)
+        legend: "floor → lotes cheios"
+      - expr: (floor_rabbitmq_queue_messages_ready % 100) / 100
+        legend: "sobra (msgs % 100) / 100"
+  - title: "🔴 3. Uptime em segundos: time() - process_start_time_seconds"
+    description: "Rampa de 0 a 900 s; o processo reinicia a cada 15 min."
+    unit: s
+    queries:
+      - expr: time() - floor_process_start_time_seconds
+        legend: "uptime {{service}}"
+  - title: "🔴 4. Minutos COMPLETOS de uptime: floor(uptime / 60)"
+    description: "Escada 0, 1, 2 ... 14. Com 179 s o processo tem 2 minutos completos, não 3. A linha do round sobe 30 s ANTES de o minuto completar."
+    decimals: 2
+    queries:
+      - expr: (time() - floor_process_start_time_seconds) / 60
+        legend: "minutos (cru)"
+      - expr: floor((time() - floor_process_start_time_seconds) / 60)
+        legend: "floor → minutos completos"
+      - expr: round((time() - floor_process_start_time_seconds) / 60)
+        legend: "round → mente (conta minuto incompleto)"
+  - title: "⚠️ 5. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: floor(vector(1.49))
+        legend: "floor(1.49)"
+      - expr: floor(vector(1.78))
+        legend: "floor(1.78)"
+      - expr: floor(vector(-1.5))
+        legend: "floor(-1.5) ⚠️"
+      - expr: sgn(vector(-1.5)) * floor(abs(vector(-1.5)))
+        legend: "truncar -1.5 (sgn·floor·abs)"
+      - expr: floor(vector(-0))
+        legend: "floor(-0)"
+      - expr: floor(vector(+Inf))
+        legend: "floor(+Inf)"
+      - expr: floor((vector(0.7) + 0.1) * 10)
+        legend: "floor((0.7+0.1)*10) ⚠️"

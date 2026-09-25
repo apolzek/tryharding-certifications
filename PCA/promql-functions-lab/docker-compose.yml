@@ -1,0 +1,51 @@
+name: promql-lab
+
+services:
+  generator:
+    build:
+      context: .
+      dockerfile: generator/Dockerfile
+    image: promql-lab-generator:latest
+    restart: unless-stopped
+    ports:
+      - "${GENERATOR_PORT:-8088}:8080"
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.15.0}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=2d
+      - --web.enable-lifecycle
+      # Funções experimentais: double_exponential_smoothing, info, sort_by_label,
+      # start/end/range/step, min_of/max_of, mad_over_time, ts_of_*_over_time ...
+      # use-start-timestamps + st-storage: habilitam start_timestamp()
+      - --enable-feature=promql-experimental-functions,st-storage,use-start-timestamps
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9095}:9090"
+    depends_on: [generator]
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-13.2.2}
+    restart: unless-stopped
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_DASHBOARDS_MIN_REFRESH_INTERVAL: 5s
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3300}:3000"
+    depends_on: [prometheus]
+
+volumes:
+  prometheus-data:

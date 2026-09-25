@@ -1,0 +1,73 @@
+function: sort
+title: "sort() — ordenar pelo valor (crescente)"
+category: "09 - Labels e ordenação"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é o botão **"Classificar do menor para o maior"** da planilha. `sort(v)` só muda a **ordem** das séries, nunca valores nem labels.
+
+  ⚠️ Só faz efeito em **consultas instantâneas** (tabela, bar gauge, API `/query`). Em gráficos (range query) a ordem é fixa e o `sort` é ignorado. **NaN vai sempre para o fim.**
+  Métricas (imitando node_exporter/blackbox): `sort_node_filesystem_avail_bytes` / `sort_node_filesystem_size_bytes{node,mountpoint}`, `sort_probe_ssl_earliest_cert_expiry{target}`, `sort_cronjob_last_duration_seconds{cronjob}`.
+panels:
+  - title: "🟢 1. % livre por disco ao longo do tempo (o ranking muda!)"
+    unit: percent
+    width: 24
+    height: 10
+    description: "avail/size*100. 5 discos com ondas de períodos diferentes: quem está mais cheio muda a cada minuto."
+    queries:
+      - expr: 100 * sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes
+        legend: "{{node}}:{{mountpoint}}"
+  - title: "🟡 2. Sem sort: ordem arbitrária"
+    type: table
+    height: 8
+    unit: percent
+    decimals: 1
+    description: "Consulta instantânea sem sort: o Prometheus não promete nenhuma ordem."
+    overrides: &hide
+      - matcher: {id: byRegexp, options: "^(Time|job|instance|env|__name__)$"}
+        properties: [{id: custom.hidden, value: true}]
+    queries:
+      - expr: 100 * sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes
+  - title: "🟢 3. sort(): discos MAIS CHEIOS primeiro (menor % livre no topo)"
+    type: table
+    height: 8
+    unit: percent
+    decimals: 1
+    description: "Ordem crescente pelo valor. Volte daqui a 1 min: a ordem muda junto com os dados."
+    overrides: *hide
+    queries:
+      - expr: sort(100 * sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes)
+  - title: "🔴 4. Certificados TLS: dias até vencer, o mais urgente primeiro"
+    type: table
+    height: 8
+    decimals: 1
+    description: "sort((probe_ssl_earliest_cert_expiry - time()) / 86400). legacy ≈ 3 dias no topo, admin ≈ 90 dias no fim."
+    overrides: *hide
+    queries:
+      - expr: sort((sort_probe_ssl_earliest_cert_expiry - time()) / 86400)
+  - title: "🔴 5. sort(bottomk(3, ...)): os 3 discos mais cheios, em ordem"
+    type: bargauge
+    height: 7
+    unit: percent
+    min: 0
+    max: 100
+    description: "bottomk escolhe QUAIS séries; sort garante a ORDEM de exibição."
+    queries:
+      - expr: sort(bottomk(3, 100 * sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes))
+        legend: "{{node}}:{{mountpoint}}"
+  - title: "🟡 6. sort() com NaN: o NaN vai para o FIM"
+    type: table
+    height: 7
+    unit: s
+    description: "cleanup 8 → report 45 → backup 120 → sync NaN. NaN não é 'menor que tudo': fica sempre por último."
+    overrides: *hide
+    queries:
+      - expr: sort(sort_cronjob_last_duration_seconds)
+  - title: "🟡 7. sort() num gráfico: NÃO faz nada (idêntico ao painel 1; veja o ⚠️)"
+    unit: percent
+    width: 24
+    height: 10
+    description: "Em range queries a ordem de saída é fixa; o sort é ignorado. Para ordenar a legenda use 'Legend > Sort by' do Grafana."
+    queries:
+      - expr: sort(100 * sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes)
+        legend: "{{node}}:{{mountpoint}}"

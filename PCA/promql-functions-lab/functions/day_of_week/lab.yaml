@@ -1,0 +1,56 @@
+function: day_of_week
+title: "day_of_week() — dia da semana (0 = domingo … 6 = sábado, UTC)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `day_of_week()` é a **agenda de papel** dizendo "hoje é sexta". Numera de **0 (domingo)** a **6 (sábado)**, sempre em **UTC**.
+  Uso clássico: **silenciar alertas no fim de semana** (`and on() day_of_week() > 0 < 6`).
+
+  Métricas: `day_of_week_simulated_clock_timestamp_seconds` (**relógio acelerado**: 1 dia a cada 20s, começa num domingo),
+  `day_of_week_checkout_errors_ratio` (≈8%, acima do SLO) e `day_of_week_kube_cronjob_status_last_successful_time` (roda toda segunda 06:00 UTC).
+panels:
+  - title: "1. Relógio acelerado: escada 0 → 6"
+    description: "Cada degrau dura 20s. 0=Dom, 1=Seg ... 6=Sáb, depois volta a 0."
+    decimals: 0
+    field_defaults:
+      mappings:
+        - type: value
+          options: {"0": {text: Dom}, "1": {text: Seg}, "2": {text: Ter}, "3": {text: Qua}, "4": {text: Qui}, "5": {text: Sex}, "6": {text: Sáb}}
+    queries:
+      - expr: day_of_week(day_of_week_simulated_clock_timestamp_seconds)
+        legend: "dia da semana"
+  - title: "2. Alerta só em dia útil (seg-sex)"
+    description: "erro > 5% AND dia entre 1 e 5. Há um buraco de 40s (sáb+dom) a cada 140s."
+    unit: percentunit
+    queries:
+      - expr: day_of_week_checkout_errors_ratio > 0.05 and on() (day_of_week(day_of_week_simulated_clock_timestamp_seconds) > 0 < 6)
+        legend: "alerta (dias úteis)"
+  - title: "3. Hoje (UTC vs Brasília)"
+    description: "Sexta 21h em Brasília = sábado 00h UTC: o 'fim de semana' do Prometheus começa 3h antes."
+    type: stat
+    field_defaults:
+      mappings:
+        - type: value
+          options: {"0": {text: Domingo}, "1": {text: Segunda}, "2": {text: Terça}, "3": {text: Quarta}, "4": {text: Quinta}, "5": {text: Sexta}, "6": {text: Sábado}}
+    queries:
+      - expr: day_of_week()
+        legend: "UTC"
+      - expr: day_of_week(vector(time() - 3 * 3600))
+        legend: "Brasília"
+  - title: "4. Em que dia rodou o relatório semanal?"
+    description: "day_of_week(timestamp da última execução) = 1 (segunda)."
+    type: stat
+    field_defaults:
+      mappings:
+        - type: value
+          options: {"0": {text: Domingo}, "1": {text: Segunda}, "2": {text: Terça}, "3": {text: Quarta}, "4": {text: Quinta}, "5": {text: Sexta}, "6": {text: Sábado}}
+    queries:
+      - expr: day_of_week(day_of_week_kube_cronjob_status_last_successful_time)
+        legend: "relatório semanal"
+  - title: "5. ERRADO: sem on(), o and nunca casa (vazio)"
+    description: "O lado direito (day_of_week) não tem labels; o esquerdo tem job/instance. Sem on(), nada casa e o alerta NUNCA dispara, nem em dia útil."
+    type: stat
+    queries:
+      - expr: day_of_week_checkout_errors_ratio > 0.05 and (day_of_week() >= 0 <= 6)
+        legend: "sem on()"
+        validate: empty

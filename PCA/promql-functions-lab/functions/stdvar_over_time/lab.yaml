@@ -1,0 +1,91 @@
+function: stdvar_over_time
+title: "stdvar_over_time() — variância (desvio padrão ao quadrado)"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** a variância é a "média dos **quadrados** das distâncias até a média". É o desvio padrão
+  **antes** da raiz quadrada — por isso a unidade fica ao quadrado (V², ms², °C²).
+
+  `stdvar_over_time(gauge[janela])` = `stddev_over_time(...)²` (variância **populacional**).
+  Métrica do cenário: `stdvar_over_time_node_hwmon_in_volts{sensor}` (imita `node_hwmon_in_volts` do node_exporter; determinística, média 20V):
+  `square_big` 10↔30V → **100 V²**, `square_small` 18↔22V → **4 V²**, `flat` 20V → **0**.
+panels:
+  - title: "1. Gauge cru — três sensores com média 20V"
+    description: "square_big alterna 10/30V, square_small 18/22V (a cada 30s), flat fica parado em 20V."
+    unit: volt
+    queries:
+      - expr: stdvar_over_time_node_hwmon_in_volts
+        legend: "{{sensor}}"
+  - title: "2. avg_over_time[5m] — todos ≈ 20V"
+    description: "A média não distingue os três sensores."
+    unit: volt
+    queries:
+      - expr: avg_over_time(stdvar_over_time_node_hwmon_in_volts[5m])
+        legend: "avg {{sensor}}"
+  - title: "3. stdvar_over_time[5m] — 100 / 4 / 0 (V²)"
+    description: "Variância: square_big = 10² = 100, square_small = 2² = 4, flat = 0. Repare: a unidade é V², não V."
+    queries:
+      - expr: stdvar_over_time(stdvar_over_time_node_hwmon_in_volts[5m])
+        legend: "stdvar {{sensor}}"
+  - title: "4. sqrt(stdvar) == stddev_over_time — 10 / 2 / 0 (V)"
+    description: "Tirando a raiz, volta para a unidade original. As duas linhas de cada sensor se sobrepõem."
+    unit: volt
+    queries:
+      - expr: sqrt(stdvar_over_time(stdvar_over_time_node_hwmon_in_volts[5m]))
+        legend: "sqrt(stdvar) {{sensor}}"
+      - expr: stddev_over_time(stdvar_over_time_node_hwmon_in_volts[5m])
+        legend: "stddev {{sensor}}"
+  - title: "5. Janela que não cobre ciclo inteiro: [20s]"
+    description: "Com [20s] (4 amostras) às vezes todas estão no mesmo nível → variância 0; às vezes pega a troca → 75 (1 amostra diferente) ou 100 (2+2). A janela precisa cobrir o comportamento que você quer medir."
+    queries:
+      - expr: stdvar_over_time(stdvar_over_time_node_hwmon_in_volts{sensor="square_big"}[20s])
+        legend: "stdvar [20s] square_big"
+      - expr: stdvar_over_time(stdvar_over_time_node_hwmon_in_volts{sensor="square_big"}[5m])
+        legend: "stdvar [5m] square_big"
+  - title: "6. Valor atual por sensor (variância e desvio)"
+    type: table
+    queries:
+      - expr: stdvar_over_time(stdvar_over_time_node_hwmon_in_volts[5m])
+        legend: "stdvar"
+        format: table
+      - expr: stddev_over_time(stdvar_over_time_node_hwmon_in_volts[5m])
+        legend: "stddev"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "stdvar (V²)"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "stddev (V)"}]
+  - title: "7. 🔴/🟡 Alerta 'σ > 3V': limiar certo (> 9 V²) vs errado (> 3)"
+    description: "Quem esquece que a unidade é V² escreve stdvar > 3 e o square_small (σ = 2V, variância 4) dispara indevidamente. O certo é stdvar > 3² = 9: só o square_big dispara."
+    type: table
+    width: 24
+    height: 6
+    queries:
+      - expr: stdvar_over_time(stdvar_over_time_node_hwmon_in_volts[5m]) > 9
+        legend: "certo"
+        format: table
+      - expr: stdvar_over_time(stdvar_over_time_node_hwmon_in_volts[5m]) > 3
+        legend: "errado"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "✅ stdvar > 9 (σ > 3V)"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "❌ stdvar > 3 (limiar em V)"}]

@@ -1,0 +1,6 @@
+# artefatos locais
+.build/
+.lab-status/
+.deploy.lock
+# segredo: URL do webhook do Discord (use DISCORD_WEBHOOK=... ou crie este arquivo localmente)
+.discord-webhook

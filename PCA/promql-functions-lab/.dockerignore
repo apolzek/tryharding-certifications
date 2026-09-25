@@ -1,0 +1,7 @@
+dashboards
+grafana
+prometheus
+docs
+**/README.md
+.lab-status
+.discord-webhook

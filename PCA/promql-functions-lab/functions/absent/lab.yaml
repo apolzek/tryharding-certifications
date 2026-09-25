@@ -1,0 +1,107 @@
+function: absent
+title: "absent() — alarme de 'a métrica sumiu'"
+category: "06 - Ausência de dados"
+time_from: now-15m
+intro: |
+  **Analogia:** a **chamada** na sala de aula. `absent()` só fala quando **ninguém** responde "presente":
+  devolve **1** se o vetor está **vazio** e **nada** se existe pelo menos uma série.
+
+  `absent(instant-vector)` → vazio ou `{labels deduzidos} 1`. Métrica: `absent_batch_heartbeat{batch}`:
+  `reports` sempre presente; `billing` **some 1 min a cada 3 min**. `absent_nonexistent_metric` nunca existe.
+panels:
+  - title: "1. Heartbeat cru — billing tem buracos de 1 min"
+    min: 0
+    description: "reports (desenhado em 2 só para não sobrepor) é contínuo; billing (em 1) some 1 minuto a cada 3."
+    queries:
+      - expr: absent_batch_heartbeat{batch="billing"}
+        legend: "billing"
+      - expr: absent_batch_heartbeat{batch="reports"} * 2
+        legend: "reports (× 2)"
+  - title: "2. absent(billing) acende exatamente nos buracos"
+    description: "Verde = heartbeat presente; vermelho = absent() devolvendo 1. Eles se revezam: nunca aparecem juntos."
+    draw: bars
+    queries:
+      - expr: absent_batch_heartbeat{batch="billing"}
+        legend: "billing presente"
+      - expr: absent(absent_batch_heartbeat{batch="billing"})
+        legend: "absent → 1 (labels: batch={{batch}})"
+        validate: any
+    overrides:
+      - matcher: {id: byName, options: "billing presente"}
+        properties: [{id: color, value: {mode: fixed, fixedColor: green}}]
+      - matcher: {id: byFrameRefID, options: "B"}
+        properties: [{id: color, value: {mode: fixed, fixedColor: red}}]
+  - title: "3. Pegadinha: absent(métrica) sem filtro NÃO dispara"
+    width: 24
+    height: 6
+    description: "Enquanto QUALQUER série existir (reports), absent() fica vazio. Por isso este painel mostra 'No data' o tempo todo."
+    queries:
+      - expr: absent(absent_batch_heartbeat)
+        legend: "absent(absent_batch_heartbeat)"
+        validate: empty
+  - title: "4. Dedução (1/3): {job=\"myjob\"} → {job=\"myjob\"}"
+    description: "Matcher de igualdade (=) vira label do resultado."
+    type: table
+    width: 8
+    height: 5
+    queries:
+      - expr: 'absent(absent_nonexistent_metric{job="myjob"})'
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+  - title: "4. Dedução (2/3): + instance=~\".*\" → só {job=\"myjob\"}"
+    description: "Regex (=~) NÃO vira label: não há um valor único para escrever."
+    type: table
+    width: 8
+    height: 5
+    queries:
+      - expr: 'absent(absent_nonexistent_metric{job="myjob",instance=~".*"})'
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+  - title: "4. Dedução (3/3): absent(sum(...)) → {}"
+    description: "Agregação perde os labels: o resultado é {} 1 (tabela só com Value)."
+    type: table
+    width: 8
+    height: 5
+    queries:
+      - expr: 'absent(sum(absent_nonexistent_metric{job="myjob"}))'
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+  - title: "5. Regra de alerta típica: 'job billing sumiu'"
+    description: "Mesma query do painel 2, como stat: 1 = alerta disparando, 'No data' = tudo certo."
+    type: stat
+    width: 24
+    height: 5
+    field_defaults:
+      noValue: "vazio = billing presente, sem alerta"
+    queries:
+      - expr: absent(absent_batch_heartbeat{batch="billing"})
+        legend: "billing ausente"
+        validate: any
+  - title: "6. 🟡 O que dá errado: count(x) == 0 NUNCA dispara"
+    description: "count() de vetor vazio é VAZIO, não 0. Então no buraco do billing isto não devolve nada, e fora do buraco count = 1 ≠ 0. Sempre 'No data'."
+    queries:
+      - expr: count(absent_batch_heartbeat{batch="billing"}) == 0
+        legend: "count == 0"
+        validate: empty
+  - title: "7. 🔴 Caso real: absent(up{job=...}) — TargetMissing"
+    description: "O target real deste lab é job=\"lab\": existe → vazio. job=\"billing-batch\" nunca foi configurado no Prometheus → absent devolve {job=\"billing-batch\"} 1, pronto para virar alerta."
+    type: table
+    queries:
+      - expr: absent(up{job="lab"})
+        format: table
+        validate: empty
+      - expr: absent(up{job="billing-batch"})
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "absent(up{job=lab}) → vazio"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "absent(up{job=billing-batch})"}]
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]

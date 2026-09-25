@@ -1,0 +1,61 @@
+function: histogram_avg
+title: "histogram_avg() — a média de um native histogram"
+category: "04 - Histogramas"
+time_from: now-15m
+intro: |
+  **Analogia:** a **conta do restaurante dividida pelo número de pessoas**: soma de tudo que foi observado ÷ quantidade de observações.
+  `histogram_avg(rate(x[1m]))` = `histogram_sum(...) / histogram_count(...)`. **Só funciona com native histograms** (em `x_bucket`/`x_sum` → vazio).
+
+  Métrica: `histogram_avg_request_duration_seconds{service}`. `web`: ~50 req/s, média 50ms (a cada **5 min**, por **60s**, sobe a 200ms).
+  `batch`: ~2 req/s, média 1s. Equivalente clássico: `rate(x_sum[1m]) / rate(x_count[1m])`.
+  Legenda dos painéis: 🟢 básico · 🟡 nuance/pegadinha · 🔴 caso real de produção.
+panels:
+  - title: "🟢 1. Média por serviço: histogram_avg(rate(x[1m]))"
+    description: "web ≈ 50ms (sobe para ≈200ms no período lento). batch ≈ 1s constante."
+    unit: s
+    queries:
+      - expr: histogram_avg(rate(histogram_avg_request_duration_seconds[1m]))
+        legend: "{{service}}"
+  - title: "🟢 2. Três jeitos, mesmo número (web)"
+    description: "histogram_avg = histogram_sum/histogram_count (native) = rate(_sum)/rate(_count) (classic). As 3 linhas se sobrepõem."
+    unit: s
+    queries:
+      - expr: histogram_avg(rate(histogram_avg_request_duration_seconds{service="web"}[1m]))
+        legend: "histogram_avg"
+      - expr: histogram_sum(rate(histogram_avg_request_duration_seconds{service="web"}[1m])) / histogram_count(rate(histogram_avg_request_duration_seconds{service="web"}[1m]))
+        legend: "histogram_sum / histogram_count"
+      - expr: rate(histogram_avg_request_duration_seconds_sum{service="web"}[1m]) / rate(histogram_avg_request_duration_seconds_count{service="web"}[1m])
+        legend: "classic: rate(_sum) / rate(_count)"
+  - title: "🔴 3. ❌ Média das médias vs ✅ média global"
+    description: "avg(histogram_avg(...)) = (0.05+1)/2 ≈ 0.52s: ERRADO, dá o mesmo peso ao batch (2 req/s) e ao web (50 req/s). histogram_avg(sum(rate(...))) = (50×0.05+2×1)/52 ≈ 0.087s: CERTO."
+    unit: s
+    queries:
+      - expr: avg(histogram_avg(rate(histogram_avg_request_duration_seconds[1m])))
+        legend: "❌ avg(histogram_avg(...))"
+      - expr: histogram_avg(sum(rate(histogram_avg_request_duration_seconds[1m])))
+        legend: "✅ histogram_avg(sum(rate(...)))"
+  - title: "🟡 4. A média esconde a cauda (web)"
+    description: "Média ≈ 50ms, mediana ≈ 46ms, mas p99 ≈ 117ms. Para SLO de latência use quantis ou histogram_fraction."
+    unit: s
+    queries:
+      - expr: histogram_avg(rate(histogram_avg_request_duration_seconds{service="web"}[1m]))
+        legend: "média"
+      - expr: histogram_quantile(0.5, rate(histogram_avg_request_duration_seconds{service="web"}[1m]))
+        legend: "p50"
+      - expr: histogram_quantile(0.99, rate(histogram_avg_request_duration_seconds{service="web"}[1m]))
+        legend: "p99"
+  - title: "🟡 5. ❌ Sem rate(): média desde o início do processo"
+    description: "histogram_avg(x) usa o acumulado desde que o gerador subiu: quase não reage ao período lento (logo após um restart do gerador o acumulado é curto e ela reage mais)."
+    unit: s
+    queries:
+      - expr: histogram_avg(histogram_avg_request_duration_seconds{service="web"})
+        legend: "❌ sem rate (acumulado)"
+      - expr: histogram_avg(rate(histogram_avg_request_duration_seconds{service="web"}[1m]))
+        legend: "✅ com rate [1m]"
+  - title: "🟡 6. ❌ Em classic (x_bucket) o resultado é VAZIO"
+    description: "histogram_avg ignora floats. Séries _bucket/_sum/_count são floats → 'No data'. Isso é esperado!"
+    unit: s
+    queries:
+      - expr: histogram_avg(rate(histogram_avg_request_duration_seconds_bucket[1m]))
+        legend: "vazio"
+        validate: empty

@@ -1,0 +1,68 @@
+function: ts_of_first_over_time
+title: "ts_of_first_over_time() — quando a série apareceu na janela (experimental)"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** o "membro desde" de um perfil. `ts_of_first_over_time(x[janela])` devolve o **timestamp Unix (s)**
+  da amostra **mais antiga** de cada série **dentro da janela** (nunca antes do início da janela!).
+
+  Truque: `time() - ts_of_first_over_time(x[1h])` = "há quanto tempo essa série existe" (até 1h). **Experimental**.
+  Métricas: `ts_of_first_over_time_app_build_info{version}` (um deploy novo a cada 3 min; a versão antiga some) e
+  `ts_of_first_over_time_process_up` (existe sempre).
+panels:
+  - title: "1. build_info cru — uma série por versão (escadinha de deploys)"
+    description: "Cada versão vive exatamente 3 min e some. Uma cor por versão."
+    queries:
+      - expr: ts_of_first_over_time_app_build_info
+        legend: "{{version}}"
+  - title: "2. Há quanto tempo a versão ATUAL está no ar"
+    description: "Dente-de-serra 0 → 180s: zera a cada deploy. O 'and on(version) x' filtra só a versão que ainda existe agora."
+    unit: s
+    queries:
+      - expr: (time() - ts_of_first_over_time(ts_of_first_over_time_app_build_info[1h])) and on(version) ts_of_first_over_time_app_build_info
+        legend: "uptime da {{version}}"
+  - title: "3. Pegadinha: o resultado é cortado no início da janela"
+    description: "process_up existe desde sempre, mas com [5m] a 'idade' nunca passa de ~300s; com [10m], de ~600s. A função só enxerga o que está DENTRO da janela."
+    unit: s
+    queries:
+      - expr: time() - ts_of_first_over_time(ts_of_first_over_time_process_up[5m])
+        legend: "idade vista com [5m]"
+      - expr: time() - ts_of_first_over_time(ts_of_first_over_time_process_up[10m])
+        legend: "idade vista com [10m]"
+  - title: "4. Histórico de deploys (tabela): quando cada versão entrou e saiu"
+    description: "ts_of_first_over_time = deploy; ts_of_last_over_time = última vez vista. ×1000 para o Grafana formatar data/hora."
+    type: table
+    width: 24
+    height: 8
+    queries:
+      - expr: ts_of_first_over_time(ts_of_first_over_time_app_build_info[15m]) * 1000
+        legend: "entrou"
+        format: table
+      - expr: ts_of_last_over_time(ts_of_first_over_time_app_build_info[15m]) * 1000
+        legend: "saiu"
+        format: table
+      - expr: ts_of_last_over_time(ts_of_first_over_time_app_build_info[15m]) - ts_of_first_over_time(ts_of_first_over_time_app_build_info[15m])
+        legend: "viveu (s)"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: unit, value: dateTimeAsIso}, {id: displayName, value: "primeira amostra (deploy)"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: unit, value: dateTimeAsIso}, {id: displayName, value: "última amostra"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: unit, value: s}, {id: displayName, value: "tempo de vida"}]
+  - title: "5. 🟡 O que dá errado: esquecer o 'and on(version)'"
+    description: "Sem filtrar a versão atual, TODAS as versões vistas na última hora aparecem, cada uma com a idade crescendo para sempre (até sair da janela de 1h). O painel 2 mostra o jeito certo."
+    width: 24
+    unit: s
+    queries:
+      - expr: time() - ts_of_first_over_time(ts_of_first_over_time_app_build_info[1h])
+        legend: "{{version}}"

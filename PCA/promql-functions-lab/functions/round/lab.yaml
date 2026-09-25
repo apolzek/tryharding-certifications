@@ -1,0 +1,69 @@
+function: round
+title: "round() — inteiro mais próximo, ou múltiplo mais próximo (to_nearest)"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `round()` é o **ímã** que puxa cada valor para a marca mais próxima da régua. Sem 2º argumento, as marcas
+  são os inteiros (`61.37 → 61`). Com `to_nearest`, você escolhe o espaçamento: `round(x, 0.5)` → 61.5, `round(x, 5)` → 60.
+  **Empate sobe:** `round(2.5) = 3` e `round(-2.5) = -2`.
+
+  Métricas: `round_node_hwmon_temp_celsius` (62 ± 4 °C com ruído) e `round_container_memory_working_set_bytes{pod}` (12 pods, ~100 MiB a ~1.3 GiB).
+panels:
+  - title: "🟢 1. Temperatura crua × round(x) — inteiro mais próximo"
+    description: "A linha crua é 'nervosa' (61.37, 61.82...). round() vira degraus de 1 °C."
+    unit: celsius
+    decimals: 2
+    queries:
+      - expr: round_node_hwmon_temp_celsius
+        legend: "cru {{chip}}/{{sensor}}"
+      - expr: round(round_node_hwmon_temp_celsius)
+        legend: "round(x)"
+  - title: "🟢 2. to_nearest: round(x, 0.5) × round(x, 5)"
+    description: "0.5 → degraus de meio grau (61.5, 62.0...). 5 → degraus grossos (55, 60, 65)."
+    unit: celsius
+    decimals: 2
+    queries:
+      - expr: round(round_node_hwmon_temp_celsius, 0.5)
+        legend: "round(x, 0.5)"
+      - expr: round(round_node_hwmon_temp_celsius, 5)
+        legend: "round(x, 5)"
+  - title: "🔴 3. Memória dos pods em MiB (cru) — 12 séries"
+    description: "Cada pod oscila ±40 MiB em torno de 100, 210, 320 ... 1310 MiB."
+    decimals: 1
+    queries:
+      - expr: round_container_memory_working_set_bytes / 2^20
+        legend: "{{pod}}"
+  - title: "🟡 4. Arredondado para múltiplos de 256 MiB: round(x / 2^20, 256)"
+    description: "Cada pod 'pula' entre os níveis 0, 256, 512, 768, 1024, 1280. 383.99 MiB vai para 256; 384 vai para 512 (empate sobe)."
+    queries:
+      - expr: round(round_container_memory_working_set_bytes / 2^20, 256)
+        legend: "{{pod}}"
+  - title: "🔴 5. Bucketing: quantos pods em cada faixa de ~256 MiB"
+    description: "count_values cria o label 'faixa_mib' com o valor arredondado e conta quantas séries caem em cada faixa."
+    type: bargauge
+    width: 12
+    queries:
+      - expr: sort_by_label(count_values("faixa_mib", round(round_container_memory_working_set_bytes / 2^20, 256)), "faixa_mib")
+        legend: "≈ {{faixa_mib}} MiB"
+        instant: true
+  - title: "⚠️ 6. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 12
+    queries:
+      - expr: round(vector(2.5))
+        legend: "round(2.5)"
+      - expr: round(vector(-2.5))
+        legend: "round(-2.5) ⚠️"
+      - expr: round(vector(0.125), 0.25)
+        legend: "round(0.125, 0.25)"
+      - expr: round(vector(1234), 100)
+        legend: "round(1234, 100)"
+      - expr: round(vector(1.005), 0.01)
+        legend: "round(1.005, 0.01) ⚠️"
+      - expr: round(vector(7), 0)
+        legend: "round(7, 0)"
+      - expr: round(vector(7), -5)
+        legend: "round(7, -5) ⚠️"
+      - expr: round(vector(+Inf))
+        legend: "round(+Inf)"

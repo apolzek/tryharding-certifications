@@ -1,0 +1,47 @@
+function: start
+title: "start() — o início da janela do gráfico (experimental)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** numa consulta *range* o Prometheus desenha um **filme**; `start()` é o **horário do primeiro quadro**
+  (a borda esquerda do gráfico). É o mesmo número em todos os pontos. Numa consulta **instantânea** (stat/tabela/alerta), `start()` = `time()`.
+
+  Precisa de `--enable-feature=promql-experimental-functions`. Combo matador: `x @ start()` = "valor de x no começo do gráfico".
+  Métricas: `start_orders_total` (≈3 pedidos/s) e `start_queue_depth` (fila, onda 100 ± 40 em 10 min).
+panels:
+  - title: "1. time() - start(): segundos desde o começo do gráfico"
+    description: "Rampa de 0 (borda esquerda) até ≈900 (borda direita) numa janela de 15 min. Mude o zoom para 1h e ela vai até 3600."
+    unit: s
+    queries:
+      - expr: time() - start()
+        legend: "segundos desde start()"
+  - title: "2. Pedidos desde o início do gráfico: x - x @ start()"
+    description: "Começa em 0 na borda esquerda e chega a ≈2700 (3/s × 900s) na direita. O número 'zera' sempre que você muda o zoom."
+    queries:
+      - expr: start_orders_total - start_orders_total @ start()
+        legend: "pedidos desde start()"
+  - title: "3. Fila: valor atual vs valor no início (linha de referência)"
+    description: "start_queue_depth @ start() é uma linha RETA: o valor da fila no primeiro quadro, repetido em todo o gráfico."
+    queries:
+      - expr: start_queue_depth
+        legend: "fila"
+      - expr: start_queue_depth @ start()
+        legend: "fila no início do gráfico"
+  - title: "4. Numa consulta instantânea (stat): start() = time()"
+    description: "Instant query não tem janela: start() = end() = time(), então time() - start() = 0 e x - x @ start() = 0."
+    type: stat
+    decimals: 0
+    queries:
+      - expr: time() - start()
+        legend: "time() - start()"
+      - expr: start_orders_total - start_orders_total @ start()
+        legend: "pedidos desde start()"
+  - title: "5. Comparação: x @ start() (instante FIXO) vs x offset 5m (deslocamento RELATIVO)"
+    description: "@ start() vira linha reta; offset 5m é a mesma onda atrasada 5 minutos."
+    queries:
+      - expr: start_queue_depth
+        legend: "fila"
+      - expr: start_queue_depth @ start()
+        legend: "@ start()"
+      - expr: start_queue_depth offset 5m
+        legend: "offset 5m"

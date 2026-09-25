@@ -1,0 +1,64 @@
+function: scalar
+title: "scalar() — transformar um vetor de 1 elemento em número puro"
+category: "10 - Tipos e conversões"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é **tirar o número da etiqueta**: um vetor é uma caixa com etiquetas (labels); `scalar()` abre a caixa e entrega **só o número**, sem etiqueta, para usar contra QUALQUER série.
+  Regra de ouro: **exatamente 1 elemento** → o valor dele; **0 ou 2+ elementos** → `NaN` (sem erro!).
+
+  Métricas: `scalar_http_requests_total{service}` (counter), `scalar_node_cpu_usage_percent{node}`, `scalar_cpu_alert_threshold_percent` (limiar configurável, 1 série, alterna 80/70 a cada 2 min) e `scalar_config_threshold_percent{replica}` (2 séries = armadilha).
+panels:
+  - title: "🟢 1. req/s por serviço (checkout ≈ 60, cart ≈ 30, search ≈ 10)"
+    unit: reqps
+    queries:
+      - expr: sum by (service) (rate(scalar_http_requests_total[1m]))
+        legend: "{{service}}"
+  - title: "🟢 2. % do total: sum by (service)(...) / scalar(sum(...))"
+    type: bargauge
+    unit: percentunit
+    min: 0
+    max: 1
+    description: "Cada série dividida por UM número (o total ≈ 100). checkout ≈ 60%, cart ≈ 30%, search ≈ 10%."
+    queries:
+      - expr: sum by (service) (rate(scalar_http_requests_total[1m])) / scalar(sum(rate(scalar_http_requests_total[1m])))
+        legend: "{{service}}"
+  - title: "🔴 3. CPU por nó × limiar vindo de uma MÉTRICA (80 ↔ 70)"
+    unit: percent
+    description: "scalar(scalar_cpu_alert_threshold_percent) vira uma linha sem labels, comparável com qualquer série."
+    queries:
+      - expr: scalar_node_cpu_usage_percent
+        legend: "{{node}}"
+      - expr: scalar(scalar_cpu_alert_threshold_percent)
+        legend: "limiar (scalar)"
+  - title: "🔴 4. Alerta: CPU > scalar(limiar) — só quem passou do limiar"
+    unit: percent
+    description: "node-1 (75..95) passa quase sempre; node-2 (55..75) só aparece quando o limiar cai para 70 e ele está no pico; node-3 nunca."
+    draw: points
+    queries:
+      - expr: scalar_node_cpu_usage_percent > scalar(scalar_cpu_alert_threshold_percent)
+        legend: "{{node}}"
+  - title: "🟡 5. 1 elemento → número; 0 ou 3 elementos → NaN"
+    type: stat
+    decimals: 1
+    description: "scalar(sum(...)) ≈ 100 (1 elemento). scalar(rate(...)) tem 3 séries → NaN. Seletor que não casa nada → NaN. Nenhum dá erro!"
+    queries:
+      - expr: scalar(sum(rate(scalar_http_requests_total[1m])))
+        legend: "scalar(sum(...)) — 1 elemento"
+      - expr: scalar(rate(scalar_http_requests_total[1m]))
+        legend: "scalar(rate(...)) — 3 elementos"
+      - expr: scalar(rate(scalar_http_requests_total{service="nao-existe"}[1m]))
+        legend: "scalar(vazio) — 0 elementos"
+  - title: "🟡 6. ARMADILHA: limiar com 2 séries → NaN → alerta NUNCA dispara"
+    type: stat
+    description: "scalar_config_threshold_percent tem replica=a e replica=b (ambas 80). scalar() = NaN, e qualquer comparação com NaN é falsa: resultado VAZIO mesmo com node-1 em 90%."
+    queries:
+      - expr: scalar_node_cpu_usage_percent > scalar(scalar_config_threshold_percent)
+        validate: empty
+  - title: "🟡 7. Correção: agregue ANTES do scalar() → scalar(max(...))"
+    unit: percent
+    draw: points
+    description: "max(scalar_config_threshold_percent) tem sempre 1 elemento. Agora o alerta volta a funcionar (node-1 aparece)."
+    queries:
+      - expr: scalar_node_cpu_usage_percent > scalar(max(scalar_config_threshold_percent))
+        legend: "{{node}}"

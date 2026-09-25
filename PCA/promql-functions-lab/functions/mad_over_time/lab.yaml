@@ -1,0 +1,99 @@
+function: mad_over_time
+title: "mad_over_time() — dispersão robusta a outliers (experimental)"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** numa sala com 11 pessoas ganhando ~R$5 mil, entra um bilionário. A **média** e o
+  **desvio padrão** do salário explodem; a **mediana** e o **MAD** (mediana dos desvios absolutos) quase não mudam.
+
+  `mad_over_time(gauge[janela])` = mediana de `|xᵢ − mediana(x)|` na janela. **Experimental** (precisa de
+  `--enable-feature=promql-experimental-functions`). Métrica: `mad_over_time_probe_duration_seconds{target}` (imita blackbox):
+  `api-go` (100±10ms) e `api-java` (igual, mas 1 probe por minuto pega uma **pausa de GC** e leva 1000ms).
+panels:
+  - title: "1. Gauge cru — api-java tem agulhas de 1s (pausas de GC)"
+    description: "Fora das agulhas, os dois targets são idênticos: 90..110ms."
+    unit: s
+    queries:
+      - expr: mad_over_time_probe_duration_seconds
+        legend: "{{target}}"
+  - title: "2. mad_over_time[5m] — quase igual nos dois targets (~5ms)"
+    description: "api-go ≈ 5ms, api-java ≈ 5–6ms. Os ~8% de outliers mexem no máximo ~1ms no MAD."
+    unit: s
+    queries:
+      - expr: mad_over_time(mad_over_time_probe_duration_seconds[5m])
+        legend: "MAD {{target}}"
+  - title: "3. stddev_over_time[5m] — explode com os outliers (~5.8 vs ~250ms)"
+    description: "O desvio padrão eleva as distâncias ao quadrado: poucas agulhas dominam o resultado."
+    unit: s
+    queries:
+      - expr: stddev_over_time(mad_over_time_probe_duration_seconds[5m])
+        legend: "stddev {{target}}"
+  - title: "4. z-score clássico vs robusto (api-java)"
+    description: "Clássico: (x−avg)/stddev → a agulha dá só ≈3.3 (os outliers 'escondem' a si mesmos). Robusto: (x−mediana)/(1.4826·MAD) → a agulha dá ≈ 85 a 165."
+    queries:
+      - expr: |
+          (mad_over_time_probe_duration_seconds{target="api-java"} - avg_over_time(mad_over_time_probe_duration_seconds{target="api-java"}[5m]))
+            / stddev_over_time(mad_over_time_probe_duration_seconds{target="api-java"}[5m])
+        legend: "z clássico"
+      - expr: |
+          (mad_over_time_probe_duration_seconds{target="api-java"} - quantile_over_time(0.5, mad_over_time_probe_duration_seconds{target="api-java"}[5m]))
+            / (1.4826 * mad_over_time(mad_over_time_probe_duration_seconds{target="api-java"}[5m]))
+        legend: "z robusto"
+  - title: "5. Resumo agora: mediana, MAD, avg, stddev por target"
+    type: table
+    width: 24
+    height: 6
+    unit: s
+    decimals: 1
+    queries:
+      - expr: quantile_over_time(0.5, mad_over_time_probe_duration_seconds[5m])
+        legend: "mediana"
+        format: table
+      - expr: mad_over_time(mad_over_time_probe_duration_seconds[5m])
+        legend: "MAD"
+        format: table
+      - expr: avg_over_time(mad_over_time_probe_duration_seconds[5m])
+        legend: "avg"
+        format: table
+      - expr: stddev_over_time(mad_over_time_probe_duration_seconds[5m])
+        legend: "stddev"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "mediana"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "MAD"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: displayName, value: "avg"}]
+      - matcher: {id: byName, options: "Value #D"}
+        properties: [{id: displayName, value: "stddev"}]
+  - title: "6. 🔴 Caso real: alerta de outlier robusto (|z robusto| > 5)"
+    description: "Pontos = instantes em que a regra dispararia. Só as agulhas de GC do api-java aparecem; o ruído normal (±10ms) nunca passa de ~1.5."
+    width: 12
+    draw: points
+    queries:
+      - expr: |
+          abs(
+            (mad_over_time_probe_duration_seconds - quantile_over_time(0.5, mad_over_time_probe_duration_seconds[5m]))
+              / (1.4826 * mad_over_time(mad_over_time_probe_duration_seconds[5m]) > 0)
+          ) > 5
+        legend: "outlier {{target}}"
+        validate: any
+  - title: "7. 🟡 O que dá errado: alerta 'jitter' com stddev_over_time > 50ms"
+    description: "Com stddev, api-java fica SEMPRE em alerta (≈250ms) por causa de 1 pausa de GC por minuto. Com MAD (≈5–6ms) o alerta de jitter fica quieto, que é o correto: o comportamento típico é bom."
+    width: 12
+    unit: s
+    queries:
+      - expr: stddev_over_time(mad_over_time_probe_duration_seconds[5m]) > 0.05
+        legend: "stddev > 50ms {{target}}"
+      - expr: mad_over_time(mad_over_time_probe_duration_seconds[5m]) > 0.05
+        legend: "MAD > 50ms {{target}}"
+        validate: empty

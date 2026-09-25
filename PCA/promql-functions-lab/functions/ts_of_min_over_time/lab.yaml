@@ -1,0 +1,77 @@
+function: ts_of_min_over_time
+title: "ts_of_min_over_time() — QUANDO aconteceu o mínimo (experimental)"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** `min_over_time` diz "a bateria chegou a **0%**"; `ts_of_min_over_time` diz **"às 14:32:05"**.
+  É o **timestamp Unix (segundos)** da **última** amostra que tem o valor mínimo na janela.
+
+  Truque: `time() - ts_of_min_over_time(x[5m])` = "há quantos segundos foi o mínimo". **Experimental**.
+  Métrica: `ts_of_min_over_time_node_power_supply_capacity{power_supply}` (imita `node_power_supply_capacity` do node_exporter):
+  `BAT0` (notebook) descarrega, fica **60s em 0%**, recarrega (ciclo 5 min); `UPS` (nobreak) é uma senóide 30..90% (período 4 min).
+panels:
+  - title: "1. Gauge cru — bateria"
+    description: "BAT0: rampa 100→0 em 3 min, platô em 0 por 1 min, recarga em 1 min. UPS: onda entre 30 e 90%."
+    unit: percent
+    queries:
+      - expr: ts_of_min_over_time_node_power_supply_capacity
+        legend: "{{power_supply}}"
+  - title: "2. min_over_time[5m] — QUAL foi o menor valor"
+    description: "BAT0 = 0, UPS ≈ 30. Só o valor; não diz quando."
+    unit: percent
+    queries:
+      - expr: min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m])
+        legend: "min {{power_supply}}"
+  - title: "3. time() − ts_of_min_over_time[5m] — HÁ QUANTO TEMPO foi o mínimo"
+    description: "BAT0: fica ≈0 durante o platô em 0% (a ÚLTIMA amostra mínima é a mais recente) e depois cresce 1s por segundo até o próximo platô. UPS: dente-de-serra de 0 a ~240s."
+    unit: s
+    queries:
+      - expr: time() - ts_of_min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m])
+        legend: "seg desde o mínimo {{power_supply}}"
+  - title: "4. Valor cru de ts_of_min_over_time (timestamp Unix em segundos)"
+    description: "É um número enorme (~1.7e9 a 1.8e9). Em gráfico, parece uma escada: fica parado enquanto o mínimo não muda e 'pula' quando surge um mínimo mais novo."
+    queries:
+      - expr: ts_of_min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m])
+        legend: "ts {{power_supply}}"
+  - title: "5. Menor bateria e quando (tabela: valor + horário)"
+    description: "Multiplique por 1000 para o Grafana formatar como data/hora (ele espera milissegundos). A última coluna mostra o erro clássico: sem ×1000, a data vira janeiro de 1970."
+    type: table
+    width: 24
+    height: 6
+    queries:
+      - expr: min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m])
+        legend: "min %"
+        format: table
+      - expr: ts_of_min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m]) * 1000
+        legend: "quando"
+        format: table
+      - expr: ts_of_min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m])
+        legend: "errado"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: unit, value: dateTimeAsIso}, {id: displayName, value: "quando foi o mínimo"}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: unit, value: percent}, {id: displayName, value: "mínimo em 5m"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: unit, value: dateTimeAsIso}, {id: displayName, value: "❌ sem ×1000"}]
+  - title: "6. 🔴 Caso real: alerta 'bateria abaixo de 20% nos últimos 60s'"
+    description: "min_over_time(...) < 20 AND (time() - ts_of_min_over_time(...)) < 60: dispara só enquanto o evento é recente. BAT0 aparece durante o platô em 0% e logo depois; UPS nunca (mínimo 30%)."
+    width: 24
+    height: 7
+    draw: points
+    queries:
+      - expr: |
+          min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m]) < 20
+          and
+          (time() - ts_of_min_over_time(ts_of_min_over_time_node_power_supply_capacity[5m])) < 60
+        legend: "ALERTA {{power_supply}}"
+        validate: any

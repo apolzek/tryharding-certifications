@@ -1,0 +1,63 @@
+function: pi
+title: "pi() — a constante π"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** a **fita métrica do círculo**: toda roda, tubo, pá de turbina e onda periódica passa por π.
+  `pi()` não recebe nada e devolve o **escalar** 3.141592653589793.
+
+  Métricas: `pi_turbine_rotor_rpm` (6..16 rpm), `pi_turbine_blade_length_meters` (60 m),
+  `pi_pipe_diameter_meters{pipe}` e `pi_pipe_flow_velocity_mps{pipe}`.
+
+  **Casos:** 🟢 básico: painel 5 (pi() é escalar) · 🟡 nuance: 4–5 (vector(pi()), esquecer /60) · 🔴 real: 1–3 (velocidade da pá, vazão de tubulação)
+panels:
+  - title: "1. Rotação do rotor (rpm)"
+    description: "Varia com o vento entre 6 e 16 rpm. Parece lento..."
+    unit: rotrpm
+    queries:
+      - expr: pi_turbine_rotor_rpm
+        legend: "{{turbine}}"
+  - title: "2. Velocidade da ponta da pá = 2·π·r·rpm / 60"
+    description: "...mas com pás de 60 m: 6 rpm → 38 m/s, 16 rpm → 100 m/s (360 km/h!)."
+    unit: velocityms
+    queries:
+      - expr: 2 * pi() * pi_turbine_blade_length_meters * pi_turbine_rotor_rpm / 60
+        legend: "ponta da pá {{turbine}}"
+  - title: "3. Vazão da tubulação = π·(d/2)²·velocidade"
+    description: "adutora (d=0.5 m, A=0.196 m²): 0.2..0.59 m³/s. ramal (d=0.1 m, A=0.00785 m²): 25x menor."
+    unit: flowcms
+    queries:
+      - expr: pi() * (pi_pipe_diameter_meters / 2) ^ 2 * pi_pipe_flow_velocity_mps
+        legend: "m³/s {{pipe}}"
+  - title: "4. Onda sintética: sin(2·π·time()/60)"
+    description: "π + time() geram um sinal periódico sem nenhuma métrica: útil como modelo sazonal (troque 60 por 86400)."
+    min: -1
+    max: 1
+    queries:
+      - expr: sin(vector(2 * pi() * time() / 60))
+        legend: "período 60s"
+  - title: "5. pi() é escalar"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "Área varrida = π·60² ≈ 11 310 m². pi() sem vector() não tem labels; funções trigonométricas precisam de vector(pi())."
+    queries:
+      - expr: pi()
+        legend: "pi()"
+      - expr: vector(pi())
+        legend: "vector(pi())"
+      - expr: pi() * pi_turbine_blade_length_meters ^ 2
+        legend: "área varrida (m²)"
+      - expr: deg(vector(pi()))
+        legend: "deg(π)"
+      - expr: sin(vector(pi()))
+        legend: "sin(π) ≠ 0"
+      - expr: 2 * pi() * pi_turbine_blade_length_meters * pi_turbine_rotor_rpm
+        legend: "ERRADO: ponta da pá sem /60 (m/s)"

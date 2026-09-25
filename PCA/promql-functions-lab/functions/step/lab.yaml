@@ -1,0 +1,44 @@
+function: step
+title: "step() — a distância entre pontos do gráfico (experimental)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** o gráfico é um **filme**; `step()` é o **intervalo entre dois quadros** (a resolução), em segundos.
+  No Grafana ele **muda com o zoom**: 15 min → 5s; 6 h → ≈30s; 7 dias → ≈10 min. Numa consulta **instantânea**, `step()` = **0**.
+
+  Precisa de `--enable-feature=promql-experimental-functions`. Uso típico como duração: `max_over_time(x[step()])` = cada ponto resume **exatamente** o seu pedaço, sem buracos.
+  Métricas: `step_http_requests_total` (≈10 req/s) e `step_latency_seconds` (≈0.12s com **picos de 2.5s que duram só 5s**, a cada 47s).
+panels:
+  - title: "1. step() num gráfico"
+    description: "Nesta janela de 15 min o Grafana pede step = 5s (o 'Min interval' do datasource). Dê zoom out para 6h e veja virar ≈30."
+    unit: s
+    queries:
+      - expr: step()
+        legend: "step()"
+  - title: "2. Quantos scrapes cabem em cada ponto: count_over_time(x[step()])"
+    description: "Com step 5s e scrape 5s: 1 amostra por ponto. Com zoom de 6h (step 30s): 6 amostras por ponto."
+    queries:
+      - expr: count_over_time(step_latency_seconds[step()])
+        legend: "amostras por ponto"
+  - title: "3. Latência crua vs max_over_time(x[step()]) (picos de 5s)"
+    description: "Em 15 min (step = scrape) as duas coincidem. Faça zoom out para 6h: a crua PERDE picos, a max_over_time[step()] mantém todos em 2.5s."
+    unit: s
+    queries:
+      - expr: step_latency_seconds
+        legend: "crua (amostra no ponto)"
+      - expr: max_over_time(step_latency_seconds[step()])
+        legend: "máx. em cada step"
+  - title: "4. Pegadinha: increase(x[step()]) com step = scrape → vazio"
+    description: "Com step 5s cada janela [5s] tem 1 amostra só: increase precisa de 2 → nada (painel vazio em 15 min). Com folga [step() + 10s] sempre há 3+ amostras (≈150 req por janela de 15s)."
+    queries:
+      - expr: increase(step_http_requests_total[step()])
+        legend: "[step()]"
+        validate: any
+      - expr: increase(step_http_requests_total[step() + 10s])
+        legend: "[step() + 10s]"
+  - title: "5. Numa consulta instantânea: step() = 0"
+    description: "Por isso x[step()] em stat/alerta dá ERRO 'duration must be greater than 0'."
+    type: stat
+    queries:
+      - expr: step()
+        legend: "step() (instant)"

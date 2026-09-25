@@ -1,0 +1,54 @@
+function: last_over_time
+title: "last_over_time() — o último valor visto na janela"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** o **placar do jogo que já acabou**. O jogo (o batch job) dura poucos segundos, mas o placar continua
+  pendurado no telão até o próximo jogo. `last_over_time(x[5m])` = "o valor mais recente que apareceu nos últimos 5 min".
+
+  Métrica: `last_over_time_batch_items_processed{job_name}`, exposta **só ~20s** por execução:
+  export roda a cada **2 min** (1000, 1250, 1500, 1750, 2000, ...), report a cada **3 min** (300, 600, 900, ...).
+panels:
+  - title: "1. 🟢 Cru: o batch job só existe por ~20s (pontinhos)"
+    description: "Fora da execução a série some (staleness marker). O gráfico fica quase vazio."
+    draw: points
+    queries:
+      - expr: last_over_time_batch_items_processed
+        legend: "{{job_name}}"
+  - title: "2. 🟢 last_over_time(x[5m]): o placar pendurado"
+    description: "Janela maior que o intervalo do job → degraus contínuos: o valor da última execução fica até a próxima."
+    draw: line
+    queries:
+      - expr: last_over_time(last_over_time_batch_items_processed[5m])
+        legend: "{{job_name}}"
+  - title: "3. 🟡 Janela curta demais: [1m] < intervalo do job"
+    description: "Sem amostra na janela, sem resultado: buracos de ~40s (export) e ~1m40s (report)."
+    queries:
+      - expr: last_over_time(last_over_time_batch_items_processed[1m])
+        legend: "{{job_name}} [1m]"
+  - title: "4. 🟡 [2m]: suficiente para export (2 min), curta para report (3 min)"
+    description: "export fica contínuo; report ainda tem buracos de ~40s. Regra: janela > maior intervalo esperado."
+    queries:
+      - expr: last_over_time(last_over_time_batch_items_processed[2m])
+        legend: "{{job_name}} [2m]"
+  - title: "5. 🔴 Idade do dado: time() - ts_of_last_over_time(x[10m])"
+    description: "Segundos desde a última amostra. Dente-de-serra: export 0→~100s, report 0→~160s. Alerta: > 300 = job atrasado."
+    unit: s
+    queries:
+      - expr: time() - ts_of_last_over_time(last_over_time_batch_items_processed[10m])
+        legend: "{{job_name}} idade"
+  - title: "6. 🔴 Usando o valor 'preenchido' em conta: soma dos dois jobs"
+    description: "sum(x) cru só existe quando algum job está rodando, e soma só quem está rodando naquele instante. sum(last_over_time(x[5m])) sempre soma a última execução de cada job (1250..2900)."
+    queries:
+      - expr: sum(last_over_time_batch_items_processed)
+        legend: "sum(x) cru"
+      - expr: sum(last_over_time(last_over_time_batch_items_processed[5m]))
+        legend: "sum(last_over_time[5m])"
+  - title: "7. 🔴 Última execução de cada job (table)"
+    type: table
+    width: 24
+    height: 5
+    queries:
+      - expr: last_over_time(last_over_time_batch_items_processed[5m])
+        instant: true

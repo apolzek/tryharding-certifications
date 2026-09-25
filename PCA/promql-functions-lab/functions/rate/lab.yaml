@@ -1,0 +1,57 @@
+function: rate
+title: "rate() — velocidade média de um counter"
+category: "02 - Counters (rate, increase...)"
+time_from: now-15m
+intro: |
+  **Analogia:** o counter é o **hodômetro** do carro (só cresce). `rate()` é o **velocímetro**:
+  quantos km/**segundo**, em média, você andou na janela `[x]`.
+
+  `rate(counter[janela])` → **por segundo**, média da janela, compensa resets. Use **sempre** com counters (`_total`).
+  Métricas do cenário: `rate_http_requests_total{route}` (com pico em `/api/search` a cada 5 min) e
+  `rate_worker_jobs_processed_total` (pod que reinicia a cada 3 min).
+panels:
+  - title: "1. Counter cru — o hodômetro (sempre sobe)"
+    description: "Valor bruto do counter. Olhar direto para ele é quase inútil: só vemos que cresce."
+    queries:
+      - expr: rate_http_requests_total
+        legend: "{{route}}"
+  - title: "2. rate(...[1m]) — req/s por rota"
+    description: "Velocidade média no último minuto. /home ≈ 10, /checkout ≈ 2, /api/search ≈ 5 com picos de 40."
+    unit: reqps
+    queries:
+      - expr: rate(rate_http_requests_total[1m])
+        legend: "{{route}}"
+  - title: "3. Janela curta vs longa: [30s] vs [5m]"
+    description: "Janela curta = reage rápido, mais ruído. Janela longa = suave, mas 'achata' o pico."
+    unit: reqps
+    queries:
+      - expr: rate(rate_http_requests_total{route="/api/search"}[30s])
+        legend: "[30s] nervoso"
+      - expr: rate(rate_http_requests_total{route="/api/search"}[5m])
+        legend: "[5m] suave"
+  - title: "4. sum(rate(...)) — total do serviço"
+    description: "Regra de ouro: PRIMEIRO rate, DEPOIS sum. Nunca rate(sum(...))."
+    unit: reqps
+    queries:
+      - expr: sum(rate(rate_http_requests_total[1m]))
+        legend: "total req/s"
+  - title: "5. Counter com reset (pod reinicia a cada 3 min)"
+    description: "O valor cru despenca pra zero a cada restart..."
+    queries:
+      - expr: rate_worker_jobs_processed_total
+        legend: "cru {{pod}}"
+  - title: "6. ...mas rate() compensa o reset: ~2 jobs/s estável"
+    description: "rate() detecta a queda e trata como reset, então a velocidade continua correta."
+    unit: ops
+    queries:
+      - expr: rate(rate_worker_jobs_processed_total[1m])
+        legend: "rate {{pod}}"
+  - title: "7. % do tráfego por rota (stat)"
+    type: bargauge
+    unit: percentunit
+    width: 24
+    height: 6
+    queries:
+      - expr: sum by (route) (rate(rate_http_requests_total[1m])) / scalar(sum(rate(rate_http_requests_total[1m])))
+        legend: "{{route}}"
+        instant: true

@@ -1,0 +1,62 @@
+function: rad
+title: "rad() — de graus para radianos"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** o **adaptador de tomada**. Seus sensores entregam **graus**, mas `sin()`, `cos()` e `tan()` só
+  "encaixam" em **radianos**. `rad(x) = x · π / 180`. Esquecer o adaptador não dá erro... dá **resultado errado**.
+
+  Métricas: `rad_solar_tracker_tilt_degrees` (-60..60°), `rad_solar_panel_width_meters` (2 m) e
+  `rad_turbine_blade_pitch_degrees` (2° normal, 90° embandeirada).
+
+  **Casos:** 🟢 básico: painéis 1–2 (graus → rad) · 🟡 nuance: 3 e 5 (esquecer o rad = lixo plausível) · 🔴 real: 3–4 (tracker solar, pitch de turbina)
+panels:
+  - title: "1. Inclinação do rastreador solar (graus)"
+    description: "Segue o sol de -60° (manhã) a +60° (tarde) em 4 min e volta ao leste."
+    unit: degree
+    queries:
+      - expr: rad_solar_tracker_tilt_degrees
+        legend: "{{tracker}}"
+  - title: "2. rad(tilt): mesma curva, outra escala"
+    description: "-60° → -1.047 rad, 0° → 0, +60° → +1.047 rad. rad() é só uma multiplicação por 0.01745."
+    queries:
+      - expr: rad(rad_solar_tracker_tilt_degrees)
+        legend: "rad {{tracker}}"
+  - title: "3. Sombra no chão = largura · cos(rad(tilt))"
+    description: "Certo: 2 m a 0°, 1 m a ±60°. Sem rad(): cos(60 radianos) = -0.95 → sombra NEGATIVA."
+    unit: lengthm
+    queries:
+      - expr: rad_solar_panel_width_meters * cos(rad(rad_solar_tracker_tilt_degrees))
+        legend: "certo (com rad)"
+      - expr: rad_solar_panel_width_meters * cos(rad_solar_tracker_tilt_degrees)
+        legend: "ERRADO (sem rad)"
+  - title: "4. Pás da turbina: fração de área contra o vento = cos(rad(pitch))"
+    description: "Pitch 2° → 0.9994 (pás 'pegando' vento). Embandeirada 90° → ~0 (6e-17): pás de lado, turbina protegida."
+    min: 0
+    max: 1
+    queries:
+      - expr: cos(rad(rad_turbine_blade_pitch_degrees))
+        legend: "cos(rad(pitch)) {{turbine}}"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "rad(180) = π, rad(1) = 0.01745. rad(deg(x)) = x. sin(rad(30)) = 0.49999999999999994."
+    queries:
+      - expr: rad(vector(180))
+        legend: "rad(180)"
+      - expr: rad(vector(1))
+        legend: "rad(1)"
+      - expr: rad(vector(360))
+        legend: "rad(360)"
+      - expr: sin(rad(vector(30)))
+        legend: "sin(rad(30))"
+      - expr: sin(vector(30))
+        legend: "sin(30) sem rad"

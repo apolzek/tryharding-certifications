@@ -1,0 +1,77 @@
+function: atanh
+title: "atanh() — inversa do tanh: domínio (-1, 1)"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** o `tanh()` é o **amortecedor** que espreme tudo em (-1, 1). O `atanh()` **estica de volta**: valores
+  no meio mudam pouco, mas perto das bordas ±1 ele **explode** (±Inf em exatamente ±1) e fora delas dá **NaN**.
+
+  Usos: "índice de estresse" que explode perto de 100%, e a **transformação de Fisher** para fazer média de
+  correlações. Métricas: `atanh_disk_utilization_ratio`, `atanh_correlation_coefficient{pair}` e
+  `atanh_buggy_correlation_coefficient` (às vezes > 1).
+
+  **Casos:** 🟢 básico: painéis 1–2 (estresse de utilização) · 🟡 nuance: 4–5 (±1 = ±Inf, >1 = NaN) · 🔴 real: 3 (média de correlações por Fisher)
+panels:
+  - title: "1. Ocupação do disco (0..1)"
+    description: "Enche de 30% até 100% em 3 min, fica 30s CHEIO e é limpo."
+    unit: percentunit
+    queries:
+      - expr: atanh_disk_utilization_ratio
+        legend: "{{disk}}"
+  - title: "2. Estresse = atanh(uso): explode perto de 100%"
+    description: "50% → 0.55, 90% → 1.47, 99.9% → 3.8, 100% → +Inf (o gráfico sai da tela)."
+    queries:
+      - expr: atanh(atanh_disk_utilization_ratio)
+        legend: "estresse {{disk}}"
+  - title: "3. Correlações por par: média ingênua vs Fisher"
+    width: 24
+    height: 10
+    options:
+      legend: {displayMode: table, placement: right, calcs: [lastNotNull, min, max]}
+    overrides:
+      - matcher: {id: byRegexp, options: "avg.*|Fisher.*"}
+        properties:
+          - {id: custom.lineWidth, value: 4}
+          - {id: custom.fillOpacity, value: 0}
+    description: "avg(r) ingênua: 0.35..0.59. Fisher tanh(avg(atanh(r))): 0.63..0.76. A média ingênua subestima quando há correlações perto de ±1."
+    min: -1
+    max: 1
+    queries:
+      - expr: atanh_correlation_coefficient
+        legend: "{{pair}}"
+      - expr: avg(atanh_correlation_coefficient)
+        legend: "avg(r) ingênua"
+      - expr: tanh(avg(atanh(atanh_correlation_coefficient)))
+        legend: "Fisher: tanh(avg(atanh(r)))"
+  - title: "4. Correlação com bug (> 1): atanh vira NaN"
+    width: 24
+    height: 8
+    description: "O job às vezes reporta 1.02 (impossível). atanh só existe enquanto |r| < 1: nos trechos > 1 a linha some."
+    queries:
+      - expr: atanh_buggy_correlation_coefficient
+        legend: "r cru {{pair}}"
+      - expr: atanh(atanh_buggy_correlation_coefficient)
+        legend: "atanh(r) {{pair}}"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "atanh(±1) = ±Inf. |x| > 1 → NaN. tanh(atanh(0.5)) = 0.49999999999999994 (arredondamento)."
+    queries:
+      - expr: atanh(vector(0.5))
+        legend: "atanh(0.5)"
+      - expr: atanh(vector(0.99))
+        legend: "atanh(0.99)"
+      - expr: atanh(vector(1))
+        legend: "atanh(1)"
+      - expr: atanh(vector(-1))
+        legend: "atanh(-1)"
+      - expr: atanh(vector(1.02))
+        legend: "atanh(1.02)"

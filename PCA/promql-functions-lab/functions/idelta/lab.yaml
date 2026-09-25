@@ -1,0 +1,56 @@
+function: idelta
+title: "idelta() — diferença entre as 2 últimas amostras (gauges)"
+category: "03 - Gauges (delta, deriv, previsão)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** `delta()` compara a foto de **1 minuto atrás** com a de agora; `idelta()` compara a **penúltima foto** com a **última**
+  ("o que mudou desde o último scrape?"). Resultado em **unidades por scrape** (aqui, por 5s), **não** por segundo.
+
+  Só para **gauges**. Métricas: `idelta_rabbitmq_queue_messages` (lote de 500 msgs a cada 30s, drenado a 20 msg/s),
+  `idelta_pg_stat_activity_count` (degraus de +20) e `idelta_http_requests_total` (counter que reseta, para a pegadinha).
+panels:
+  - title: "🟢 1. Fila crua: lote de 500 a cada 30s, drenagem de 20 msg/s"
+    queries:
+      - expr: idelta_rabbitmq_queue_messages
+        legend: "fila {{queue}}"
+  - title: "🟢 2. idelta(...[1m]) — o que mudou no último scrape"
+    description: "≈ -100 por scrape durante a drenagem (20 msg/s × 5s), salto positivo (~+400/+500) quando o lote chega, 0 com a fila vazia."
+    unit: short
+    queries:
+      - expr: idelta(idelta_rabbitmq_queue_messages[1m])
+        legend: "idelta {{queue}}"
+  - title: "🟡 3. idelta vs delta[1m]: instantâneo vs janela"
+    description: "idelta mostra cada degrau (−100 por scrape, +~400 no lote). delta[1m] fica quase sempre em ≈ +110 com picos de ≈ +240 e ≈ −450: numa fila periódica ele mede em que fase do ciclo caíram as pontas da janela, não a tendência (que é 0)."
+    unit: short
+    queries:
+      - expr: idelta(idelta_rabbitmq_queue_messages[1m])
+        legend: "idelta"
+      - expr: delta(idelta_rabbitmq_queue_messages[1m])
+        legend: "delta[1m]"
+  - title: "🔴 4. Degraus de conexões: idelta = +20 no degrau, 0 no resto"
+    description: "Conexões sobem 20 a cada 45s e voltam para 10 a cada 3 min (idelta = -60)."
+    unit: short
+    queries:
+      - expr: idelta_pg_stat_activity_count
+        legend: "conexões (cru)"
+      - expr: idelta(idelta_pg_stat_activity_count[1m])
+        legend: "idelta"
+  - title: "🟡 5. idelta[1m] vs idelta[5m] — idênticos"
+    description: "A janela só define até onde procurar as 2 últimas amostras. As linhas se sobrepõem."
+    unit: short
+    queries:
+      - expr: idelta(idelta_rabbitmq_queue_messages[1m])
+        legend: "idelta[1m]"
+      - expr: idelta(idelta_rabbitmq_queue_messages[5m])
+        legend: "idelta[5m]"
+  - title: "🟡 6. Pegadinha: idelta em COUNTER não entende reset"
+    description: "Counter +4/s: idelta ≈ +20 por scrape, mas ≈ -480 no reset (a cada 2 min). irate*5 continua ≈ 20."
+    unit: short
+    queries:
+      - expr: idelta(idelta_http_requests_total[1m])
+        legend: "idelta (errado em counter)"
+      - expr: irate(idelta_http_requests_total[1m]) * 5
+        legend: "irate × 5s (certo)"

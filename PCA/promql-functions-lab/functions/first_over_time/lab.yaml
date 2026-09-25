@@ -1,0 +1,50 @@
+function: first_over_time
+title: "first_over_time() — a primeira amostra DENTRO da janela"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** a **primeira foto do rolo** da última hora. `first_over_time(x[1m])` pega a amostra **mais antiga dentro** da janela.
+  Parece `x offset 1m`, mas o `offset` olha **para fora e antes** da janela ("qual era o valor 1 min atrás?"), e se não havia nada lá, devolve **nada**.
+
+  Métricas: `first_over_time_queue_depth` (onda contínua de 5 min, 40..160) e
+  `first_over_time_job_progress_percent{job_name="migration"}` (série que **vive só 100s a cada 3 min**, começa em 20% e sobe 0,8%/s).
+panels:
+  - title: "1. 🟢 Série contínua: cru, first_over_time[2m] e offset 2m"
+    description: "Com dados contínuos, first_over_time(x[2m]) ≈ x offset 2m: a mesma onda deslocada 2 min para a direita (diferença ≤ 1 scrape)."
+    queries:
+      - expr: first_over_time_queue_depth
+        legend: "cru"
+      - expr: first_over_time(first_over_time_queue_depth[2m])
+        legend: "first_over_time[2m]"
+      - expr: first_over_time_queue_depth offset 2m
+        legend: "offset 2m"
+  - title: "2. 🟡 Variação na janela: x - first_over_time(x[2m]) vs delta(x[2m])"
+    description: "Diferença exata entre agora e a 1ª amostra da janela. delta() extrapola até as bordas e dá um número um pouco maior (em módulo)."
+    queries:
+      - expr: first_over_time_queue_depth - first_over_time(first_over_time_queue_depth[2m])
+        legend: "x - first_over_time[2m]"
+      - expr: delta(first_over_time_queue_depth[2m])
+        legend: "delta[2m] (extrapolado)"
+  - title: "3. 🔴 Série que nasce e morre: o job de migração (cru)"
+    description: "Vive 100s a cada 3 min: começa em 20% e sobe até ~99%. Depois some."
+    unit: percent
+    queries:
+      - expr: first_over_time_job_progress_percent
+        legend: "progresso"
+  - title: "4. 🔴 first_over_time(x[1m]) vs x offset 1m — AQUI eles diferem"
+    description: "offset 1m fica VAZIO nos primeiros 60s de vida (não existia nada 1 min antes). first_over_time já mostra 20% desde o 1º scrape. Após a morte, os dois seguem ~1 min."
+    unit: percent
+    queries:
+      - expr: first_over_time(first_over_time_job_progress_percent[1m])
+        legend: "first_over_time[1m]"
+      - expr: first_over_time_job_progress_percent offset 1m
+        legend: "offset 1m"
+  - title: "5. 🔴 Progresso no último minuto: x - first_over_time vs ❌ x - x offset 1m"
+    description: "Com first_over_time o cálculo funciona desde o 2º scrape (sobe 0 → ~45). Com offset só aparece depois de 60s (≈ 48)."
+    unit: percent
+    queries:
+      - expr: first_over_time_job_progress_percent - first_over_time(first_over_time_job_progress_percent[1m])
+        legend: "x - first_over_time[1m]"
+      - expr: first_over_time_job_progress_percent - (first_over_time_job_progress_percent offset 1m)
+        legend: "x - x offset 1m"

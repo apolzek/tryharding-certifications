@@ -1,0 +1,55 @@
+function: histogram_stddev
+title: "histogram_stddev() — o quanto os valores se espalham em volta da média"
+category: "04 - Histogramas"
+time_from: now-15m
+intro: |
+  **Analogia:** dois **ônibus** que chegam, em média, no horário. Um chega sempre ±1 min; o outro às vezes 10 min antes, às vezes 15
+  depois. A média é igual, o **desvio padrão** mostra qual é confiável. **Só funciona com native histograms** (estimativa pelos buckets).
+
+  Métrica: `histogram_stddev_request_duration_seconds{service}`. Ambos têm **média 100ms**. `stable`: σ ≈ 10ms.
+  `erratic`: alterna a cada **2 min** entre calmo (σ ≈ 31ms) e caos (σ ≈ 131ms).
+  Legenda dos painéis: 🟢 básico · 🟡 nuance/pegadinha · 🔴 caso real de produção.
+panels:
+  - title: "🟢 1. A média engana: os dois serviços têm ≈100ms"
+    description: "histogram_avg(rate(...)): as duas linhas ficam juntas em ≈0.1s o tempo todo."
+    unit: s
+    min: 0
+    queries:
+      - expr: histogram_avg(rate(histogram_stddev_request_duration_seconds[1m]))
+        legend: "média {{service}}"
+  - title: "🟢 2. histogram_stddev(rate(x[1m])): a dispersão aparece"
+    description: "stable ≈ 10ms (reta). erratic alterna ≈31ms (calmo) ↔ ≈130–150ms (caos) a cada 2 min."
+    unit: s
+    queries:
+      - expr: histogram_stddev(rate(histogram_stddev_request_duration_seconds[1m]))
+        legend: "σ {{service}}"
+  - title: "🟢 3. Heatmap do erratic (classic buckets)"
+    description: "No caos a mancha se espalha de 25ms até 500ms+; no calmo fica concentrada entre 50 e 250ms."
+    type: heatmap
+    queries:
+      - expr: sum by (le) (rate(histogram_stddev_request_duration_seconds_bucket{service="erratic"}[1m]))
+        legend: "{{le}}"
+        format: heatmap
+  - title: "🔴 4. Coeficiente de variação (σ / média)"
+    description: "Normaliza pela média: stable ≈ 0.10 (10%). erratic ≈ 0.31 ↔ 1.31 (131%!). Bom para comparar serviços de escalas diferentes."
+    unit: percentunit
+    queries:
+      - expr: histogram_stddev(rate(histogram_stddev_request_duration_seconds[1m])) / histogram_avg(rate(histogram_stddev_request_duration_seconds[1m]))
+        legend: "CV {{service}}"
+  - title: "🟡 5. ⚠️ Faixa média ± 2σ: ok no stable, absurda no erratic"
+    description: "stable: 80–120ms, faz sentido. erratic no caos: 100 − 2×(130 a 150) ≈ −160 a −200ms (latência negativa!). Latência é assimétrica: prefira quantis."
+    unit: s
+    queries:
+      - expr: histogram_avg(rate(histogram_stddev_request_duration_seconds{service="erratic"}[1m])) + 2 * histogram_stddev(rate(histogram_stddev_request_duration_seconds{service="erratic"}[1m]))
+        legend: "erratic média + 2σ"
+      - expr: histogram_avg(rate(histogram_stddev_request_duration_seconds{service="erratic"}[1m])) - 2 * histogram_stddev(rate(histogram_stddev_request_duration_seconds{service="erratic"}[1m]))
+        legend: "erratic média − 2σ"
+      - expr: histogram_quantile(0.99, rate(histogram_stddev_request_duration_seconds{service="erratic"}[1m]))
+        legend: "erratic p99 (real)"
+  - title: "🟡 6. ❌ Em classic (x_bucket) o resultado é VAZIO"
+    description: "histogram_stddev ignora floats: não há stddev para classic. 'No data' aqui é o esperado."
+    unit: s
+    queries:
+      - expr: histogram_stddev(rate(histogram_stddev_request_duration_seconds_bucket[1m]))
+        legend: "vazio"
+        validate: empty

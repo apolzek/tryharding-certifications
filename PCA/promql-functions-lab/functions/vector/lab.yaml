@@ -1,0 +1,70 @@
+function: vector
+title: "vector() — transformar um número em um vetor (o famoso \"or vector(0)\")"
+category: "10 - Tipos e conversões"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é o **"zero" que você escreve na planilha** em vez de deixar a célula em branco: o gráfico/alerta passa a ter um valor para mostrar.
+  `vector(s)` pega um **escalar** e devolve um **vetor com 1 elemento e SEM labels** (`{} s`). O uso nº 1 é `... or vector(0)`, para trocar "No data" por **0**.
+
+  Métrica: `vector_http_requests_total{route,code}` (counter). `code="200"` sempre existe (≈ 40 req/s no total); as séries `code="500"` **só existem 2 min a cada 5 min** (≈ 4 erros/s).
+panels:
+  - title: "🟢 1. Taxa de erros SEM tratamento: buracos (\"No data\")"
+    unit: reqps
+    description: "Quando as séries de erro não existem, a query não retorna NADA. O gráfico fica com buracos e o stat mostra 'No data'."
+    queries:
+      - expr: sum(rate(vector_http_requests_total{code=~"5.."}[1m]))
+        legend: "erros/s"
+  - title: "🟢 2. ... com `or vector(0)`: linha contínua, 0 quando não há erro"
+    unit: reqps
+    description: "Quando o lado esquerdo está vazio, o `or` usa o vector(0). Quando há erros (≈ 4/s), o vector(0) é ignorado."
+    queries:
+      - expr: sum(rate(vector_http_requests_total{code=~"5.."}[1m])) or vector(0)
+        legend: "erros/s"
+  - title: "🟡 3a. Stat sem tratamento"
+    type: stat
+    width: 6
+    height: 9
+    unit: reqps
+    description: "Fora da janela de erros: 'No data'. Um painel vazio assusta: 'o Prometheus caiu?'"
+    queries:
+      - expr: sum(rate(vector_http_requests_total{code=~"5.."}[1m]))
+        legend: "erros/s"
+        validate: any
+  - title: "🟡 3b. Stat com or vector(0)"
+    type: stat
+    width: 6
+    height: 9
+    unit: reqps
+    description: "Sempre tem número: 0 (ou ≈ 4 durante os erros)."
+    queries:
+      - expr: sum(rate(vector_http_requests_total{code=~"5.."}[1m])) or vector(0)
+        legend: "erros/s"
+  - title: "🔴 4. SLO de erro: razão com or vector(0) × limite constante vector(0.05)"
+    unit: percentunit
+    height: 9
+    description: "(erros or vector(0)) / total. ≈ 9% (4/44) durante os erros, 0% no resto. vector(0.05) desenha a linha fixa de 5%."
+    queries:
+      - expr: |
+          (sum(rate(vector_http_requests_total{code=~"5.."}[1m])) or vector(0))
+            / sum(rate(vector_http_requests_total[1m]))
+        legend: "taxa de erro"
+      - expr: vector(0.05)
+        legend: "limite do SLO (5%)"
+  - title: "🟡 5. PEGADINHA: sum by (route)(...) or vector(0)"
+    unit: reqps
+    width: 24
+    description: "vector(0) NÃO tem labels: não vira '0 para cada rota'. Durante os erros aparecem /checkout ≈ 3, /search ≈ 1 E uma série extra {} = 0; fora deles, só a série {} = 0, sem nome de rota."
+    queries:
+      - expr: sum by (route) (rate(vector_http_requests_total{code=~"5.."}[1m])) or vector(0)
+        legend: "route={{route}}"
+  - title: "🔴 6. Correção por rota: \"or\" com 0 × o tráfego total de cada rota"
+    unit: reqps
+    width: 24
+    description: "Use como 'molde' uma métrica que sempre existe por rota: (erros by route) or (0 * total by route). Sempre 2 séries, cada uma com seu label."
+    queries:
+      - expr: |
+          sum by (route) (rate(vector_http_requests_total{code=~"5.."}[1m]))
+            or
+          0 * sum by (route) (rate(vector_http_requests_total[1m]))
+        legend: "{{route}}"

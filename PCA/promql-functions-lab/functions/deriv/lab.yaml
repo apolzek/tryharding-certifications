@@ -1,0 +1,61 @@
+function: deriv
+title: "deriv() — inclinação por segundo de um gauge (regressão linear)"
+category: "03 - Gauges (delta, deriv, previsão)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** você joga todos os pontos da janela num papel e passa **a régua que melhor se encaixa** neles.
+  `deriv(gauge[janela])` é a **inclinação dessa régua**, em unidades **por segundo**. Usa **todos** os pontos, então aguenta ruído.
+
+  Só para **gauges**. Métricas: `deriv_container_memory_working_set_bytes{pod}` (leaky vaza 1 MiB/s e leva OOM a cada 10 min · healthy estável)
+  e `deriv_node_hwmon_temp_celsius` (onda de 5 min entre 18 e 28°C).
+panels:
+  - title: "🟢 1. Temperatura crua (onda de 5 min)"
+    unit: celsius
+    queries:
+      - expr: deriv_node_hwmon_temp_celsius
+        legend: "{{host}}"
+  - title: "🟢 2. deriv × 60 = °C por minuto"
+    description: "Positiva esquentando, negativa esfriando, ZERO no pico e no vale. Máx ≈ ±5.9 °C/min."
+    unit: short
+    queries:
+      - expr: deriv(deriv_node_hwmon_temp_celsius[1m]) * 60
+        legend: "°C/min"
+  - title: "🔴 3. Memória crua: leaky sobe (vazamento), healthy estável"
+    unit: bytes
+    queries:
+      - expr: deriv_container_memory_working_set_bytes
+        legend: "{{pod}}"
+  - title: "🔴 4. deriv(...[2m]) — bytes/s: leaky ≈ 1 MiB/s, healthy ≈ 0"
+    description: "leaky ≈ 1.05 MB/s (1 MiB/s) enquanto vaza; logo após o OOM a regressão pega a queda e fica negativa."
+    unit: Bps
+    queries:
+      - expr: deriv(deriv_container_memory_working_set_bytes[2m])
+        legend: "{{pod}}"
+  - title: "🟡 5. Picos de ruído: deriv[2m] (régua) vs delta[2m]/120 (2 pontos)"
+    description: "Mesmo pod leaky (picos de +150 MiB em ~10% dos scrapes). Ambos estimam 1 MiB/s, mas delta/120 pula ±1.25 MiB/s quando uma borda cai num pico."
+    unit: Bps
+    queries:
+      - expr: deriv(deriv_container_memory_working_set_bytes{pod="leaky"}[2m])
+        legend: "deriv[2m]"
+      - expr: delta(deriv_container_memory_working_set_bytes{pod="leaky"}[2m]) / 120
+        legend: "delta[2m]/120"
+  - title: "🔴 6. Vazamento em MiB por minuto (agora)"
+    type: bargauge
+    unit: short
+    decimals: 1
+    queries:
+      - expr: deriv(deriv_container_memory_working_set_bytes[2m]) * 60 / 1024 / 1024
+        legend: "{{pod}} MiB/min"
+        instant: true
+  - title: "🟡 7. ERRADO: rate() num gauge — cada queda vira 'reset'"
+    description: "rate() acha que toda queda (o fim de cada pico de +150 MiB, o OOM) é um reset de counter e soma o valor inteiro de novo: resultado de vários MB/s, até no pod healthy que não cresce nada. deriv() dá ≈ 1 MiB/s e ≈ 0."
+    unit: Bps
+    width: 24
+    queries:
+      - expr: rate(deriv_container_memory_working_set_bytes[2m])
+        legend: "rate (errado) {{pod}}"
+      - expr: deriv(deriv_container_memory_working_set_bytes[2m])
+        legend: "deriv (certo) {{pod}}"

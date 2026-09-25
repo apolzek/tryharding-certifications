@@ -1,0 +1,65 @@
+function: sum_over_time
+title: "sum_over_time() — somar as amostras de cada série na janela"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** o **cofrinho**. Cada scrape é uma **moeda** que cai (itens processados desde o último scrape).
+  `sum_over_time(x[1m])` abre o cofrinho e conta **quanto caiu no último minuto**. Só faz sentido quando **cada amostra é uma quantidade nova**, não um nível.
+
+  Métricas: `sum_over_time_items_processed_last_scrape{worker}` (batch-a ~20/scrape; batch-b 10/scrape, 30 durante 1 min a cada 4 min),
+  `sum_over_time_container_memory_working_set_bytes` (nível ~512 MiB: **não** some isso!) e `sum_over_time_cpu_usage_percent` (onda 30..90, 4 min).
+panels:
+  - title: "1. 🟢 Cru: itens processados em cada scrape (moedas)"
+    description: "batch-a ~20 por scrape. batch-b 10 por scrape, 30 durante 60s a cada 4 min."
+    draw: points
+    queries:
+      - expr: sum_over_time_items_processed_last_scrape
+        legend: "{{worker}}"
+  - title: "2. 🟢 sum_over_time(x[1m]) — itens processados no último minuto"
+    description: "12 scrapes por minuto: batch-a ≈ 12×20 = 240; batch-b ≈ 120, subindo até 360 no pico."
+    queries:
+      - expr: sum_over_time(sum_over_time_items_processed_last_scrape[1m])
+        legend: "{{worker}} itens/min"
+  - title: "3. 🟡 sum = avg × count (prova real)"
+    description: "sum_over_time é exatamente avg_over_time × count_over_time. As duas linhas se sobrepõem."
+    queries:
+      - expr: sum_over_time(sum_over_time_items_processed_last_scrape{worker="batch-a"}[1m])
+        legend: "sum_over_time"
+      - expr: avg_over_time(sum_over_time_items_processed_last_scrape{worker="batch-a"}[1m]) * count_over_time(sum_over_time_items_processed_last_scrape{worker="batch-a"}[1m])
+        legend: "avg × count"
+  - title: "4. 🟡 sum(...) vs sum_over_time(...)"
+    description: "sum() soma os workers NUM scrape (~30..50). sum_over_time soma os scrapes de CADA worker (240 e 120..360). sum(sum_over_time) = total do minuto."
+    queries:
+      - expr: sum(sum_over_time_items_processed_last_scrape)
+        legend: "sum() entre workers (1 scrape)"
+      - expr: sum(sum_over_time(sum_over_time_items_processed_last_scrape[1m]))
+        legend: "sum(sum_over_time[1m]) total/min"
+  - title: "5. ❌ Errado: somar um gauge de NÍVEL (memória)"
+    description: "512 MiB × 12 scrapes = 6 GiB. O número não significa nada: o pod nunca usou 6 GiB. Para nível, use avg/max_over_time."
+    unit: bytes
+    queries:
+      - expr: sum_over_time_container_memory_working_set_bytes
+        legend: "memória (cru) ~512 MiB"
+      - expr: sum_over_time(sum_over_time_container_memory_working_set_bytes[1m])
+        legend: "sum_over_time[1m] (sem sentido)"
+  - title: "6. 🔴 CPU crua (onda 30..90%)"
+    description: "Acima de 80% em ~27% do tempo (~64s a cada 4 min)."
+    unit: percent
+    queries:
+      - expr: sum_over_time_cpu_usage_percent
+        legend: "cpu"
+      - expr: vector(80)
+        legend: "limite 80%"
+  - title: "7. 🔴 Subquery: segundos acima de 80% nos últimos 8 min"
+    description: "sum_over_time((x > bool 80)[8m:5s]) conta quantos pontos (de 5s) passaram de 80; × 5 = segundos. ≈ 128s (2 ondas × ~64s)."
+    unit: s
+    queries:
+      - expr: sum_over_time((sum_over_time_cpu_usage_percent > bool 80)[8m:5s]) * 5
+        legend: "segundos acima de 80% (8m)"
+  - title: "8. 🔴 Itens no último minuto (stat)"
+    type: stat
+    queries:
+      - expr: sum_over_time(sum_over_time_items_processed_last_scrape[1m])
+        legend: "{{worker}}"
+        instant: true

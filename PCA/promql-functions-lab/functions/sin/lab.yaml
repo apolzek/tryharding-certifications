@@ -1,0 +1,79 @@
+function: sin
+title: "sin() — seno (em radianos!)"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** você está numa **roda-gigante**. O ângulo da sua cabine sobe sem parar (0 → 2π → recomeça),
+  mas a sua **altura** sobe e desce suavemente entre -1 e +1: isso é o **seno do ângulo**.
+
+  `sin(v)` recebe **radianos** (use `sin(rad(x))` se o dado estiver em graus). Resultado sempre entre **-1 e 1**.
+  Métricas: `sin_turbine_rotor_angle_radians{turbine}` (pá de turbina, uma volta a cada 2 min) e
+  `sin_http_requests_per_second` (tráfego com ciclo "diário" de 5 min + incidente a cada 10 min).
+
+  **Casos:** 🟢 básico: painéis 1–2 (ângulo → onda) · 🟡 nuance: 5–6 (graus vs radianos, sin(π) ≠ 0) · 🔴 real: 3–4 (baseline sazonal e detecção de incidente)
+panels:
+  - title: "1. Ângulo cru da pá (rad): dente-de-serra 0 → 2π"
+    description: "O ângulo cresce até 6.28 (uma volta) e recomeça. T2 está 90° (π/2) adiantada."
+    min: 0
+    max: 6.3
+    queries:
+      - expr: sin_turbine_rotor_angle_radians
+        legend: "ângulo {{turbine}}"
+  - title: "2. sin(ângulo): altura da ponta da pá (-1..1)"
+    description: "O dente-de-serra vira uma onda suave. Topo (+1) quando o ângulo = π/2 ≈ 1.57; embaixo (-1) em 3π/2 ≈ 4.71."
+    min: -1
+    max: 1
+    queries:
+      - expr: sin(sin_turbine_rotor_angle_radians)
+        legend: "sin {{turbine}}"
+  - title: "3. Modelo sazonal: 100 + 50·sin(2π·t/300) vs tráfego real"
+    description: "O modelo 'esperado' é gerado só com time() e sin(). Em produção troque 300 por 86400 (ciclo diário)."
+    unit: reqps
+    queries:
+      - expr: sin_http_requests_per_second
+        legend: "real {{service}}"
+      - expr: 100 + 50 * sin(vector(2 * pi() * time() / 300))
+        legend: "modelo esperado"
+  - title: "4. Real − esperado: o incidente salta aos olhos"
+    description: "Fora do incidente o desvio fica em ±5. Durante o incidente (60s a cada 10 min) despenca para -80 ~ -120."
+    unit: reqps
+    queries:
+      - expr: sin_http_requests_per_second - scalar(100 + 50 * sin(vector(2 * pi() * time() / 300)))
+        legend: "desvio {{service}}"
+  - title: "5. Pegadinha: graus vs radianos"
+    height: 6
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    description: "sin(90) NÃO é 1: 90 é interpretado como 90 radianos. Converta com rad()."
+    decimals: 4
+    queries:
+      - expr: sin(vector(90))
+        legend: "sin(90) — errado"
+      - expr: sin(rad(vector(90)))
+        legend: "sin(rad(90)) — certo"
+  - title: "6. Casos especiais"
+    height: 6
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    description: "sin(π) não dá 0 exato (1.22e-16, erro de ponto flutuante). sin(±Inf) = NaN."
+    queries:
+      - expr: sin(vector(0))
+        legend: "sin(0)"
+      - expr: sin(vector(pi() / 2))
+        legend: "sin(π/2)"
+      - expr: sin(vector(pi()))
+        legend: "sin(π)"
+      - expr: sin(vector(+Inf))
+        legend: "sin(+Inf)"

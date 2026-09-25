@@ -1,0 +1,54 @@
+function: min_of
+title: "min_of() — o menor de dois escalares (um \"teto\" dinâmico)"
+category: "10 - Tipos e conversões"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é a **regra do "o que for menor"**: "gaste até R$ 500 **ou** o saldo da conta, o que for menor". `min_of(a, b)` compara **dois escalares** e devolve o menor.
+  Serve para aplicar um **teto** a um número calculado. **Experimental** (`promql-experimental-functions`). Só aceita **escalares**: para vetores use `clamp_max`; para várias séries, o agregador `min`.
+
+  Métricas: `min_of_rabbitmq_queue_messages_ready` (fila, 0..1800), `min_of_kube_horizontalpodautoscaler_spec_max_replicas` (10), `min_of_tenant_limit_rps` (500), `min_of_global_limit_rps` (800/300) e `min_of_backend_limit_rps{replica}` (2 séries = armadilha).
+panels:
+  - title: "🟢 1. A fila (0 → 1800 mensagens, onda de 5 min)"
+    queries:
+      - expr: min_of_rabbitmq_queue_messages_ready
+        legend: "mensagens prontas"
+  - title: "🟢 2. Workers desejados: sem teto × min_of(desejado, maxReplicas)"
+    description: "ceil(fila/100) vai de 0 a 18. Com min_of(..., scalar(maxReplicas=10)) a curva é 'cortada' em 10."
+    queries:
+      - expr: scalar(ceil(min_of_rabbitmq_queue_messages_ready / 100))
+        legend: "desejado (sem teto)"
+      - expr: min_of(scalar(ceil(min_of_rabbitmq_queue_messages_ready / 100)), scalar(min_of_kube_horizontalpodautoscaler_spec_max_replicas))
+        legend: "min_of(desejado, maxReplicas)"
+  - title: "🔴 3. Rate limit efetivo = o MAIS restritivo (500 ↔ 300)"
+    description: "Cliente contratou 500 req/s; o limite global alterna 800/300 a cada 2 min. Efetivo = min_of(500, global): 500 quando global=800, 300 quando global=300."
+    queries:
+      - expr: scalar(min_of_tenant_limit_rps)
+        legend: "limite do cliente"
+      - expr: scalar(min_of_global_limit_rps)
+        legend: "limite global"
+      - expr: min_of(scalar(min_of_tenant_limit_rps), scalar(min_of_global_limit_rps))
+        legend: "min_of = limite efetivo"
+  - title: "🟡 4. min_of (escalar) × clamp_max (vetor): mesma curva"
+    description: "clamp_max(v, 10) aplica o mesmo teto em CADA série de um vetor (e mantém os labels). min_of só aceita 2 escalares."
+    queries:
+      - expr: min_of(scalar(ceil(min_of_rabbitmq_queue_messages_ready / 100)), 10)
+        legend: "min_of(escalar, 10)"
+      - expr: clamp_max(ceil(min_of_rabbitmq_queue_messages_ready / 100), 10)
+        legend: "clamp_max(vetor, 10)"
+  - title: "🟡 5a. ERRADO: min_of(scalar(métrica com 2 séries), 500) = NaN"
+    type: stat
+    width: 6
+    height: 8
+    description: "min_of_backend_limit_rps tem replica=a e replica=b. scalar() → NaN e o NaN contamina: min_of(NaN, 500) = NaN (não 500!)."
+    queries:
+      - expr: min_of(scalar(min_of_backend_limit_rps), 500)
+        legend: "min_of(NaN, 500)"
+  - title: "🟡 5b. CERTO: agregue antes → min_of(scalar(max(...)), 500) = 400"
+    type: stat
+    width: 6
+    height: 8
+    description: "max(...) garante 1 elemento; scalar() = 400; min_of(400, 500) = 400."
+    queries:
+      - expr: min_of(scalar(max(min_of_backend_limit_rps)), 500)
+        legend: "min_of(400, 500)"

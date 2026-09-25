@@ -1,0 +1,77 @@
+function: start_timestamp
+title: "start_timestamp() — quando o counter nasceu (created timestamp)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** o counter é o **hodômetro**; `start_timestamp()` é a **data de fabricação do carro** (quando o hodômetro começou do zero).
+  `time() - start_timestamp(x)` = **uptime** do processo que expõe o counter.
+
+  Só funciona com `--enable-feature=use-start-timestamps` (+ `st-storage`) e se o alvo **expõe** o created timestamp (protobuf/OpenMetrics).
+  Métricas: `start_timestamp_worker_jobs_total{pod}` (worker-a reinicia a cada 4 min, worker-b a cada 7 min),
+  `start_timestamp_http_requests_total` (client_golang, created = quando o gerador subiu), `start_timestamp_legacy_jobs_total` (sem created).
+panels:
+  - title: "1. O dado cru: counters que zeram no restart"
+    description: "worker-a: 3 jobs/s, zera a cada 240s (topo ≈ 720). worker-b: 1.5 jobs/s, zera a cada 420s (topo ≈ 630)."
+    queries:
+      - expr: start_timestamp_worker_jobs_total
+        legend: "{{pod}}"
+  - title: "2. start_timestamp(): escada que sobe a cada restart"
+    description: "O valor é o timestamp Unix (s) em que o counter começou. worker-a sobe 240 a cada degrau; worker-b sobe 420."
+    decimals: 0
+    queries:
+      - expr: start_timestamp(start_timestamp_worker_jobs_total)
+        legend: "{{pod}}"
+  - title: "3. Uptime = time() - start_timestamp(x)"
+    description: "Dente-de-serra: worker-a 0→240s, worker-b 0→420s. Zera exatamente no restart."
+    unit: s
+    queries:
+      - expr: time() - start_timestamp(start_timestamp_worker_jobs_total)
+        legend: "uptime {{pod}}"
+  - title: "4. Média desde que nasceu: x / uptime"
+    description: "Sem janela, sem extrapolação: worker-a ≈ 3.0 jobs/s, worker-b ≈ 1.5 jobs/s."
+    unit: ops
+    queries:
+      - expr: start_timestamp_worker_jobs_total / (time() - start_timestamp(start_timestamp_worker_jobs_total))
+        legend: "{{pod}}"
+  - title: "5. Restarts nos últimos 10 min: changes(start_timestamp(x)[10m:])"
+    description: "Conta quantas vezes o start timestamp mudou. worker-a ≈ 2, worker-b ≈ 1."
+    type: bargauge
+    queries:
+      - expr: changes(start_timestamp(start_timestamp_worker_jobs_total)[10m:5s])
+        legend: "{{pod}}"
+        instant: true
+  - title: "6. Uptime do gerador (client_golang anota o created sozinho)"
+    description: "Muda sempre que alguém faz deploy do gerador."
+    type: stat
+    unit: s
+    queries:
+      - expr: time() - start_timestamp(start_timestamp_http_requests_total{route="/home"})
+        legend: "uptime do gerador"
+  - title: "7. Pegadinhas: sem created → 0 (1970!) ; em expressão → vazio"
+    description: "O legacy não expõe created: o resultado é 0, não 'vazio'. Filtre com > 0."
+    type: table
+    width: 24
+    height: 6
+    decimals: 0
+    queries:
+      - expr: start_timestamp(start_timestamp_legacy_jobs_total)
+        legend: "legacy (sem created)"
+      - expr: start_timestamp(rate(start_timestamp_worker_jobs_total[1m]))
+        legend: "em expressão"
+        validate: empty
+  - title: "7b. Filtro seguro: só séries com created válido"
+    type: table
+    width: 24
+    height: 6
+    unit: s
+    queries:
+      - expr: time() - (start_timestamp({__name__=~"start_timestamp_(worker|legacy)_jobs_total"}) > 0)
+        legend: "{{pod}}"
+  - title: "8. Jeito novo vs jeito antigo: start_timestamp(counter) vs process_start_time_seconds"
+    description: "As duas linhas coincidem: o created timestamp do counter e o gauge de boot do processo contam a mesma história."
+    unit: s
+    queries:
+      - expr: time() - start_timestamp(start_timestamp_worker_jobs_total{pod="worker-a"})
+        legend: "via start_timestamp()"
+      - expr: time() - start_timestamp_process_start_time_seconds{pod="worker-a"}
+        legend: "via process_start_time_seconds"

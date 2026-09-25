@@ -1,0 +1,80 @@
+function: ts_of_max_over_time
+title: "ts_of_max_over_time() — QUANDO aconteceu o pico (experimental)"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro: |
+  **Analogia:** `max_over_time` é o **placar** ("o recorde foi 95%"); `ts_of_max_over_time` é a **data do recorde**.
+  Devolve o **timestamp Unix (s)** da **última** amostra com o valor máximo da janela.
+
+  Truque: `time() - ts_of_max_over_time(x[5m])` = "o pico foi há N segundos". **Experimental**.
+  Métrica: `ts_of_max_over_time_node_cpu_utilisation_percent{host}` (imita `instance:node_cpu_utilisation:rate5m` × 100): `web-1` ~30% com **agulha de 95%** (5s) a cada 4 min;
+  `web-2` ~40% com **platô de 80%** por 60s a cada 4 min (empate → vale a última amostra).
+panels:
+  - title: "1. Gauge cru — uso de CPU"
+    description: "web-1: agulha fina de 95% a cada 4 min. web-2: platô largo de 80% por 1 min a cada 4 min."
+    unit: percent
+    queries:
+      - expr: ts_of_max_over_time_node_cpu_utilisation_percent
+        legend: "{{host}}"
+  - title: "2. max_over_time[5m] — QUAL foi o pico"
+    description: "web-1 = 95, web-2 = 80 (a janela de 5m sempre contém um pico, porque o ciclo é de 4m)."
+    unit: percent
+    queries:
+      - expr: max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[5m])
+        legend: "max {{host}}"
+  - title: "3. time() − ts_of_max_over_time[5m] — o pico foi há quantos segundos?"
+    description: "web-1: dente-de-serra 0→240s (zera a cada agulha). web-2: fica ≈0 durante todo o platô (empate: vale a ÚLTIMA amostra) e depois sobe 0→180s."
+    unit: s
+    queries:
+      - expr: time() - ts_of_max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[5m])
+        legend: "seg desde o pico {{host}}"
+  - title: "4. Alerta: 'o pico foi há menos de 30s' (pico recente)"
+    description: "Útil para correlacionar: 'houve um pico de CPU agora há pouco?'. Às vezes vazio."
+    unit: s
+    queries:
+      - expr: (time() - ts_of_max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[5m])) < 30
+        legend: "{{host}}"
+        validate: any
+    draw: points
+  - title: "5. Pico e horário do pico (tabela)"
+    description: "ts × 1000 para o Grafana formatar como data/hora."
+    type: table
+    width: 24
+    height: 6
+    queries:
+      - expr: max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[5m])
+        legend: "pico"
+        format: table
+      - expr: ts_of_max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[5m]) * 1000
+        legend: "quando"
+        format: table
+      - expr: time() - ts_of_max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[5m])
+        legend: "há (s)"
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "env"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "instance"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "job"}
+        properties: [{id: custom.hidden, value: true}]
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: unit, value: percent}, {id: displayName, value: "pico em 5m"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: unit, value: dateTimeAsIso}, {id: displayName, value: "quando foi o pico"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: unit, value: s}, {id: displayName, value: "há quanto tempo"}]
+  - title: "6. 🟡 O que dá errado: ts_of_max_over_time direto num COUNTER"
+    description: "Counter só cresce: o máximo é sempre a última amostra, então 'o pico foi há' fica sempre em 0–5s. Inútil."
+    unit: s
+    queries:
+      - expr: time() - ts_of_max_over_time(ts_of_max_over_time_http_requests_total[5m])
+        legend: "❌ direto no counter"
+  - title: "7. ✅ O jeito certo: rate() + subquery → quando foi o pico de TRÁFEGO"
+    description: "ts_of_max_over_time(rate(x[1m])[5m:]): dente-de-serra 0→240s, zerando ~30-60s depois de cada rajada de 50 req/s (quando o rate[1m] atinge o máximo)."
+    unit: s
+    queries:
+      - expr: time() - ts_of_max_over_time(rate(ts_of_max_over_time_http_requests_total[1m])[5m:])
+        legend: "✅ pico do rate há (s)"

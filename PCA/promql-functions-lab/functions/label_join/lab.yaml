@@ -1,0 +1,65 @@
+function: label_join
+title: "label_join() — juntar vários labels em um só"
+category: "09 - Labels e ordenação"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** é o **`CONCATENAR()` da planilha** (ou o `"/".join([...])` do Python) aplicado a labels:
+  pega os valores de vários labels, cola com um separador e grava num label de destino. O valor da série não muda.
+
+  `label_join(v, "destino", "separador", "origem1", "origem2", ...)` → label ausente conta como **string vazia**.
+  Métricas: `label_join_http_requests_total{service,environment,region}` (counter) e `label_join_capacity_rps{key}` (capacidade indexada pela chave `service/environment`, como num CMDB).
+panels:
+  - title: "🟢 1. Antes: service, environment e region separados (rate em req/s)"
+    type: table
+    height: 7
+    unit: reqps
+    decimals: 0
+    description: "4 séries: checkout/payments × prod/staging. As séries de staging NÃO têm region."
+    overrides: &hide
+      - matcher: {id: byRegexp, options: "^(Time|job|instance|env|__name__)$"}
+        properties: [{id: custom.hidden, value: true}]
+    queries:
+      - expr: rate(label_join_http_requests_total[1m])
+  - title: "🟢 2. Depois: key = service/environment"
+    type: table
+    height: 7
+    unit: reqps
+    decimals: 0
+    description: "label_join(..., \"key\", \"/\", \"service\", \"environment\") -> key=checkout/prod, checkout/staging, payments/prod, payments/staging."
+    overrides: *hide
+    queries:
+      - expr: label_join(rate(label_join_http_requests_total[1m]), "key", "/", "service", "environment")
+  - title: "🟢 3. Legenda com a chave composta (≈150 / 80 / 10 / 5 req/s)"
+    unit: reqps
+    description: "Use {{key}} na legenda. (Só p/ legenda, {{service}}/{{environment}} no Grafana bastaria; a chave como LABEL serve p/ joins e agrupamentos.)"
+    queries:
+      - expr: label_join(rate(label_join_http_requests_total[1m]), "key", "/", "service", "environment")
+        legend: "{{key}}"
+  - title: "🔴 4. Join com a capacidade do CMDB: utilização por service/environment"
+    unit: percentunit
+    description: "label_join_capacity_rps só tem key=\"service/environment\". Após label_join, o on(key) pareia: payments/prod 80/100 = 80%, checkout/prod 150/200 = 75%, payments/staging 5/20 = 25%, checkout/staging 10/50 = 20%."
+    queries:
+      - expr: |
+          label_join(rate(label_join_http_requests_total[1m]), "key", "/", "service", "environment")
+            / on (key)
+          label_join_capacity_rps
+        legend: "{{key}}"
+  - title: "🟡 5. Pegadinha: label ausente vira string vazia → \"staging/\""
+    type: table
+    height: 7
+    unit: reqps
+    decimals: 0
+    description: "label_join(..., \"where\", \"/\", \"environment\", \"region\"). prod -> prod/sa-east-1; staging -> staging/ (separador sobrando!)."
+    overrides: *hide
+    queries:
+      - expr: label_join(rate(label_join_http_requests_total[1m]), "where", "/", "environment", "region")
+  - title: "🟡 6. Sobrescrevendo um label existente: service = service-environment"
+    type: table
+    height: 7
+    unit: reqps
+    decimals: 0
+    description: "Se o destino já existe, ele é SUBSTITUÍDO. service vira checkout-prod, payments-staging..."
+    overrides: *hide
+    queries:
+      - expr: label_join(rate(label_join_http_requests_total[1m]), "service", "-", "service", "environment")

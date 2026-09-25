@@ -1,0 +1,53 @@
+function: hour
+title: "hour() — hora do dia (0 a 23, em UTC!)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `hour()` é o **relógio de ponteiro de Greenwich**: diz a hora (0-23) de um timestamp, **sempre em UTC**.
+  Brasília = UTC-3: **horário comercial 09h-18h BRT = 12h-21h UTC**. Uso clássico: `alerta and on() hour() >= 12 < 21`.
+
+  Métricas: `hour_simulated_clock_timestamp_seconds` (**relógio acelerado**: 1 hora a cada 10s, um dia em 4 min),
+  `hour_checkout_errors_ratio` (≈8%, acima do SLO de 5%) e `hour_kube_cronjob_status_last_successful_time` (roda às 03:00 UTC).
+panels:
+  - title: "1. Relógio acelerado: hour() de 0 a 23"
+    description: "Dente-de-serra: sobe 1 a cada 10s e volta a 0 à meia-noite (UTC) simulada."
+    decimals: 0
+    queries:
+      - expr: hour(hour_simulated_clock_timestamp_seconds)
+        legend: "hora UTC (acelerada)"
+      - expr: hour(hour_simulated_clock_timestamp_seconds - 3 * 3600)
+        legend: "hora Brasília (acelerada)"
+  - title: "2. Alerta só em horário comercial (09-18h BRT = 12-21h UTC)"
+    description: "erro > 5% AND hora UTC entre 12 e 20. A linha só aparece em 9 de cada 24 'horas' (90s a cada 240s)."
+    unit: percentunit
+    queries:
+      - expr: hour_checkout_errors_ratio > 0.05 and on() (hour(hour_simulated_clock_timestamp_seconds) >= 12 < 21)
+        legend: "alerta (horário comercial)"
+  - title: "3. Agora: UTC, hour() - 3 (errado) e hour(time() - 3h) (certo)"
+    description: "hour() - 3 dá NEGATIVO entre 00h e 02h UTC. O jeito certo é deslocar o timestamp ANTES de extrair a hora."
+    type: stat
+    decimals: 0
+    queries:
+      - expr: hour()
+        legend: "UTC"
+      - expr: hour() - 3
+        legend: "hour() - 3 (frágil)"
+      - expr: hour(vector(time() - 3 * 3600))
+        legend: "Brasília (certo)"
+  - title: "4. Alerta REAL de horário comercial (agora)"
+    description: "Mesmo alerta do painel 2, com o relógio real. Fora de 12h-21h UTC fica vazio ('No data'): é o esperado."
+    type: stat
+    unit: percentunit
+    queries:
+      - expr: hour_checkout_errors_ratio > 0.05 and on() hour() >= 12 < 21
+        legend: "alerta"
+        validate: any
+  - title: "5. A que horas rodou o backup noturno?"
+    description: "hour(timestamp) = 3 UTC. Em Brasília: 0h (meia-noite)."
+    type: stat
+    decimals: 0
+    queries:
+      - expr: hour(hour_kube_cronjob_status_last_successful_time)
+        legend: "UTC"
+      - expr: hour(hour_kube_cronjob_status_last_successful_time - 3 * 3600)
+        legend: "Brasília"

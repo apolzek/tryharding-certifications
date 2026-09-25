@@ -1,0 +1,64 @@
+function: tan
+title: "tan() — tangente: inclinação e assíntotas"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** a **placa de ladeira** na estrada ("subida 10%"). O ângulo da rua é pequeno (5,7°), mas a placa
+  mostra "quanto você sobe para cada 100 m que anda": isso é `100 · tan(ângulo)`.
+
+  `tan(v)` recebe **radianos**. Vai de -∞ a +∞ e **explode perto de 90°** (assíntota).
+  Métricas: `tan_ramp_inclination_degrees` (rampa 0..45°) e `tan_antenna_elevation_degrees` (antena 30..89.9°).
+
+  **Casos:** 🟢 básico: painéis 1–2 (ângulo → grade %) · 🟡 nuance: 3–5 (assíntota perto de 90°, tan sem rad) · 🔴 real: 2 (limite de grade da rampa da doca)
+panels:
+  - title: "1. Inclinação da rampa (graus)"
+    description: "Sobe de 0° a 45° e volta, a cada 4 min."
+    unit: degree
+    queries:
+      - expr: tan_ramp_inclination_degrees
+        legend: "{{ramp}}"
+  - title: "2. Grade % = 100 · tan(rad(θ))"
+    description: "10° → 17.6%, 30° → 57.7%, 45° → 100%. Não é linear: dobrar o ângulo mais que dobra a %."
+    unit: percent
+    queries:
+      - expr: 100 * tan(rad(tan_ramp_inclination_degrees))
+        legend: "grade {{ramp}}"
+  - title: "3. Antena: elevação chega a 89.9°"
+    description: "Elevação cru, de 30° até quase vertical."
+    unit: degree
+    queries:
+      - expr: tan_antenna_elevation_degrees
+        legend: "{{antenna}}"
+  - title: "4. tan(elevação): assíntota perto de 90° (escala log)"
+    description: "30° → 0.58, 60° → 1.73, 80° → 5.7, 89° → 57, 89.9° → 573. Em escala linear o pico esmagaria o resto."
+    field_defaults:
+      custom:
+        scaleDistribution: {type: log, log: 10}
+    queries:
+      - expr: tan(rad(tan_antenna_elevation_degrees))
+        legend: "tan {{antenna}}"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "tan(90°) NÃO dá +Inf: π/2 não é representável exatamente, então dá 1.6e16. tan(45°) = 1."
+    queries:
+      - expr: tan(rad(vector(45)))
+        legend: "tan(45°)"
+      - expr: tan(rad(vector(89.9)))
+        legend: "tan(89.9°)"
+      - expr: tan(rad(vector(90)))
+        legend: "tan(90°)"
+      - expr: tan(rad(vector(135)))
+        legend: "tan(135°)"
+      - expr: tan(vector(+Inf))
+        legend: "tan(+Inf)"
+      - expr: tan(vector(45))
+        legend: "ERRADO: tan(45) sem rad"

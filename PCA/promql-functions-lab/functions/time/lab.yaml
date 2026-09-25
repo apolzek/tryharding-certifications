@@ -1,0 +1,88 @@
+function: time
+title: "time() — o relógio da consulta (segundos desde 1970, UTC)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `time()` é o **relógio de parede** da sala onde a consulta roda. Sozinho ele é chato;
+  o poder aparece quando você **subtrai** dele uma métrica cujo *valor* é um timestamp: `time() - x` = **"há quantos segundos"**.
+
+  `time()` → número de segundos desde 01/01/1970 **UTC**, no **instante avaliado** (em um gráfico, cada ponto tem o seu).
+  Métricas: `time_backup_last_success_timestamp_seconds{backup}` (db a cada 3 min, files a cada 10 min, legacy **quebrado desde ontem**)
+  `time_process_start_time_seconds{pod}` (api-0 em crashloop) e `time_probe_ssl_earliest_cert_expiry{domain}` (expira em 45, 12 e 3 dias).
+panels:
+  - title: "1. time() num gráfico: uma rampa (cada ponto = seu próprio instante)"
+    description: "Numa consulta range, time() é avaliado em cada step. Sobe 1 por segundo: ≈900 do começo ao fim de uma janela de 15 min."
+    decimals: 0
+    queries:
+      - expr: time()
+        legend: "time()"
+  - title: "1b. time() agora (stat) — em segundos e formatado"
+    description: "Prometheus usa SEGUNDOS; o Grafana (JavaScript) usa MILISSEGUNDOS. Para exibir como data, multiplique por 1000. Atenção: o Grafana formata no fuso do NAVEGADOR (aqui, Brasília), mas o número é UTC."
+    type: stat
+    queries:
+      - expr: time()
+        legend: "segundos (Prometheus)"
+      - expr: time() * 1000
+        legend: "data (×1000, unidade dateTimeAsIso)"
+    overrides:
+      - matcher: {id: byName, options: "data (×1000, unidade dateTimeAsIso)"}
+        properties: [{id: unit, value: dateTimeAsIso}]
+    field_defaults: {decimals: 0}
+  - title: "2. O dado cru: timestamp do último backup (escadinha)"
+    description: "O VALOR da métrica é um timestamp. Ele só muda quando um backup termina: db sobe 180 a cada degrau, files sobe 600. (legacy-backup ficou de fora: está parado desde ontem e achataria a escala.)"
+    decimals: 0
+    queries:
+      - expr: time_backup_last_success_timestamp_seconds{backup=~"db-backup|files-backup"}
+        legend: "{{backup}}"
+  - title: "3. time() - último backup = idade do backup (s)"
+    description: "Dente-de-serra: sobe 1 s/s e zera quando o backup termina. db: 0→180s. files: 0→600s."
+    unit: s
+    queries:
+      - expr: time() - time_backup_last_success_timestamp_seconds{backup=~"db-backup|files-backup"}
+        legend: "{{backup}}"
+  - title: "4. Alerta: backups com mais de 5 min (> 300s)"
+    description: "legacy-backup SEMPRE aparece (1 a 2 dias). files-backup aparece na 2ª metade do seu ciclo de 10 min."
+    type: table
+    width: 24
+    height: 6
+    unit: s
+    queries:
+      - expr: time() - time_backup_last_success_timestamp_seconds > 300
+        legend: "{{backup}}"
+  - title: "5. Dias até o certificado expirar"
+    description: "(expiry - time()) / 86400. api ≈ 45, shop ≈ 12, old ≈ 3 (menos a fração do dia que já passou)."
+    type: bargauge
+    unit: "suffix: dias"
+    decimals: 1
+    field_defaults:
+      color: {mode: thresholds}
+      thresholds: {mode: absolute, steps: [{color: red, value: null}, {color: orange, value: 7}, {color: green, value: 14}]}
+    queries:
+      - expr: sort((time_probe_ssl_earliest_cert_expiry - time()) / 86400)
+        legend: "{{domain}}"
+        instant: true
+  - title: "6. Alerta: certificado expira em menos de 7 dias"
+    description: "Só old.lab.local passa no filtro."
+    type: table
+    width: 24
+    height: 6
+    unit: "suffix: dias"
+    decimals: 2
+    queries:
+      - expr: (time_probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        legend: "{{domain}}"
+  - title: "7. Uptime do processo: time() - process_start_time_seconds"
+    description: "api-0 está em crashloop (reinicia a cada 6 min: dente-de-serra 0→360s). api-1 está no ar há 3-4 dias (fora da escala, veja o stat)."
+    unit: s
+    queries:
+      - expr: time() - time_process_start_time_seconds{pod="api-0"}
+        legend: "uptime {{pod}}"
+  - title: "8. Alerta: processo reiniciou nos últimos 10 min (uptime < 600s)"
+    description: "Só api-0 aparece. api-1 (dias no ar) não."
+    type: table
+    width: 24
+    height: 6
+    unit: s
+    queries:
+      - expr: (time() - time_process_start_time_seconds) < 600
+        legend: "{{pod}}"

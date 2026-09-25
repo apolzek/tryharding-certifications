@@ -1,0 +1,70 @@
+function: tanh
+title: "tanh() — tangente hiperbólica: o 'clamp' suave"
+category: "07 - Trigonometria"
+time_from: now-15m
+intro: |
+  **Analogia:** um **amortecedor**. Você pode empurrar com a força que quiser, ele nunca passa do fim do curso.
+  `tanh(x)` espreme **qualquer número** para dentro de **(-1, 1)**: perto de 0 é quase linear, longe satura suavemente.
+
+  Uso prático: transformar sinais sem teto e com escalas diferentes em **índices 0..1** comparáveis.
+  Métricas: `tanh_queue_backlog_messages` (~700 → 20 000), `tanh_error_ratio` e `tanh_latency_p99_seconds`.
+
+  **Casos:** 🟢 básico: painéis 1–2 (espremer backlog em 0..1) · 🟡 nuance: 2 (tanh vs clamp_max vs sem normalizar) · 🔴 real: 3–4 (health score de erro + latência)
+panels:
+  - title: "1. Backlog cru da fila (sem teto)"
+    description: "~700 mensagens (±150) normalmente, pico de ~20 000 a cada 5 min. Qualquer escala fixa fica ruim."
+    queries:
+      - expr: tanh_queue_backlog_messages
+        legend: "{{queue}}"
+  - title: "2. Índice de pressão = tanh(backlog / 1000) vs clamp_max"
+    description: "Normal (700): tanh ≈ 0.60 e 'respira' menos que o linear (0.70). Pico: tanh chega a 1 em curva; clamp_max(x/1000, 1) bate no teto com uma quina."
+    min: 0
+    max: 1.05
+    queries:
+      - expr: tanh(tanh_queue_backlog_messages / 1000)
+        legend: "tanh (suave)"
+      - expr: clamp_max(tanh_queue_backlog_messages / 1000, 1)
+        legend: "clamp_max (seco)"
+      - expr: tanh(tanh_queue_backlog_messages)
+        legend: "ERRADO: tanh sem normalizar (sempre 1)"
+  - title: "3. Dois sinais, escalas diferentes"
+    description: "Erro: 0.002 → 0.08 (fração). Latência p99: 0.12 s → 2.5 s. Degradação de 60s a cada 4 min."
+    queries:
+      - expr: tanh_error_ratio
+        legend: "erro {{service}}"
+      - expr: tanh_latency_p99_seconds
+        legend: "p99 (s) {{service}}"
+  - title: "4. Health score = 1 − (tanh(erro/0.01) + tanh(p99/0.5)) / 2"
+    description: "Normal: ~0.88. Degradado: ~0.00. Cada sinal contribui no máximo 0.5, nenhum domina o outro."
+    min: 0
+    max: 1
+    unit: percentunit
+    queries:
+      - expr: 1 - (tanh(tanh_error_ratio / 0.01) + on(service) tanh(tanh_latency_p99_seconds / 0.5)) / 2
+        legend: "saúde {{service}}"
+  - title: "5. Casos especiais"
+    type: stat
+    field_defaults:
+      mappings:
+        - type: special
+          options: {match: nan, result: {text: "NaN", color: red, index: 0}}
+      noValue: "NaN"
+    options:
+      reduceOptions: {calcs: [last], fields: "", values: false}
+    width: 24
+    height: 6
+    description: "tanh(1) = 0.76, tanh(3) = 0.995. Já em 20 o float arredonda para 1 exato. tanh(±Inf) = ±1."
+    decimals: 4
+    queries:
+      - expr: tanh(vector(0))
+        legend: "tanh(0)"
+      - expr: tanh(vector(1))
+        legend: "tanh(1)"
+      - expr: tanh(vector(3))
+        legend: "tanh(3)"
+      - expr: tanh(vector(-3))
+        legend: "tanh(-3)"
+      - expr: tanh(vector(+Inf))
+        legend: "tanh(+Inf)"
+      - expr: tanh(vector(NaN))
+        legend: "tanh(NaN)"

@@ -1,0 +1,78 @@
+function: max_over_time
+title: "max_over_time() — o pico de cada série na janela"
+category: "05 - Agregação no tempo (_over_time)"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** `max_over_time` é o **termômetro de máxima** (aquele com o ponteirinho que fica parado no maior valor do dia).
+  Você pode olhar só de hora em hora e mesmo assim sabe **o quão quente ficou** entre as olhadas.
+
+  Por série, olhando **no tempo** (→). Não confunda com `max(x)`, que compara **séries** num mesmo instante (↓).
+  Métricas: `max_over_time_container_memory_working_set_bytes{pod}` (api-1 ~400 MiB com **pico de 950 MiB por 15s a cada 3 min**; api-2 ~550 MiB)
+  e `max_over_time_http_requests_total` (5 req/s, rajada de 50 req/s por 90s a cada 4 min).
+panels:
+  - title: "1. 🟢 Memória crua (resolução de 5s): os picos aparecem"
+    description: "api-1 dá picos de ~950 MiB por 15s a cada 3 min. Com o gráfico na resolução do scrape, dá pra ver."
+    unit: bytes
+    queries:
+      - expr: max_over_time_container_memory_working_set_bytes
+        legend: "cru {{pod}}"
+  - title: "2. 🟡 O mesmo dado visto de minuto em minuto: o pico SOME"
+    description: "Simula um gráfico com resolução de 1 min (ex.: dashboard de 24h): só enxerga o valor na virada de cada minuto. O pico acontece nos segundos 20..35 do ciclo e nunca é visto."
+    unit: bytes
+    queries:
+      - expr: last_over_time(max_over_time_container_memory_working_set_bytes[1m:1m])
+        legend: "amostrado 1x/min {{pod}}"
+  - title: "3. 🟢 max_over_time(x[5m]): o termômetro de máxima pega o pico"
+    description: "Mesmo olhando 1x por minuto, max_over_time([5m]) mostra ~950 MiB para api-1 (e ~555 para api-2)."
+    unit: bytes
+    queries:
+      - expr: max_over_time(max_over_time_container_memory_working_set_bytes[5m])
+        legend: "max_over_time[5m] {{pod}}"
+  - title: "4. 🟡 max vs avg na mesma janela (api-1)"
+    description: "avg_over_time dilui o pico (≈ 430–455 MiB). max_over_time preserva (≈ 950 MiB). Para OOM, é o max que importa."
+    unit: bytes
+    queries:
+      - expr: max_over_time(max_over_time_container_memory_working_set_bytes{pod="api-1"}[5m])
+        legend: "max_over_time[5m]"
+      - expr: avg_over_time(max_over_time_container_memory_working_set_bytes{pod="api-1"}[5m])
+        legend: "avg_over_time[5m]"
+      - expr: max_over_time_container_memory_working_set_bytes{pod="api-1"}
+        legend: "cru"
+  - title: "5. 🟡 max(x) vs max_over_time(x[5m])"
+    description: "max() = maior ENTRE pods agora (1 série; ~550 fora do pico). max_over_time = maior de CADA pod no tempo (2 séries)."
+    unit: bytes
+    queries:
+      - expr: max(max_over_time_container_memory_working_set_bytes)
+        legend: "max() entre pods"
+      - expr: max_over_time(max_over_time_container_memory_working_set_bytes[5m])
+        legend: "max_over_time {{pod}}"
+  - title: "6. 🟡 Há quanto tempo foi o pico? time() - ts_of_max_over_time(x[10m])"
+    description: "Função experimental: timestamp da amostra máxima. Dente-de-serra de 0 a ~180s (o pico se repete a cada 3 min)."
+    unit: s
+    queries:
+      - expr: time() - ts_of_max_over_time(max_over_time_container_memory_working_set_bytes{pod="api-1"}[10m])
+        legend: "segundos desde o pico (api-1)"
+  - title: "7. 🔴 Subquery: rate por segundo (a rajada de 50 req/s)"
+    description: "rate(counter[1m]) mostra 5 req/s com uma lombada até ~50 a cada 4 min."
+    unit: reqps
+    queries:
+      - expr: rate(max_over_time_http_requests_total[1m])
+        legend: "rate[1m]"
+  - title: "8. 🔴 max_over_time(rate(x[1m])[10m:]) — o maior req/s dos últimos 10 min"
+    description: "Subquery: calcula o rate a cada passo, e pega o maior dos últimos 10 min. Fica em ≈ 50 req/s o tempo todo."
+    unit: reqps
+    queries:
+      - expr: max_over_time(rate(max_over_time_http_requests_total[1m])[10m:])
+        legend: "pico de req/s em 10m"
+      - expr: rate(max_over_time_http_requests_total[1m])
+        legend: "rate[1m] (referência)"
+  - title: "9. ❌ Errado: max_over_time direto no counter"
+    description: "O máximo de um counter é só o último valor (ele só sobe). As duas linhas se sobrepõem: não diz nada sobre picos."
+    queries:
+      - expr: max_over_time(max_over_time_http_requests_total[10m])
+        legend: "max_over_time(counter[10m])"
+      - expr: max_over_time_http_requests_total
+        legend: "counter cru"
+    width: 24
+    height: 7

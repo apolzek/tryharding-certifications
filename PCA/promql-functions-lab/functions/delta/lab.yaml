@@ -1,0 +1,60 @@
+function: delta
+title: "delta() — diferença entre o começo e o fim da janela (gauges)"
+category: "03 - Gauges (delta, deriv, previsão)"
+time_from: now-15m
+intro_height: 8
+intro: |
+  **Níveis:** 🟢 básico · 🟡 nuance / pegadinha / comparação · 🔴 caso real de produção.
+
+  **Analogia:** um **termômetro** olhado duas vezes: "às 14h00 estava 50°C, às 14h01 está 56°C → **subiu 6°C**".
+  `delta(gauge[1m])` = **último − primeiro** ponto da janela (extrapolado para a janela inteira). Pode ser **negativo**.
+
+  Só para **gauges**. Métricas: `delta_node_hwmon_temp_celsius{host}` (zeus: onda de 5 min 40↔70°C · hera: ~45°C),
+  `delta_container_memory_working_set_bytes` (vaza 1 MiB/s, com picos de +150 MiB em ~10% dos scrapes) e `delta_http_requests_total` (counter, para a pegadinha).
+panels:
+  - title: "🟢 1. Temperatura crua (zeus esquenta e esfria a cada 5 min)"
+    unit: celsius
+    queries:
+      - expr: delta_node_hwmon_temp_celsius
+        legend: "{{host}}"
+  - title: "🟢 2. delta(...[1m]) — quanto a temperatura mudou no último minuto"
+    description: "zeus: entre ≈ +18 e ≈ -18 °C/min (positivo esquentando, negativo esfriando). hera: ≈ 0."
+    unit: celsius
+    queries:
+      - expr: delta(delta_node_hwmon_temp_celsius[1m])
+        legend: "{{host}}"
+  - title: "🟡 3. A janela importa: [30s] vs [5m] (zeus)"
+    description: "[5m] = exatamente um ciclo da onda: começo e fim são iguais, delta ≈ 0 mesmo com a temperatura variando 30°C!"
+    unit: celsius
+    queries:
+      - expr: delta(delta_node_hwmon_temp_celsius{host="zeus"}[30s])
+        legend: "[30s]"
+      - expr: delta(delta_node_hwmon_temp_celsius{host="zeus"}[5m])
+        legend: "[5m] (≈ 0)"
+  - title: "🔴 4. Gauge com picos: delta[2m] (2 pontos) vs deriv[2m]×120 (todos os pontos)"
+    description: "Vazamento real = 120 MiB em 2 min. Se a 1ª ou a última amostra cair num pico de +150 MiB, delta[2m] pula para ~-30 ou ~270 MiB; deriv[2m]*120 fica perto de 120 MiB."
+    unit: bytes
+    min: -67108864
+    max: 335544320
+    queries:
+      - expr: delta(delta_container_memory_working_set_bytes[2m])
+        legend: "delta[2m] (nervoso)"
+      - expr: deriv(delta_container_memory_working_set_bytes[2m]) * 120
+        legend: "deriv[2m]*120 (estável)"
+  - title: "🟡 5. Pegadinha: delta() em COUNTER com reset"
+    description: "Counter +4/s, reseta a cada 3 min. delta[1m] ≈ 240, mas despenca para ≈ -520 a -620 no minuto após cada reset. increase[1m] fica em 240."
+    unit: short
+    queries:
+      - expr: delta(delta_http_requests_total[1m])
+        legend: "delta[1m] (errado em counter)"
+      - expr: increase(delta_http_requests_total[1m])
+        legend: "increase[1m] (certo)"
+  - title: "🟢 6. Variação da temperatura no último minuto (agora)"
+    type: bargauge
+    unit: celsius
+    min: -20
+    max: 20
+    queries:
+      - expr: delta(delta_node_hwmon_temp_celsius[1m])
+        legend: "{{host}}"
+        instant: true

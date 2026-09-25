@@ -1,0 +1,61 @@
+function: year
+title: "year() — o ano (UTC) de um timestamp"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `year()` é o **ano estampado na moeda**: extrai o ano de um timestamp, em **UTC**.
+  Pegadinha clássica: o **Réveillon do Prometheus** acontece às **21h de 31/12 em Brasília**.
+
+  Métricas: `year_simulated_clock_timestamp_seconds` (**relógio acelerado** em volta da virada 2026→2027: 1 hora a cada 10s)
+  e `year_device_manufactured_timestamp_seconds{device}` (sensor-a 2019, router-b 2022, nobreak-c 01/01/2026 01:30 UTC).
+panels:
+  - title: "1. Réveillon acelerado: UTC vira 30s antes de Brasília"
+    description: "year() UTC pula para 2027 à meia-noite UTC. year(t - 3h) (Brasília) pula 3 'horas' (30s) depois."
+    decimals: 0
+    queries:
+      - expr: year(year_simulated_clock_timestamp_seconds)
+        legend: "ano UTC"
+      - expr: year(year_simulated_clock_timestamp_seconds - 3 * 3600)
+        legend: "ano Brasília"
+  - title: "2. Hoje"
+    type: stat
+    decimals: 0
+    queries:
+      - expr: year()
+        legend: "ano (UTC)"
+  - title: "3. Ano de fabricação: UTC vs Brasília"
+    description: "nobreak-c foi fabricado 01/01/2026 01:30 UTC = 31/12/2025 22:30 em Brasília: year() diz 2026, a nota fiscal diz 2025."
+    type: table
+    width: 24
+    height: 6
+    decimals: 0
+    overrides:
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "ano (UTC)"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "ano (Brasília)"}]
+    queries:
+      - expr: year(year_device_manufactured_timestamp_seconds)
+        legend: "UTC"
+        format: table
+      - expr: year(year_device_manufactured_timestamp_seconds - 3 * 3600)
+        legend: "Brasília"
+        format: table
+  - title: "4. Idade: 'anos de calendário' vs anos exatos"
+    description: "scalar(year()) - year(x) conta viradas de ano; (time() - x)/(365.25*86400) é a idade real. nobreak-c: 0 vs ≈0.7."
+    type: table
+    width: 24
+    height: 6
+    decimals: 2
+    overrides:
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "anos de calendário"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "anos exatos"}]
+    queries:
+      - expr: scalar(year()) - year(year_device_manufactured_timestamp_seconds)
+        legend: "anos de calendário"
+        format: table
+      - expr: (time() - year_device_manufactured_timestamp_seconds) / (365.25 * 86400)
+        legend: "anos exatos"
+        format: table

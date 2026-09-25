@@ -1,0 +1,99 @@
+function: absent_over_time
+title: "absent_over_time() — 'nenhum dado nos últimos N minutos'"
+category: "06 - Ausência de dados"
+time_from: now-15m
+intro: |
+  **Analogia:** `absent()` é o pai que liga pro filho **no segundo** em que ele não atende. `absent_over_time(x[2m])`
+  é o pai que só se preocupa se o filho ficar **2 minutos inteiros** sem dar sinal.
+
+  `absent_over_time(range-vector)` → vazio se houver **qualquer** amostra na janela; `{labels} 1` se não houver nenhuma.
+  Métrica: `absent_over_time_backup_heartbeat{backup}`: `files` sempre presente; `db` reporta **60s** e fica **240s** calado (ciclo de 5 min).
+panels:
+  - title: "1. Heartbeat cru — db só aparece 1 min a cada 5"
+    min: 0
+    description: "files (desenhado em 2 só para não sobrepor) é contínuo; db (em 1) aparece 60s e some 240s."
+    queries:
+      - expr: absent_over_time_backup_heartbeat{backup="db"}
+        legend: "db"
+      - expr: absent_over_time_backup_heartbeat{backup="files"} * 2
+        legend: "files (× 2)"
+  - title: "2. absent() vs absent_over_time([2m]) no backup db"
+    description: "absent() acende logo que o db some (4 min por ciclo). absent_over_time([2m]) só acende após 2 min de silêncio (2 min por ciclo). Menos falso positivo."
+    draw: bars
+    queries:
+      - expr: absent(absent_over_time_backup_heartbeat{backup="db"}) * 2
+        legend: "absent() × 2  (imediato)"
+        validate: any
+      - expr: absent_over_time(absent_over_time_backup_heartbeat{backup="db"}[2m])
+        legend: "absent_over_time([2m])  (tolerante)"
+        validate: any
+  - title: "3. Tamanho da janela = tolerância"
+    description: "[1m] dispara 3 min por ciclo; [2m] 2 min; [4m] nunca (o buraco de 240s não 'cabe' inteiro numa janela de 4m... por pouco)."
+    draw: bars
+    queries:
+      - expr: absent_over_time(absent_over_time_backup_heartbeat{backup="db"}[1m]) * 3
+        legend: "[1m] × 3"
+        validate: any
+      - expr: absent_over_time(absent_over_time_backup_heartbeat{backup="db"}[2m]) * 2
+        legend: "[2m] × 2"
+        validate: any
+      - expr: absent_over_time(absent_over_time_backup_heartbeat{backup="db"}[4m])
+        legend: "[4m]"
+        validate: any
+  - title: "4. backup files nunca some → sempre vazio"
+    description: "'No data' aqui é a resposta CERTA: há amostras na janela."
+    queries:
+      - expr: absent_over_time(absent_over_time_backup_heartbeat{backup="files"}[2m])
+        legend: "files"
+        validate: empty
+  - title: "5. Dedução (1/3): {job=\"myjob\"}[1h] → {job=\"myjob\"}"
+    description: "Matcher de igualdade vira label."
+    type: table
+    width: 8
+    height: 5
+    queries:
+      - expr: 'absent_over_time(absent_over_time_nonexistent_metric{job="myjob"}[1h])'
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+  - title: "5. Dedução (2/3): + instance=~\".*\" → {job=\"myjob\"}"
+    description: "Regex não vira label."
+    type: table
+    width: 8
+    height: 5
+    queries:
+      - expr: 'absent_over_time(absent_over_time_nonexistent_metric{job="myjob",instance=~".*"}[1h])'
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+  - title: "5. Dedução (3/3): sum(...)[10m:] → {}"
+    description: "Agregação precisa de subquery e perde os labels."
+    type: table
+    width: 8
+    height: 5
+    queries:
+      - expr: 'absent_over_time(sum(absent_over_time_nonexistent_metric{job="myjob"})[10m:])'
+        format: table
+    overrides:
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]
+  - title: "6. 🔴 Caso real: job de ETL horário sem reportar há 2h"
+    description: "absent_over_time(up{job=\"etl-hourly\"}[2h]): esse job não existe neste Prometheus → dispara com {job=\"etl-hourly\"}. O job real (lab) → vazio."
+    type: table
+    width: 24
+    height: 6
+    queries:
+      - expr: absent_over_time(up{job="etl-hourly"}[2h])
+        format: table
+      - expr: absent_over_time(up{job="lab"}[2h])
+        format: table
+        validate: empty
+    overrides:
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "absent_over_time(up{job=etl-hourly}[2h])"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "absent_over_time(up{job=lab}[2h]) → vazio"}]
+      - matcher: {id: byName, options: "Time"}
+        properties: [{id: custom.hidden, value: true}]

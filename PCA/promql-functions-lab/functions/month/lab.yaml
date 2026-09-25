@@ -1,0 +1,65 @@
+function: month
+title: "month() — mês do ano (1 = janeiro … 12 = dezembro, UTC)"
+category: "08 - Data e hora"
+time_from: now-15m
+intro: |
+  **Analogia:** `month()` é a **folha do calendário** pendurada na parede: 1 = janeiro, 12 = dezembro (não é 0-11 como no JavaScript!), em **UTC**.
+  Uso clássico: `month(cert_expiry_timestamp)` para "em que mês vence?" e alertas "vence este mês".
+
+  Métricas: `month_simulated_clock_timestamp_seconds` (**relógio acelerado**: 1 mês a cada 10s, 2027) e
+  `month_probe_ssl_earliest_cert_expiry{domain}` (api: daqui 2 meses, www: daqui 5, legacy: último dia deste mês, midnight: dia 1 do próximo às 01:00 UTC).
+panels:
+  - title: "1. Relógio acelerado: escada 1 → 12 e trimestre"
+    description: "month() sobe 1 a cada 10s. ceil(month()/3) dá o trimestre (1..4)."
+    decimals: 0
+    queries:
+      - expr: month(month_simulated_clock_timestamp_seconds)
+        legend: "mês"
+      - expr: ceil(month(month_simulated_clock_timestamp_seconds) / 3)
+        legend: "trimestre"
+  - title: "2. Mês e ano de expiração de cada certificado"
+    type: table
+    width: 24
+    height: 6
+    decimals: 0
+    overrides:
+      - matcher: {id: byName, options: "Value #A"}
+        properties: [{id: displayName, value: "mês (UTC)"}]
+      - matcher: {id: byName, options: "Value #B"}
+        properties: [{id: displayName, value: "ano (UTC)"}]
+      - matcher: {id: byName, options: "Value #C"}
+        properties: [{id: displayName, value: "mês (Brasília)"}]
+    queries:
+      - expr: month(month_probe_ssl_earliest_cert_expiry)
+        legend: "mês (UTC)"
+        format: table
+      - expr: year(month_probe_ssl_earliest_cert_expiry)
+        legend: "ano (UTC)"
+        format: table
+      - expr: month(month_probe_ssl_earliest_cert_expiry - 3 * 3600)
+        legend: "mês (Brasília)"
+        format: table
+  - title: "3. Alerta: certificados que vencem ESTE mês (UTC)"
+    description: "Mesmo mês E mesmo ano que hoje. Só legacy.lab.local. (midnight vence dia 1 do próximo mês em UTC... mas em Brasília é hoje-mês!)"
+    type: table
+    width: 24
+    height: 6
+    decimals: 0
+    queries:
+      - expr: (month(month_probe_ssl_earliest_cert_expiry) == scalar(month())) and (year(month_probe_ssl_earliest_cert_expiry) == scalar(year()))
+        legend: "{{domain}}"
+  - title: "4. Hoje"
+    type: stat
+    decimals: 0
+    queries:
+      - expr: month()
+        legend: "mês (UTC)"
+      - expr: ceil(month() / 3)
+        legend: "trimestre"
+  - title: "5. ERRADO: month(x) == month() sem scalar() → vazio"
+    description: "Comparação vetor × vetor casa labels: um lado tem domain, o outro não tem nada. Resultado vazio, até para o legacy que vence este mês."
+    type: stat
+    queries:
+      - expr: month(month_probe_ssl_earliest_cert_expiry) == month()
+        legend: "sem scalar()"
+        validate: empty

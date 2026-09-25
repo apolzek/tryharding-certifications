@@ -1,0 +1,80 @@
+function: log10
+title: "log10() — logaritmo base 10: ORDEM DE GRANDEZA (µs, ms, s) e decibéis"
+category: "01 - Matemática"
+time_from: now-15m
+intro_height: 5
+intro: |
+  **Analogia:** `log10(x)` **conta os zeros**: `log10(1000) = 3`, `log10(0.001) = -3`. Ele coloca 200 µs, 1.5 ms, 50 ms e ~9 s na **mesma régua**
+  (-3.7, -2.8, -1.3, ~0.95). `floor(log10(x))` = ordem de grandeza. `10 * log10(P)` = **decibéis** (dBm).
+
+  Métricas: `log10_http_request_duration_seconds_p99{endpoint}` (200 µs a 10 s) e `log10_optical_rx_power_milliwatts{interface}` (SFP, 0.5 mW a 0.002 mW).
+panels:
+  - title: "🟢 1. p99 por endpoint (cru, eixo linear): os rápidos 'somem' no zero"
+    description: "O /report (1.1..8.9 s) domina a escala. /cache, /health e /api/users viram uma linha só em 0."
+    unit: s
+    queries:
+      - expr: log10_http_request_duration_seconds_p99
+        legend: "{{endpoint}}"
+  - title: "🟢 2. log10(p99): todos visíveis na mesma régua"
+    description: "/cache ≈ -3.7, /health ≈ -2.8, /api/users ≈ -1.3, /search ≈ -0.4, /report oscila entre 0.05 e 0.95."
+    decimals: 2
+    queries:
+      - expr: log10(log10_http_request_duration_seconds_p99)
+        legend: "{{endpoint}}"
+  - title: "🟡 3. Alternativa só visual: eixo log do Grafana (mesmo dado cru)"
+    description: "Se o objetivo é só ENXERGAR, o eixo logarítmico do painel resolve sem mudar a query (e mantém a unidade em segundos)."
+    unit: s
+    field_defaults:
+      custom:
+        drawStyle: line
+        lineWidth: 2
+        fillOpacity: 0
+        showPoints: auto
+        spanNulls: false
+        scaleDistribution:
+          type: log
+          log: 10
+    queries:
+      - expr: log10_http_request_duration_seconds_p99
+        legend: "{{endpoint}}"
+  - title: "🟡 4. Ordem de grandeza: quantos endpoints em cada faixa (floor(log10))"
+    description: "floor(log10(x)): 0 = 1..10 s, -1 = 100 ms..1 s, -2 = 10..100 ms, -3 = 1..10 ms, -4 = 100 µs..1 ms. (0 - floor(...) só para o label ordenar bem.)"
+    type: bargauge
+    min: 0
+    max: 5
+    queries:
+      - expr: sort_by_label(count_values("ordem", 0 - floor(log10(log10_http_request_duration_seconds_p99))), "ordem")
+        legend: "10^-{{ordem}} s"
+        instant: true
+  - title: "🔴 5. Potência óptica em mW (cru): a fibra degradando parece 'zero'"
+    description: "xe-0/0/1 = 0.5 mW domina a escala; xe-0/0/3 caindo de 0.05 para 0.002 mW fica invisível."
+    queries:
+      - expr: log10_optical_rx_power_milliwatts
+        legend: "{{interface}}"
+  - title: "🔴 6. dBm = 10 * log10(mW) — e o limite de alarme em -20 dBm"
+    description: "xe-0/0/1 ≈ -3 dBm, xe-0/0/2 ≈ -13 dBm, xe-0/0/3 desce de -13 a -27 dBm e cruza -20 (alarme)."
+    unit: dBm
+    queries:
+      - expr: 10 * log10(log10_optical_rx_power_milliwatts)
+        legend: "{{interface}}"
+      - expr: vector(-20)
+        legend: "limite de alarme (-20 dBm)"
+  - title: "⚠️ 7. Casos especiais (instantâneo, com vector())"
+    type: stat
+    width: 24
+    height: 5
+    queries:
+      - expr: log10(vector(1000))
+        legend: "log10(1000)"
+      - expr: log10(vector(0.001))
+        legend: "log10(0.001)"
+      - expr: log10(vector(1))
+        legend: "log10(1)"
+      - expr: log10(vector(0.5))
+        legend: "log10(0.5)"
+      - expr: log10(vector(0))
+        legend: "log10(0)"
+      - expr: log10(vector(-1))
+        legend: "log10(-1)"
+      - expr: log10(vector(+Inf))
+        legend: "log10(+Inf)"

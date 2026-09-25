@@ -1,0 +1,76 @@
+function: histogram_fraction
+title: "histogram_fraction() — que fração ficou entre dois valores (SLO, Apdex)"
+category: "04 - Histogramas"
+time_from: now-15m
+intro_height: 6
+intro: |
+  **Analogia:** o **radar de velocidade**: "que % dos carros passou abaixo de 60 km/h?". `histogram_fraction(0, 0.2, rate(x[1m]))`
+  = fração das requisições que levaram **≤ 200ms**. Resultado entre **0 e 1**. Funciona em native e classic (com `le`).
+
+  Métrica: `histogram_fraction_http_request_duration_seconds{service}` (buckets clássicos incluem **0.2** e **0.8**).
+  `stable`: ≈99% ≤ 200ms. `degrading`: ≈97% ≤ 200ms, mas a cada **5 min**, por **90s**, cai para ≈33% (SLO estourado).
+  Legenda dos painéis: 🟢 básico · 🟡 nuance/pegadinha · 🔴 caso real de produção.
+panels:
+  - title: "🟢 1. % de requisições ≤ 200ms (native)"
+    description: "stable ≈ 99%. degrading ≈ 97%, despencando para ≈ 33% no período lento."
+    unit: percentunit
+    min: 0
+    max: 1
+    queries:
+      - expr: histogram_fraction(0, 0.2, rate(histogram_fraction_http_request_duration_seconds[1m]))
+        legend: "{{service}}"
+  - title: "🟡 2. Classic: histogram_fraction com le vs divisão manual de buckets"
+    description: "0.2 é limite de bucket clássico → resultado EXATO. As duas linhas se sobrepõem (e batem com o native)."
+    unit: percentunit
+    min: 0
+    max: 1
+    queries:
+      - expr: histogram_fraction(0, 0.2, sum by (service, le) (rate(histogram_fraction_http_request_duration_seconds_bucket{service="degrading"}[1m])))
+        legend: "classic histogram_fraction"
+      - expr: sum(rate(histogram_fraction_http_request_duration_seconds_bucket{service="degrading", le="0.2"}[1m])) / sum(rate(histogram_fraction_http_request_duration_seconds_count{service="degrading"}[1m]))
+        legend: "classic manual: _bucket{le=0.2} / _count"
+  - title: "🔴 3. Fração LENTA (> 200ms) vs orçamento de 5%"
+    description: "histogram_fraction(0.2, +Inf, ...) = 1 − fração rápida. stable ≈ 1%, degrading ≈ 3% (dentro do SLO) → ≈ 67% na degradação."
+    unit: percentunit
+    queries:
+      - expr: histogram_fraction(0.2, +Inf, rate(histogram_fraction_http_request_duration_seconds[1m]))
+        legend: "{{service}} lentas"
+      - expr: vector(0.05)
+        legend: "limite do SLO (5%)"
+  - title: "🔴 4. Apdex (T = 200ms, tolerável até 800ms)"
+    description: "Apdex = (satisfeitos + tolerantes/2) / total = (F(0.2) + F(0.8)) / 2. degrading: ≈0.98 → ≈0.66. stable ≈ 1."
+    unit: short
+    min: 0
+    max: 1
+    queries:
+      - expr: (histogram_fraction(0, 0.2, rate(histogram_fraction_http_request_duration_seconds[1m])) + histogram_fraction(0, 0.8, rate(histogram_fraction_http_request_duration_seconds[1m]))) / 2
+        legend: "native {{service}}"
+      - expr: (sum by (service) (rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.2"}[1m])) + sum by (service) (rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.8"}[1m]))) / 2 / sum by (service) (rate(histogram_fraction_http_request_duration_seconds_count[1m]))
+        legend: "classic {{service}}"
+  - title: "🟡 5. Limite FORA dos buckets clássicos (0.3s): estimativa"
+    description: "0.3 fica entre os buckets 0.2 e 0.4: o classic interpola linearmente (≈58% na degradação) e o native, com buckets finos, fica perto do real (≈64%)."
+    unit: percentunit
+    queries:
+      - expr: histogram_fraction(0, 0.3, rate(histogram_fraction_http_request_duration_seconds{service="degrading"}[1m]))
+        legend: "native ≤ 300ms"
+      - expr: histogram_fraction(0, 0.3, sum by (le) (rate(histogram_fraction_http_request_duration_seconds_bucket{service="degrading"}[1m])))
+        legend: "classic ≤ 300ms (interpolado)"
+  - title: "🔴 6. Requisições lentas POR SEGUNDO"
+    description: "histogram_count × histogram_fraction: degrading ≈ 1.3 req/s lentas → ≈ 27 req/s na degradação (de 40 req/s)."
+    unit: reqps
+    queries:
+      - expr: histogram_count(rate(histogram_fraction_http_request_duration_seconds[1m])) * histogram_fraction(0.2, +Inf, rate(histogram_fraction_http_request_duration_seconds[1m]))
+        legend: "{{service}} lentas/s"
+  - title: "🔴 7. SLO 'agora' (≤ 200ms, janela 5m)"
+    type: bargauge
+    unit: percentunit
+    min: 0
+    max: 1
+    width: 24
+    height: 5
+    field_defaults:
+      color: { mode: "continuous-RdYlGr" }
+    queries:
+      - expr: histogram_fraction(0, 0.2, rate(histogram_fraction_http_request_duration_seconds[5m]))
+        legend: "{{service}}"
+        instant: true
