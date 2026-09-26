@@ -255,7 +255,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "time_backup_last_success_timestamp_seconds{backup=≈\"db-backup|files-backup\"}",
+          "expr": "time_backup_last_success_timestamp_seconds{backup=~\"db-backup|files-backup\"}",
           "legendFormat": "{{backup}}",
           "range": true,
           "instant": false,
@@ -320,7 +320,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "time() - time_backup_last_success_timestamp_seconds{backup=≈\"db-backup|files-backup\"}",
+          "expr": "time() - time_backup_last_success_timestamp_seconds{backup=~\"db-backup|files-backup\"}",
           "legendFormat": "{{backup}}",
           "range": true,
           "instant": false,

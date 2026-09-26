@@ -1,0 +1,25 @@
+id: "149"
+title: "info() trazendo só um label"
+topic: labels
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/info/
+prompt: |
+  Mesma ideia do desafio anterior, mas o time quer **apenas o label `k8s_cluster_name`** de `target_info`
+  anexado à req/s (rate 5m) de `info_http_server_requests_total` — sem namespace nem versão.
+hints:
+  - "info() aceita um segundo argumento: um seletor de data labels."
+  - "Um matcher que casa qualquer valor não vazio: =~\".+\"."
+  - "info(rate(...[5m]), {k8s_cluster_name=~\".+\"})"
+solution: 'info(rate(info_http_server_requests_total[5m]), {k8s_cluster_name=~".+"})'
+accepted_answers:
+  - 'rate(info_http_server_requests_total[5m]) * on (job, instance) group_left (k8s_cluster_name) target_info'
+wrong_answers:
+  - 'info(rate(info_http_server_requests_total[5m]))'
+  - 'info(rate(info_http_server_requests_total[5m]), {k8s_namespace_name=~".+"})'
+  - 'rate(info_http_server_requests_total[5m])'
+explanation: |
+  Quando o seletor de data labels tem matchers sobre labels, `info()` só adiciona ESSES labels.
+  Você também pode trocar a info metric: `info(v, {__name__="build_info"})`.
+
+  Pegadinha: sem o 2º argumento, `info()` traz TODOS os data labels.

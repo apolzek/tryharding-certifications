@@ -1,0 +1,37 @@
+id: "186"
+title: "SLO burn rate multi-janela"
+topic: alerting-expressions
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/rate/
+prompt: |
+  SLO de disponibilidade **99,9%** (error budget = 0,001) sobre `increase_http_requests_total{code}`.
+  Escreva o alerta de **burn rate rápido** do Google SRE Workbook: dispara quando a taxa de erro
+  (5xx ÷ total) está acima de **14,4 × o budget** tanto na janela de **1h** QUANTO na de **5m**.
+  O valor retornado deve ser a taxa de erro da janela de 1h.
+hints:
+  - "Duas expressões de taxa de erro (1h e 5m), cada uma com `> 14.4 * 0.001`."
+  - "Combine as duas com o operador lógico que exige as duas condições."
+  - "(ratio_1h > 14.4 * 0.001) and (ratio_5m > 14.4 * 0.001)"
+solution: |
+  (
+    sum(rate(increase_http_requests_total{code=~"5.."}[1h])) / sum(rate(increase_http_requests_total[1h]))
+    > 14.4 * 0.001
+  )
+  and
+  (
+    sum(rate(increase_http_requests_total{code=~"5.."}[5m])) / sum(rate(increase_http_requests_total[5m]))
+    > 14.4 * 0.001
+  )
+accepted_answers:
+  - 'sum(rate(increase_http_requests_total{code="500"}[1h])) / sum(rate(increase_http_requests_total[1h])) > 0.0144 and sum(rate(increase_http_requests_total{code="500"}[5m])) / sum(rate(increase_http_requests_total[5m])) > 0.0144'
+wrong_answers:
+  - '(sum(rate(increase_http_requests_total{code=~"5.."}[1h])) / sum(rate(increase_http_requests_total[1h])) > bool 0.0144) and (sum(rate(increase_http_requests_total{code=~"5.."}[5m])) / sum(rate(increase_http_requests_total[5m])) > bool 0.0144)'
+  - 'sum(rate(increase_http_requests_total{code=~"5.."}[1h])) / sum(rate(increase_http_requests_total[1h])) > 14.4'
+  - '(sum(rate(increase_http_requests_total{code=~"5.."}[1h])) / sum(rate(increase_http_requests_total[1h])) > 14.4 * 0.01) and (sum(rate(increase_http_requests_total{code=~"5.."}[5m])) / sum(rate(increase_http_requests_total[5m])) > 14.4 * 0.01)'
+explanation: |
+  Burn rate 14,4 por 1 h consome 2% do budget de 30 dias. A janela longa (1h) evita alarme por um pico;
+  a curta (5m) faz o alerta PARAR logo quando o problema acaba. `and` mantém os valores do lado ESQUERDO.
+  A taxa de erro do lab (~4,8%) queima o budget de 99,9% a ~48×, então dispara.
+
+  Pegadinha: budget de 99,9% é 0,001, não 0,01 (com 0,01 o limiar vira 14,4% e não dispara).

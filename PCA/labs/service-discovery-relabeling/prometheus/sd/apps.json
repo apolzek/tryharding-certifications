@@ -1,0 +1,29 @@
+[
+  {
+    "targets": ["payments-api:8000", "payments-worker:8000"],
+    "labels": {
+      "team": "payments",
+      "env": "Prod",
+      "__meta_region": "SA-EAST-1",
+      "__meta_oncall": "payments"
+    }
+  },
+  {
+    "targets": ["checkout-api:8000"],
+    "labels": {
+      "team": "checkout",
+      "env": "Prod",
+      "__meta_region": "SA-EAST-1",
+      "__meta_oncall": "sre"
+    }
+  },
+  {
+    "targets": ["search-api:8000"],
+    "labels": {
+      "team": "search",
+      "env": "Staging",
+      "__meta_region": "US-EAST-1",
+      "__meta_oncall": "search"
+    }
+  }
+]

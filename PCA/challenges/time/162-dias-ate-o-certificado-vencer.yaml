@@ -1,0 +1,26 @@
+id: "162"
+title: "Dias até o certificado vencer"
+topic: time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/time/
+prompt: |
+  Quantos **dias faltam** para o certificado de cada domínio vencer?
+  Use `time_probe_ssl_earliest_cert_expiry{domain}` (timestamp Unix de expiração, como no blackbox_exporter).
+hints:
+  - "Tempo restante = expiração − agora."
+  - "Um dia tem 86400 segundos."
+  - "(time_probe_ssl_earliest_cert_expiry - time()) / 86400"
+solution: '(time_probe_ssl_earliest_cert_expiry - time()) / 86400'
+accepted_answers:
+  - '(time_probe_ssl_earliest_cert_expiry - time()) / 3600 / 24'
+  - '(time_probe_ssl_earliest_cert_expiry - time()) / (24 * 60 * 60)'
+wrong_answers:
+  - '(time_probe_ssl_earliest_cert_expiry - time()) / 3600'
+  - '(time() - time_probe_ssl_earliest_cert_expiry) / 86400'
+  - 'time_probe_ssl_earliest_cert_expiry / 86400'
+explanation: |
+  old.lab.local ≈ 3 dias (alerta!), shop ≈ 12, api ≈ 45.
+  Alerta real: `probe_ssl_earliest_cert_expiry - time() < 86400 * 14`.
+
+  Pegadinha: inverter a subtração dá dias NEGATIVOS.

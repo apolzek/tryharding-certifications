@@ -1,0 +1,34 @@
+id: "109"
+title: "Apdex com buckets clássicos"
+topic: histograms
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_fraction/
+prompt: |
+  Calcule o **Apdex** de cada serviço com T = 0,2 s (tolerável até 4T = 0,8 s), janela de 5 min,
+  com os buckets clássicos de `histogram_fraction_http_request_duration_seconds_bucket`:
+
+  Apdex = (satisfeitos + toleráveis/2) ÷ total = (bucket{le="0.2"} + bucket{le="0.8"}) / 2 ÷ count
+hints:
+  - "Os buckets são cumulativos: le=\"0.8\" já inclui os satisfeitos. Por isso a fórmula (a+b)/2 funciona."
+  - "Agregue cada pedaço com `sum by (service)` para os labels casarem (o `le` atrapalharia)."
+  - "(sum by (service)(rate(b{le=\"0.2\"}[5m])) + sum by (service)(rate(b{le=\"0.8\"}[5m]))) / 2 / sum by (service)(rate(x_count[5m]))"
+solution: |
+  (
+    sum by (service) (rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.2"}[5m]))
+  +
+    sum by (service) (rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.8"}[5m]))
+  ) / 2
+  / sum by (service) (rate(histogram_fraction_http_request_duration_seconds_count[5m]))
+accepted_answers:
+  - '(histogram_fraction(0, 0.2, sum by (service) (rate(histogram_fraction_http_request_duration_seconds[5m]))) + histogram_fraction(0, 0.8, sum by (service) (rate(histogram_fraction_http_request_duration_seconds[5m])))) / 2'
+wrong_answers:
+  - '(sum by (service) (rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.2"}[5m])) + sum by (service) (rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.8"}[5m]))) / sum by (service) (rate(histogram_fraction_http_request_duration_seconds_count[5m]))'
+  - 'sum by (service) (rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.2"}[5m])) / sum by (service) (rate(histogram_fraction_http_request_duration_seconds_count[5m]))'
+  - 'rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.2"}[5m]) + rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.8"}[5m])'
+explanation: |
+  Como `le="0.8"` = satisfeitos + toleráveis, (le0.2 + le0.8)/2 = satisfeitos + toleráveis/2.
+  Com native histograms: `(histogram_fraction(0,0.2,h) + histogram_fraction(0,0.8,h)) / 2`.
+
+  Pegadinha: somar os dois buckets sem os agregar falha no casamento, porque o label `le` é diferente
+  ("0.2" vs "0.8") e a soma vetorial não encontra pares.

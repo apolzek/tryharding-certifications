@@ -1,0 +1,23 @@
+id: "089"
+title: "Itens processados no último minuto"
+topic: over-time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sum_over_time/
+prompt: |
+  `sum_over_time_items_processed_last_scrape{worker}` é um gauge que diz quantos itens o worker
+  processou **desde o scrape anterior**. Quantos **itens cada worker processou no último minuto**?
+hints:
+  - "Cada amostra é um pedaço; some os pedaços da janela."
+  - "sum_over_time(v[1m])"
+  - "sum_over_time(sum_over_time_items_processed_last_scrape[1m])"
+solution: 'sum_over_time(sum_over_time_items_processed_last_scrape[1m])'
+wrong_answers:
+  - 'avg_over_time(sum_over_time_items_processed_last_scrape[1m])'
+  - 'sum(sum_over_time_items_processed_last_scrape)'
+  - 'increase(sum_over_time_items_processed_last_scrape[1m])'
+explanation: |
+  batch-a ≈ 240 (12 amostras × 20). É o caso raro em que `sum_over_time` faz sentido: cada amostra
+  é uma quantidade 'do intervalo'.
+
+  Pegadinha: `sum_over_time` de gauges de NÍVEL (memória, fila...) não tem significado físico.

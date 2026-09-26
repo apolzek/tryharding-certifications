@@ -544,7 +544,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "time() - (start_timestamp({__name__=≈\"start_timestamp_(worker|legacy)_jobs_total\"}) > 0)",
+          "expr": "time() - (start_timestamp({__name__=~\"start_timestamp_(worker|legacy)_jobs_total\"}) > 0)",
           "legendFormat": "{{pod}}",
           "range": false,
           "instant": true,

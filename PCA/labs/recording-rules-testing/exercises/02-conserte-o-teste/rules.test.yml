@@ -1,0 +1,16 @@
+# EXERCÍCIO 02: este teste falha. Descubra os 2 erros de raciocínio e conserte o TESTE.
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="api", instance="a"}'
+        values: '0+60x20'
+      - series: 'http_requests_total{job="api", instance="b"}'
+        values: '0+30x20'
+    promql_expr_test:
+      - expr: job:http_requests:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'job:http_requests:rate5m{job="api", instance="a"}'
+            value: 90

@@ -1,0 +1,23 @@
+id: '221'
+title: Contar quantos passam do limite
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#7-operadores-de-comparação
+prompt: |
+  Quantos CronJobs de `sort_cronjob_last_duration_seconds` demoraram **mais de 30 s**?
+  (uma única série com o número)
+hints:
+- count() de um filtro, ou sum() de um bool
+- count(x > 30)  ou  sum(x > bool 30)
+solution: count(sort_cronjob_last_duration_seconds > 30)
+accepted_answers:
+- sum(sort_cronjob_last_duration_seconds > bool 30)
+wrong_answers:
+- count(sort_cronjob_last_duration_seconds > bool 30)
+- count(sort_cronjob_last_duration_seconds)
+explanation: |
+  Duas formas equivalentes: `count(x > 30)` conta as séries que **sobraram** do filtro;
+  `sum(x > bool 30)` soma os 1s. Resposta: **2** (`backup` e `report`).
+  Cuidado: `count(x > bool 30)` conta **todas** as séries (inclusive as que viraram 0) = 4.
+  Diferença sutil: se nenhuma passar, `count(filtro)` retorna **vazio** e `sum(bool)` retorna **0**.

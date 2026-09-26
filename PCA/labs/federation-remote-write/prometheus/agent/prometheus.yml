@@ -1,0 +1,18 @@
+# Prometheus em modo AGENT (--agent): raspa e envia. Sem regras, sem alertas,
+# sem consultas locais. Ideal para borda/edge/clusters pequenos.
+global:
+  scrape_interval: 5s
+  external_labels:
+    cluster: edge
+
+scrape_configs:
+  - job_name: app
+    static_configs:
+      - targets: [app-c:8000]
+  - job_name: agent
+    static_configs:
+      - targets: [localhost:9090]
+
+remote_write:
+  - url: http://receiver:9090/api/v1/write
+    name: central

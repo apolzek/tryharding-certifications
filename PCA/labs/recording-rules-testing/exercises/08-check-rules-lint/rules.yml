@@ -1,0 +1,15 @@
+# EXERCÍCIO 08: `promtool check rules --lint-fatal` reprova este arquivo. Conserte até passar.
+groups:
+  - name: ex08
+    rules:
+      - record: job:http-requests:rate5m
+        expr: sum by (job) (rate(http_requests_total[5m]))
+      - record: instance:node_cpu_utilisation:rate5m
+        expr: 1 - avg without (cpu, mode) (rate(node_cpu_seconds_total{mode="idle"}[5m]))
+        for: 5m
+      - record: job:up:sum
+        expr: sum by (job) (up)
+      - record: job:up:sum
+        expr: sum by (job) (up)
+      - alert: TooManyRestarts
+        expr: increase(kube_pod_container_status_restarts_total[1h] > 5

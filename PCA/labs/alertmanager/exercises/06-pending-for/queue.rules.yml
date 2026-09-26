@@ -1,0 +1,12 @@
+# EXERCÍCIO 06: a fila enche por alguns segundos durante todo pico normal e
+# o time é acordado à toa. Só notifique se a fila ficar > 100 por 1 minuto seguido.
+groups:
+  - name: ex06
+    interval: 5s
+    rules:
+      - alert: QueueBacklog
+        expr: lab_queue_depth > 100
+        labels:
+          severity: warning
+        annotations:
+          summary: "fila {{ $labels.queue }} com {{ $value }} mensagens"

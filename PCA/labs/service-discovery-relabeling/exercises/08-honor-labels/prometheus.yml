@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  # Objetivo: o legacy-batch expõe métricas COM label job="nightly-batch" (como um
+  # Pushgateway/federation). Os dashboards esperam job="nightly-batch", mas hoje
+  # aparece exported_job. E o alvo ainda está down...
+  - job_name: batch
+    static_configs:
+      - targets: [legacy-batch:8000]

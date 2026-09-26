@@ -48,7 +48,8 @@ Cada dashboard tem uid `fn-<função>` (ex.: http://localhost:3300/d/fn-rate).
 ├── grafana/provisioning/      # datasource + provider de dashboards
 ├── generator/                 # núcleo do gerador Go (helpers: NewFunc, Wave, Saw, Every...)
 ├── functions/<fn>/            # 1 pasta por função: README.md, lab.yaml, setup/scenario.go
-├── dashboards/                # GERADO a partir dos lab.yaml
+├── dashboards/                # GERADO a partir dos lab.yaml (+ cópia de static-dashboards/)
+├── static-dashboards/         # dashboards feitos à mão (ex.: "Meu progresso PCA" dos challenges/)
 └── tools/
     ├── deploy.sh              # gera dashboards + rebuilda gerador + sobe
     ├── check-go.sh <fn>       # compila núcleo + cenário

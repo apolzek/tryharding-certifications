@@ -1,0 +1,6 @@
+groups:
+  - name: ex04
+    rules:
+      # rate PRIMEIRO (por série, cada uma com sua correção de reset), sum DEPOIS
+      - record: job:jobs_processed:rate5m
+        expr: sum by (job) (rate(jobs_processed_total[5m]))

@@ -1,0 +1,1 @@
+count_over_time((rate(rate_http_requests_total{route="/api/search"}[1m]) > 30)[30m:1m])

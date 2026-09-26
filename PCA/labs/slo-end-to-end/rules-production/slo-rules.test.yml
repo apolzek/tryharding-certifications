@@ -1,0 +1,116 @@
+# promtool test rules slo-rules.test.yml
+# Testes unitários dos alertas de burn rate com janelas REAIS (horas/dias simulados em milissegundos).
+# Tráfego: 600 req/min com code="200" + N erros/min com code="500".
+rule_files:
+  - slo-rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # 1) Saudável: 0,05% de erro (burn 0.5x) -> nenhum alerta, budget remaining ≈ 50%
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+600x1500'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+0.3x1500'
+    alert_rule_test:
+      - { eval_time: 1d, alertname: SLOErrorBudgetBurnFast, exp_alerts: [] }
+      - { eval_time: 1d, alertname: SLOErrorBudgetBurnMedium, exp_alerts: [] }
+      - { eval_time: 1d, alertname: SLOErrorBudgetBurnSlow, exp_alerts: [] }
+      - { eval_time: 1d, alertname: SLOErrorBudgetBurnVerySlow, exp_alerts: [] }
+    promql_expr_test:
+      - expr: round(job:slo_error_budget_remaining:ratio, 0.01)
+        eval_time: 1d
+        exp_samples:
+          - labels: '{job="checkout"}'
+            value: 0.5
+
+  # 2) Incidente forte: ~4,8% de erro (30/630, burn ≈ 48x) -> Fast dispara em minutos; Medium só depois do for de 15m
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+600x120'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+30x120'
+    alert_rule_test:
+      - eval_time: 1m                 # condição verdadeira, mas ainda em "pending" (for: 2m)
+        alertname: SLOErrorBudgetBurnFast
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: SLOErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels: { job: checkout, severity: page, slo: availability, burn_rate: "14.4", long_window: 1h }
+            exp_annotations:
+              summary: "checkout: queimando o error budget 14.4x mais rápido que o sustentável"
+              description: "Nesse ritmo, 2% do budget de 30d some em 1h e tudo em ~2 dias."
+      - eval_time: 5m
+        alertname: SLOErrorBudgetBurnMedium
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: SLOErrorBudgetBurnMedium
+        exp_alerts:
+          - exp_labels: { job: checkout, severity: page, slo: availability, burn_rate: "6", long_window: 6h }
+            exp_annotations:
+              summary: "checkout: burn rate > 6x (5% do budget em 6h)"
+
+  # 3) Degradação moderada: ~1% de erro (6/606, burn ≈ 9.9x) -> Medium dispara, Fast NUNCA (9.9 < 14.4)
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+600x200'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+6x200'
+    alert_rule_test:
+      - { eval_time: 3h, alertname: SLOErrorBudgetBurnFast, exp_alerts: [] }
+      - eval_time: 3h
+        alertname: SLOErrorBudgetBurnMedium
+        exp_alerts:
+          - exp_labels: { job: checkout, severity: page, slo: availability, burn_rate: "6", long_window: 6h }
+            exp_annotations:
+              summary: "checkout: burn rate > 6x (5% do budget em 6h)"
+      - eval_time: 3h
+        alertname: SLOErrorBudgetBurnSlow
+        exp_alerts:
+          - exp_labels: { job: checkout, severity: ticket, slo: availability, burn_rate: "3", long_window: 1d }
+            exp_annotations:
+              summary: "checkout: burn rate > 3x (10% do budget em 1d)"
+
+  # 4) A janela CURTA em ação: 30 min de incidente e depois volta ao normal.
+  #    Aos 45m a janela de 1h ainda está acima de 14.4x, mas a de 5m não -> o alerta já resolveu.
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+600x60'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+30x30 900+0x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: SLOErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels: { job: checkout, severity: page, slo: availability, burn_rate: "14.4", long_window: 1h }
+            exp_annotations:
+              summary: "checkout: queimando o error budget 14.4x mais rápido que o sustentável"
+              description: "Nesse ritmo, 2% do budget de 30d some em 1h e tudo em ~2 dias."
+      - { eval_time: 45m, alertname: SLOErrorBudgetBurnFast, exp_alerts: [] }
+    promql_expr_test:
+      - expr: round(job:slo_errors_per_request:ratio_rate1h, 0.001) > 14.4 * 0.001   # a janela longa AINDA está alta (3,2%)
+        eval_time: 45m
+        exp_samples:
+          - labels: '{job="checkout"}'
+            value: 0.032
+
+  # 5) SLO de latência: metade das requisições acima de 300ms -> burn 50x do budget de 1%
+  - interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="checkout",le="0.3"}'
+        values: '0+300x30'
+      - series: 'http_request_duration_seconds_count{job="checkout"}'
+        values: '0+600x30'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: SLOLatencyBudgetBurnFast
+        exp_alerts:
+          - exp_labels: { job: checkout, severity: page, slo: latency, burn_rate: "14.4", long_window: 1h }
+            exp_annotations:
+              summary: "checkout: mais de 14.4% das requisições acima de 300ms"

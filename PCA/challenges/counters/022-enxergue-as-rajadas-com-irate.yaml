@@ -1,0 +1,28 @@
+id: "022"
+title: "Enxergue as rajadas com irate"
+topic: counters
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/irate/
+prompt: |
+  A rota `/api/orders` recebe rajadas de 15 s a cada minuto, que o `rate(...[1m])` esconde
+  (a média fica sempre ~29 req/s). Mostre a **taxa instantânea** (baseada nas duas últimas
+  amostras) do counter `irate_http_requests_total`, usando uma janela de 1 minuto.
+hints:
+  - "Existe a versão 'instantânea' de rate()."
+  - "Ela olha só as 2 últimas amostras dentro da janela."
+  - "irate(irate_http_requests_total[1m])"
+solution: 'irate(irate_http_requests_total[1m])'
+accepted_answers:
+  - 'irate(irate_http_requests_total[30s])'
+  - 'irate(irate_http_requests_total{route="/api/orders"}[1m])'
+wrong_answers:
+  - 'rate(irate_http_requests_total[1m])'
+  - 'rate(irate_http_requests_total[5m])'
+  - 'idelta(irate_http_requests_total[1m])'
+explanation: |
+  `irate()` usa só as **duas últimas amostras** da janela: reage na hora (5 → 100 → 5 req/s).
+  A janela só define até onde ele procura essas duas amostras.
+
+  Pegadinha: `idelta()` dá a diferença (não por segundo) e não trata reset; e `irate` em
+  alertas/recording rules é ruim porque 'pula' demais. Use em gráficos de alta resolução.

@@ -1,0 +1,1 @@
+info_http_server_requests_total * on(job, instance) group_left(version) target_info

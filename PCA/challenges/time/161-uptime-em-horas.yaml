@@ -1,0 +1,24 @@
+id: "161"
+title: "Uptime em horas"
+topic: time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/time/
+prompt: |
+  Mostre o **uptime em horas** de cada pod, a partir de `time_process_start_time_seconds{pod}`
+  (o `process_start_time_seconds` que toda client library expõe).
+hints:
+  - "uptime = agora − start time."
+  - "Divida por 3600 — cuidado com a precedência."
+  - "(time() - time_process_start_time_seconds) / 3600"
+solution: '(time() - time_process_start_time_seconds) / 3600'
+accepted_answers:
+  - '(time() - time_process_start_time_seconds) / 60 / 60'
+wrong_answers:
+  - 'time() - time_process_start_time_seconds / 3600'
+  - '(time() - time_process_start_time_seconds) / 60'
+  - 'time() - time_process_start_time_seconds'
+explanation: |
+  api-0 (crashloop) fica entre 0 e 0,1 h; api-1 ≈ 72–96 h.
+
+  Pegadinha: sem parênteses, `/` roda antes do `-`: `time() - x/3600` dá um número gigante sem sentido.

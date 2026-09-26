@@ -1,0 +1,27 @@
+id: "020"
+title: "Requisições por segundo de cada rota"
+topic: counters
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/rate/
+prompt: |
+  O dashboard de tráfego precisa das **requisições por segundo de cada rota**, média dos
+  **últimos 5 minutos**. Use o counter `rate_http_requests_total` (label `route`).
+hints:
+  - "Counter + 'por segundo' = uma função clássica."
+  - "Ela recebe um range vector: `x[5m]`."
+  - "rate(rate_http_requests_total[5m])"
+solution: 'rate(rate_http_requests_total[5m])'
+accepted_answers:
+  - 'increase(rate_http_requests_total[5m]) / 300'
+  - 'increase(rate_http_requests_total[5m]) / (5 * 60)'
+wrong_answers:
+  - 'rate_http_requests_total'
+  - 'sum(rate(rate_http_requests_total[5m]))'
+  - 'rate(rate_http_requests_total[5m]) * 60'
+explanation: |
+  `rate(x[5m])` é a média por segundo na janela, com compensação de resets e extrapolação
+  nas bordas. `increase(x[5m])/300` é exatamente a mesma coisa.
+
+  Pegadinha: o valor bruto de um counter (quanto acumulou desde que o processo subiu)
+  quase nunca é útil num gráfico. Sempre `rate()`/`increase()` antes.

@@ -1,0 +1,10 @@
+# progresso local do aluno
+challenges/.progress.json
+challenges/.exam-results.json
+exam/.results/
+**/.lab-status/
+**/.build/
+**/.deploy.lock
+**/.discord-webhook
+**/__pycache__/
+flashcards/.venv/

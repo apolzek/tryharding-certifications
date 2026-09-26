@@ -1,0 +1,24 @@
+id: '233'
+title: '`group_left`: participação de cada código no serviço'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  Para **cada série** de `rate(sort_desc_http_requests_total[5m])` (cada `service` × `code`),
+  calcule a fração que ela representa do **total do seu serviço**.
+hints:
+- 'Lado esquerdo: 2 séries por serviço (many). Lado direito: 1 por serviço (one)'
+- many-to-one precisa de group_left
+- x / on(service) group_left sum by(service)(x)
+solution: rate(sort_desc_http_requests_total[5m]) / on(service) group_left sum by(service)(rate(sort_desc_http_requests_total[5m]))
+accepted_answers:
+- rate(sort_desc_http_requests_total[5m]) / ignoring(code) group_left sum without(code)(rate(sort_desc_http_requests_total[5m]))
+wrong_answers:
+- rate(sort_desc_http_requests_total[5m]) / on(service) sum by(service)(rate(sort_desc_http_requests_total[5m]))
+- rate(sort_desc_http_requests_total[5m]) / ignoring(code) sum(rate(sort_desc_http_requests_total[5m]))
+explanation: |
+  À esquerda há **várias** séries por `service` (uma por `code`); à direita, **uma**. Isso é
+  **many-to-one** e o PromQL exige `group_left` (o lado "many" é o da esquerda). Sem ele: erro
+  `many-to-one matching must be explicit (group_left/group_right)`.
+  Resultado: cart 0.99/0.01, checkout 0.95/0.05, payments 0.88/0.12, recommendations NaN.

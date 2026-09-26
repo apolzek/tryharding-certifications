@@ -1,0 +1,11 @@
+# Receiver central (papel de Mimir/Thanos Receive/Cortex): recebe remote write de
+# prom-a, prom-b e do agent. Só raspa a si mesmo.
+global:
+  scrape_interval: 5s
+  external_labels:
+    tier: central
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]

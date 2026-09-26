@@ -1,0 +1,63 @@
+# Stack BASE compartilhada por TODOS os gamedays (não edite por cenário).
+# Os arquivos de configuração vêm de ../work/, que o ./start.sh NN monta
+# a partir de _base/defaults/ + NN-*/scenario/.
+name: pca-gamedays
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle        # POST /-/reload
+      - --web.enable-admin-api        # /api/v1/admin/tsdb/* (investigação)
+    ports: ["9180:9090"]
+    volumes:
+      - ../work/prometheus:/etc/prometheus:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=
+    ports: ["9181:9093"]
+    volumes:
+      - ../work/alertmanager:/etc/alertmanager:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  # Alvo fake configurável (+ "pager" fake em /webhook e /received)
+  app:
+    image: python:3.14-alpine
+    command: ["python", "-u", "/app/app.py"]
+    ports:
+      - "9182:9182"
+      - "9184-9189:9184-9189"
+    volumes:
+      - ./app:/app:ro
+      - ../work/app:/config:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9182/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  # Só sobe nos cenários que precisam (COMPOSE_PROFILES=pushgateway)
+  pushgateway:
+    image: prom/pushgateway:v1.11.3
+    profiles: ["pushgateway"]
+    ports: ["9183:9091"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9091/-/ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30

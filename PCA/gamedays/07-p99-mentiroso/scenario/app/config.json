@@ -1,0 +1,5 @@
+{"ports": {
+  "9182": {"profile": "latency", "speed": "fast"},
+  "9184": {"profile": "latency", "speed": "fast"},
+  "9185": {"profile": "latency", "speed": "slow"}
+}}

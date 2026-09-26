@@ -1,0 +1,26 @@
+id: "184"
+title: "Backup não roda há mais de 1 dia"
+topic: alerting-expressions
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/time/
+prompt: |
+  Alerta `BackupTooOld`: retorne os backups de `time_backup_last_success_timestamp_seconds{backup}` cujo
+  **último sucesso foi há mais de 24 horas**, com o valor da idade em segundos.
+hints:
+  - "idade = time() − timestamp do último sucesso."
+  - "24 h = 86400 s."
+  - "time() - x > 86400"
+solution: 'time() - time_backup_last_success_timestamp_seconds > 86400'
+accepted_answers:
+  - 'time() - time_backup_last_success_timestamp_seconds > 24 * 3600'
+  - '(time() - time_backup_last_success_timestamp_seconds) > 24 * 60 * 60'
+wrong_answers:
+  - 'time_backup_last_success_timestamp_seconds > 86400'
+  - 'time() - time_backup_last_success_timestamp_seconds > bool 86400'
+  - 'time_backup_last_success_timestamp_seconds - time() > 86400'
+explanation: |
+  Só o legacy-backup. Padrão para qualquer job que exporta 'último sucesso' (inclusive via Pushgateway):
+  `time() - job_last_success_timestamp_seconds > limite`.
+
+  Pegadinha: comparar o timestamp com 86400 sempre é verdadeiro (qualquer data após 02/01/1970).

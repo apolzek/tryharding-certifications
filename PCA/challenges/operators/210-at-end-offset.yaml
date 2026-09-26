@@ -1,0 +1,25 @@
+id: '210'
+title: '`@ end()` combinado com offset'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#4-modificador-
+prompt: |
+  Usando o modificador `@ end()` em **ambos** os seletores, calcule quanto o counter
+  `increase_http_requests_total{code}` cresceu nos **30 minutos** que terminam no fim da consulta.
+hints:
+- '`@ end()` fixa o instante no fim da consulta; offset é aplicado relativo ao @'
+- x @ end() - x @ end() offset 30m
+solution: increase_http_requests_total @ end() - increase_http_requests_total @ end() offset 30m
+accepted_answers:
+- increase_http_requests_total - increase_http_requests_total offset 30m
+- increase_http_requests_total @ end() - increase_http_requests_total offset 30m @ end()
+wrong_answers:
+- increase_http_requests_total @ end() - increase_http_requests_total @ start()
+- increase_http_requests_total @ end()
+tolerance: 0.02
+explanation: |
+  O `offset` é aplicado **relativo** ao instante do `@` (e a ordem `@ ... offset` ou `offset ... @` dá o mesmo).
+  Numa instant query, `start()` e `end()` valem o próprio instante de avaliação, então aqui o
+  resultado é igual a `x - x offset 30m` (≈ 3600 para 200 e ≈ 180 para 500). Em uma **range query**
+  (gráfico), `@ end()` faz todos os pontos usarem o mesmo instante: vira uma linha reta.

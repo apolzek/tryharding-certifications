@@ -1,0 +1,1 @@
+rate(sort_desc_http_requests_total[5m]) / on(service) group_left rate(sort_desc_http_requests_total{code="200"}[5m])

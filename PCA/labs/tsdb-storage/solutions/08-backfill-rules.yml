@@ -1,0 +1,7 @@
+# Solução do exercício 08: recording rule que vamos "retroagir" sobre o dia importado.
+groups:
+  - name: backfill
+    interval: 1m
+    rules:
+      - record: store:tsdb_backfill_orders:rate5m
+        expr: sum by (store) (rate(tsdb_backfill_orders_total[5m]))

@@ -1,0 +1,1 @@
+label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*") * on(internal_ip) group_left(node) label_replace_kube_node_info

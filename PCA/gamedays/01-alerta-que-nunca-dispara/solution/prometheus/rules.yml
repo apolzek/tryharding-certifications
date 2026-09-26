@@ -1,0 +1,15 @@
+groups:
+  - name: checkout
+    rules:
+      - alert: CheckoutErrosAltos
+        # janela >= 4x scrape_interval e que cobre o ciclo inteiro da oscilação
+        expr: |
+          sum(rate(http_requests_total{job="checkout", code="500"}[1m]))
+            /
+          sum(rate(http_requests_total{job="checkout"}[1m]))
+            > 0.1
+        for: 30s
+        labels:
+          severity: page
+        annotations:
+          summary: "Checkout com {{ $value | humanizePercentage }} de erro"

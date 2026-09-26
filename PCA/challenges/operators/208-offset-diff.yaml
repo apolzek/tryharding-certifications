@@ -1,0 +1,23 @@
+id: '208'
+title: Crescimento em 1 hora só com aritmética + offset
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#3-offset
+prompt: |
+  Sem usar `increase()` nem `rate()`: quantas requisições `increase_http_requests_total{code}`
+  contou **na última hora**, por `code`?
+hints:
+- agora − (1 hora atrás)
+- x - x offset 1h
+solution: increase_http_requests_total - increase_http_requests_total offset 1h
+accepted_answers:
+- increase(increase_http_requests_total[1h])
+wrong_answers:
+- increase_http_requests_total offset 1h
+- increase_http_requests_total - increase_http_requests_total offset 1m
+tolerance: 0.02
+explanation: |
+  Subtrair o counter dele mesmo deslocado dá o crescimento no período (≈ 7200 para `code="200"`,
+  ≈ 360 para `code="500"`). Funciona porque os dois lados têm os **mesmos labels** (one-to-one).
+  Diferença para `increase(x[1h])`: a subtração **não compensa resets** do counter e não extrapola.

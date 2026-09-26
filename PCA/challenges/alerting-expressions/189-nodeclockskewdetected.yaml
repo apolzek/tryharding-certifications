@@ -1,0 +1,26 @@
+id: "189"
+title: "NodeClockSkewDetected"
+topic: alerting-expressions
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/abs/
+prompt: |
+  Alerta de relógio dessincronizado: **nós com offset de relógio maior que 50 ms em qualquer direção**
+  (adiantado ou atrasado). Use `abs_node_timex_offset_seconds{node}` (pode ser negativo). O valor retornado
+  deve ser o offset original (com sinal).
+hints:
+  - "Em qualquer direção = módulo."
+  - "Mas o valor retornado deve manter o sinal..."
+  - "x > 0.05 or x < -0.05"
+solution: 'abs_node_timex_offset_seconds > 0.05 or abs_node_timex_offset_seconds < -0.05'
+accepted_answers:
+  - 'abs_node_timex_offset_seconds and abs(abs_node_timex_offset_seconds) > 0.05'
+wrong_answers:
+  - 'abs(abs_node_timex_offset_seconds) > 0.05'
+  - 'abs_node_timex_offset_seconds > 0.05'
+  - 'abs_node_timex_offset_seconds > 50'
+explanation: |
+  `x and abs(x) > 0.05` filtra pelo módulo mas devolve os valores do lado esquerdo (com sinal).
+  O node-mixin real ainda confere se o offset está piorando: `and deriv(node_timex_offset_seconds[5m]) >= 0`.
+
+  Pegadinha: `abs(x) > 0.05` perde o sinal; `x > 0.05` ignora relógios ATRASADOS.

@@ -1,0 +1,7 @@
+# EXERCÍCIO 04: o worker "b" reinicia em t=6m (o counter volta a zerar).
+# A regra abaixo dá um valor absurdo nesse momento. Conserte a REGRA (o teste está certo).
+groups:
+  - name: ex04
+    rules:
+      - record: job:jobs_processed:rate5m
+        expr: rate(sum by (job) (jobs_processed_total)[5m:])

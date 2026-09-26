@@ -1,0 +1,22 @@
+# Solução do exercício 02: multi-window multi-burn-rate (SRE Workbook), SLO 99,9% -> budget 0.001
+groups:
+  - name: slo-checkout-alerts
+    rules:
+      - alert: SLOErrorBudgetBurnFast
+        expr: |
+          job:slo_errors_per_request:ratio_rate1h > (14.4 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate5m > (14.4 * 0.001)
+        for: 2m
+        labels: { severity: page, burn_rate: "14.4" }
+        annotations:
+          summary: "{{ $labels.job }}: 2% do error budget de 30d em 1h"
+      - alert: SLOErrorBudgetBurnMedium
+        expr: |
+          job:slo_errors_per_request:ratio_rate6h > (6 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate30m > (6 * 0.001)
+        for: 15m
+        labels: { severity: page, burn_rate: "6" }
+        annotations:
+          summary: "{{ $labels.job }}: 5% do error budget de 30d em 6h"

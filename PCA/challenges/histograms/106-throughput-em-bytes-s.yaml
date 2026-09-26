@@ -1,0 +1,24 @@
+id: "106"
+title: "Throughput em bytes/s"
+topic: histograms
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_sum/
+prompt: |
+  `histogram_sum_http_response_size_bytes{route}` é um native histogram do tamanho das respostas.
+  Calcule o **throughput (bytes por segundo) de cada rota** nos últimos 5 min.
+hints:
+  - "A SOMA das observações de tamanho = bytes enviados."
+  - "histogram_sum(rate(...))"
+  - "histogram_sum(rate(histogram_sum_http_response_size_bytes[5m]))"
+solution: 'histogram_sum(rate(histogram_sum_http_response_size_bytes[5m]))'
+accepted_answers:
+  - 'rate(histogram_sum_http_response_size_bytes_sum[5m])'
+wrong_answers:
+  - 'histogram_count(rate(histogram_sum_http_response_size_bytes[5m]))'
+  - 'histogram_avg(rate(histogram_sum_http_response_size_bytes[5m]))'
+  - 'histogram_sum(histogram_sum_http_response_size_bytes)'
+explanation: |
+  /api/items ≈ 100 KB/s, /download ≈ 5 MB/s. `histogram_sum(rate(h))` = `rate(h_sum)`.
+
+  Pegadinha: `histogram_avg` dá o tamanho MÉDIO de uma resposta, não o volume por segundo.

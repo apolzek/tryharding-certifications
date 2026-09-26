@@ -1,0 +1,25 @@
+id: "067"
+title: "Quantos deployments com N réplicas"
+topic: aggregation
+level: intermediate
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+prompt: |
+  Com `label_replace_kube_deployment_status_replicas_available{deployment}`, monte uma tabela
+  **"quantos deployments têm cada número de réplicas"**: o número de réplicas deve virar um label
+  chamado `replicas`.
+hints:
+  - "Existe um operador que conta séries por VALOR."
+  - "count_values(\"nome_do_label\", v)"
+  - "count_values(\"replicas\", label_replace_kube_deployment_status_replicas_available)"
+solution: 'count_values("replicas", label_replace_kube_deployment_status_replicas_available)'
+wrong_answers:
+  - 'count by (deployment) (label_replace_kube_deployment_status_replicas_available)'
+  - 'count(label_replace_kube_deployment_status_replicas_available)'
+  - 'count_values("deployment", label_replace_kube_deployment_status_replicas_available)'
+explanation: |
+  `count_values("replicas", v)` cria um label `replicas` com cada valor distinto e conta
+  quantas séries têm aquele valor: {replicas="1"} 1, {replicas="2"} 1, {replicas="3"} 1.
+  Uso real: `count_values("version", build_info)`… só que para versão o valor precisa ser numérico.
+
+  Pegadinha: o 1º argumento é o NOME do label novo (string entre aspas).

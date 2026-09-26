@@ -1,0 +1,23 @@
+id: "086"
+title: "Quantas amostras chegaram no último minuto"
+topic: over-time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/count_over_time/
+prompt: |
+  Um exporter está falhando às vezes. Conte **quantas amostras cada série de
+  `count_over_time_node_hwmon_temp_celsius` recebeu no último minuto** (o normal é 12).
+hints:
+  - "Contar amostras de cada série na janela."
+  - "count_over_time(v[1m])"
+  - "count_over_time(count_over_time_node_hwmon_temp_celsius[1m])"
+solution: 'count_over_time(count_over_time_node_hwmon_temp_celsius[1m])'
+wrong_answers:
+  - 'count(count_over_time_node_hwmon_temp_celsius)'
+  - 'count_over_time_node_hwmon_temp_celsius'
+  - 'sum_over_time(count_over_time_node_hwmon_temp_celsius[1m])'
+explanation: |
+  Com scrape de 5 s, uma série saudável tem 12 amostras por minuto; a `flaky` cai para 6
+  quando o exporter falha. Bom alerta de "coleta falhando".
+
+  Pegadinha: `count(...)` conta SÉRIES no instante, não amostras no tempo.

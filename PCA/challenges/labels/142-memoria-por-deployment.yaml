@@ -1,0 +1,26 @@
+id: "142"
+title: "Memória por Deployment"
+topic: labels
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_replace/
+prompt: |
+  Some a memória (`label_replace_container_memory_working_set_bytes`) **por Deployment**. O nome do
+  Deployment está embutido no pod: `checkout-7d9f8b6c4-m3n4b` → `checkout`. Crie um label `deployment`
+  e agregue por ele. (O `redis-0` é StatefulSet: a regex não casa e ele fica com `deployment` vazio — tudo bem.)
+hints:
+  - "Pods de Deployment: <nome>-<hash do ReplicaSet>-<id>."
+  - "Regex: \"(.*)-[a-z0-9]+-[a-z0-9]+\" e depois sum by (deployment)."
+  - "sum by (deployment) (label_replace(v, \"deployment\", \"$1\", \"pod\", \"(.*)-[a-z0-9]+-[a-z0-9]+\"))"
+solution: 'sum by (deployment) (label_replace(label_replace_container_memory_working_set_bytes, "deployment", "$1", "pod", "(.*)-[a-z0-9]+-[a-z0-9]+"))'
+accepted_answers:
+  - 'sum by (deployment) (label_replace(label_replace_container_memory_working_set_bytes, "deployment", "$1", "pod", "([a-z]+)-[0-9a-z]{9,10}-[0-9a-z]{5}"))'
+wrong_answers:
+  - 'sum by (pod) (label_replace_container_memory_working_set_bytes)'
+  - 'sum by (deployment) (label_replace(label_replace_container_memory_working_set_bytes, "deployment", "$1", "pod", "(.*)-.*"))'
+  - 'sum by (image) (label_replace_container_memory_working_set_bytes)'
+explanation: |
+  checkout ≈ 600 MiB, payments ≈ 640 MiB, e `{}` ≈ 512 MiB (redis-0, sem deployment).
+  Label com valor vazio = label inexistente, por isso o grupo do redis sai como `{}`.
+
+  Pegadinha: `(.*)-.*` é gulosa: `checkout-7d9f8b6c4-m3n4b` vira `checkout-7d9f8b6c4`.

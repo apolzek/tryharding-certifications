@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  # Objetivo (padrão blackbox_exporter): a lista de alvos são as coisas a SONDAR;
+  # quem é raspado de verdade é o prober (prober:8000/probe?target=<alvo>).
+  # Cada alvo deve virar uma série probe_success com instance=<alvo>.
+  - job_name: probe-apps
+    metrics_path: /probe
+    static_configs:
+      - targets: [payments-api:8000, search-api:8000, nao-existe:8000]
+    relabel_configs:
+      - target_label: __address__
+        replacement: prober:8000
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance

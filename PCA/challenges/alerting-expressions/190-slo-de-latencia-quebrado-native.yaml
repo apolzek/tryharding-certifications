@@ -1,0 +1,27 @@
+id: "190"
+title: "SLO de latência quebrado (native)"
+topic: alerting-expressions
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_fraction/
+prompt: |
+  SLO: 95% das requisições em menos de 200 ms. Com o native histogram
+  `histogram_fraction_http_request_duration_seconds{service}` (5 min), alerte os **serviços cuja fração de
+  requisições abaixo de 0,2 s está menor que 0,95**. Valor = a fração.
+hints:
+  - "histogram_fraction(0, 0.2, rate(h[5m])) dá a fração boa."
+  - "Filtre com < 0.95."
+  - "histogram_fraction(0, 0.2, rate(h[5m])) < 0.95"
+solution: 'histogram_fraction(0, 0.2, rate(histogram_fraction_http_request_duration_seconds[5m])) < 0.95'
+accepted_answers:
+  - 'rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.2"}[5m]) / ignoring (le) rate(histogram_fraction_http_request_duration_seconds_count[5m]) < 0.95'
+wrong_answers:
+  - 'histogram_fraction(0, 0.2, rate(histogram_fraction_http_request_duration_seconds[5m])) > 0.95'
+  - 'histogram_quantile(0.95, rate(histogram_fraction_http_request_duration_seconds[5m])) > 0.2'
+  - 'histogram_fraction(0, 200, rate(histogram_fraction_http_request_duration_seconds[5m])) < 0.95'
+explanation: |
+  Só o `degrading` (~77% em 5 min). Duas formas de pensar o mesmo SLO:
+  "fração abaixo de 200 ms < 95%" (histogram_fraction) ou "p95 > 200 ms" (histogram_quantile).
+  Elas disparam juntas, mas retornam valores diferentes (fração vs segundos) — aqui pedimos a fração.
+
+  Pegadinha: unidade (0.2 s, não 200) e o sentido da comparação.

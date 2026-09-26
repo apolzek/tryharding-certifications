@@ -1,0 +1,31 @@
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      # "_" = sem amostra naquele passo. As amostras vão de 0m a 5m e depois somem.
+      - series: 'up{job="batch", instance="b1"}'
+        values: '1 1 1 1 1 1 _x14'
+    alert_rule_test:
+      # sem amostra nova, a última (5m) ainda vale por 5m (lookback delta): série "existe" até antes de 10m
+      - eval_time: 9m
+        alertname: BatchJobMissing
+        exp_alerts: []
+      # ausente a partir de 10m; for: 2m -> firing em 12m
+      - eval_time: 12m
+        alertname: BatchJobMissing
+        exp_alerts:
+          - exp_labels: { severity: warning, job: batch }
+            exp_annotations: { summary: "nenhuma série up{job=\"batch\"}" }
+  - interval: 1m
+    input_series:
+      # "stale" = marcador de staleness (o que o Prometheus grava quando o alvo some do scrape):
+      # a série some NA HORA, sem esperar os 5m do lookback
+      - series: 'up{job="batch", instance="b1"}'
+        values: '1 1 1 1 1 1 stale'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: BatchJobMissing
+        exp_alerts:
+          - exp_labels: { severity: warning, job: batch }
+            exp_annotations: { summary: "nenhuma série up{job=\"batch\"}" }

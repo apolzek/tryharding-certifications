@@ -1,0 +1,29 @@
+id: "046"
+title: "Em quantas horas o disco enche"
+topic: gauges
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/predict_linear/
+prompt: |
+  Em vez de 'vai encher em 4h: sim/não', o time quer um painel com o **tempo estimado (em horas)
+  até o `/data` zerar**, com base na velocidade dos últimos 10 minutos.
+  Use `predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}`.
+hints:
+  - "Tempo = espaço livre atual ÷ velocidade com que ele diminui."
+  - "A velocidade vem de deriv() e é NEGATIVA (o espaço está caindo)."
+  - "x / -deriv(x[10m]) / 3600"
+solution: |
+  predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}
+    / -deriv(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m])
+    / 3600
+accepted_answers:
+  - '-1 * predict_linear_node_filesystem_avail_bytes{mountpoint="/data"} / deriv(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m]) / 60 / 60'
+wrong_answers:
+  - 'predict_linear_node_filesystem_avail_bytes{mountpoint="/data"} / deriv(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m]) / 3600'
+  - 'predict_linear_node_filesystem_avail_bytes{mountpoint="/data"} / -deriv(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m])'
+  - 'predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m], 3600)'
+explanation: |
+  bytes ÷ (bytes/s) = segundos; ÷ 3600 = horas. O sinal de menos inverte a derivada negativa.
+  Entre vetores com os mesmos labels a divisão casa 1-para-1 automaticamente.
+
+  Pegadinha: esquecer o sinal dá horas negativas; esquecer o `/3600` dá segundos.

@@ -1,0 +1,12 @@
+groups:
+  - name: payments
+    rules:
+      - alert: PaymentsDown
+        # up == 0  -> target existe mas não responde
+        # absent() -> target nem existe mais (relabel, SD, typo no job...)
+        expr: up{job="payments"} == 0 or absent(up{job="payments"})
+        for: 30s
+        labels:
+          severity: page
+        annotations:
+          summary: "payments fora do ar ou sumiu do service discovery"

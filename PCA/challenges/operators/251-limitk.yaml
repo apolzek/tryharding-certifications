@@ -1,0 +1,26 @@
+id: '251'
+title: '`limitk`: amostra de séries (experimental)'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  Você quer só **dar uma olhada** em algumas séries de `sort_by_label_node_load1` sem trazer as 12.
+  Retorne uma amostra de **3 séries** quaisquer usando o agregador **experimental** feito para isso
+  (não precisa ser o top 3).
+hints:
+- 'Não é topk: é um agregador de amostragem'
+- limitk(k, v) — precisa de --enable-feature=promql-experimental-functions
+solution: limitk(3, sort_by_label_node_load1)
+accepted_answers:
+- topk(3, sort_by_label_node_load1)
+- bottomk(3, sort_by_label_node_load1)
+wrong_answers:
+- limitk(5, sort_by_label_node_load1)
+- sort_by_label_node_load1
+compare: count
+explanation: |
+  `limitk(k, v)` devolve k séries escolhidas de forma **pseudo-aleatória determinística** (não pelo
+  valor) e funciona até com native histograms. `limit_ratio(r, v)` faz o mesmo por proporção.
+  Ambos são **experimentais** (flag `promql-experimental-functions`, ligada neste lab).
+  Aqui a correção só confere a **quantidade** de séries.

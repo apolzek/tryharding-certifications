@@ -1,0 +1,19 @@
+groups:
+  - name: backoffice
+    rules:
+      # O backoffice só é usado em horário comercial (09h às 18h, horário de Brasília).
+      # Fora disso ninguém deve ser acordado.
+      - alert: BackofficeErrosHorarioComercial
+        expr: |
+          (
+              sum(rate(http_requests_total{job="backoffice", code="500"}[1m]))
+            /
+              sum(rate(http_requests_total{job="backoffice"}[1m]))
+            > 0.05
+          )
+          and on() hour() >= 9 < 18
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "backoffice com {{ $value | humanizePercentage }} de erro"

@@ -1,0 +1,8 @@
+# Exercício 03: error budget restante do SLO de 99,9% em 30 dias.
+#   job:slo_errors_per_request:ratio_rate30d  -> razão de erro na janela inteira do SLO
+#   job:slo_error_budget_remaining:ratio      -> 1 = intacto, 0 = gasto, < 0 = SLO violado
+#   job:slo_error_budget_remaining:minutes    -> quantos MINUTOS de indisponibilidade total ainda cabem
+groups:
+  - name: slo-checkout-budget
+    interval: 5m
+    rules: []   # TODO

@@ -1,0 +1,28 @@
+id: "128"
+title: "A expressão do alerta 'TargetDown'"
+topic: absence-and-staleness
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/absent/
+prompt: |
+  Escreva a expressão do alerta clássico **"alvo fora do ar"**: retorne as séries de `up` cujo scrape
+  falhou. (Neste lab os alvos estão saudáveis, então o resultado esperado é **vazio** — a não ser que o job
+  `pca-progress` esteja configurado e o `./check.py exporter` parado: aí ele aparece, e é o alerta funcionando.)
+hints:
+  - "up = 0 quando o scrape falha."
+  - "Um operador de comparação filtra."
+  - "up == 0"
+solution: 'up == 0'
+accepted_answers:
+  - 'up < 1'
+  - 'up != 1'
+wrong_answers:
+  - 'up'
+  - 'up == 1'
+  - 'up != 0'
+expect_empty: true
+explanation: |
+  `up == 0` é o alerta mais básico de todos. Um resultado vazio = nenhum alerta disparando.
+  Combine com `for: 5m` para não alertar por uma falha isolada de scrape.
+
+  Pegadinha: ele NÃO dispara se o alvo sumir do service discovery (aí você precisa de `absent()`).

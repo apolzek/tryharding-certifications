@@ -1,0 +1,28 @@
+id: '232'
+title: Taxa de erro por serviço (o clássico)
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  Calcule a **taxa de erro** de cada serviço: taxa (`rate` 5m) de `sort_desc_http_requests_total{code="500"}`
+  dividida pela taxa **total** (todos os códigos) do serviço. Resultado: uma série por `service`.
+hints:
+- Agregue os dois lados por service antes de dividir
+- sum by(service)(rate(500)) / sum by(service)(rate(tudo))
+solution: sum by(service)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by(service)(rate(sort_desc_http_requests_total[5m]))
+accepted_answers:
+- sum without(code)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum without(code)(rate(sort_desc_http_requests_total[5m]))
+- rate(sort_desc_http_requests_total{code="500"}[5m]) / ignoring(code) sum without(code)(rate(sort_desc_http_requests_total[5m]))
+wrong_answers:
+- rate(sort_desc_http_requests_total{code="500"}[5m]) / rate(sort_desc_http_requests_total[5m])
+- sum(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum(rate(sort_desc_http_requests_total[5m]))
+ignore_labels:
+- job
+- instance
+- env
+- code
+explanation: |
+  Agregando os dois lados com o **mesmo `by(service)`** os label sets ficam iguais e o casamento é
+  one-to-one. Resultado: cart **0.01**, checkout **0.05**, payments **0.12**, recommendations **NaN** (0/0).
+  O erro comum `rate(x{code="500"}) / rate(x)` casa a série 500 com ela mesma → 1.

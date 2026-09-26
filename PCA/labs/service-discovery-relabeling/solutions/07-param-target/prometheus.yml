@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  - job_name: probe-apps
+    metrics_path: /probe
+    static_configs:
+      - targets: [payments-api:8000, search-api:8000, nao-existe:8000]
+    relabel_configs:
+      # ORDEM importa: as regras rodam em sequência, cada uma vê o resultado da anterior.
+      - source_labels: [__address__]       # 1) guarda o alvo original como ?target=
+        target_label: __param_target
+      - source_labels: [__param_target]    # 2) instance = alvo sondado (não o prober)
+        target_label: instance
+      - target_label: __address__          # 3) só agora aponta o scrape para o prober
+        replacement: prober:8000

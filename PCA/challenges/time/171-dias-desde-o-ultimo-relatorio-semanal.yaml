@@ -1,0 +1,26 @@
+id: "171"
+title: "Dias desde o último relatório semanal"
+topic: time
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/day_of_week/
+prompt: |
+  O relatório semanal (`day_of_week_kube_cronjob_status_last_successful_time{cronjob="weekly-report"}`)
+  roda toda segunda. Retorne **há quantos dias inteiros** foi a última execução (arredondado para baixo).
+hints:
+  - "idade em segundos = time() − timestamp."
+  - "÷ 86400 dá dias fracionários."
+  - "floor((time() - x) / 86400)"
+solution: 'floor((time() - day_of_week_kube_cronjob_status_last_successful_time) / 86400)'
+accepted_answers:
+  - 'floor((time() - day_of_week_kube_cronjob_status_last_successful_time) / 3600 / 24)'
+wrong_answers:
+  - '(time() - day_of_week_kube_cronjob_status_last_successful_time) / 86400'
+  - 'round((time() - day_of_week_kube_cronjob_status_last_successful_time) / 86400 + 0.5)'
+  - 'day_of_week(day_of_week_kube_cronjob_status_last_successful_time)'
+tolerance: 0
+explanation: |
+  `floor()` arredonda para baixo (dias COMPLETOS). Alerta real: `time() - x > 8 * 86400` → a semana passou
+  e o relatório não rodou.
+
+  Pegadinha: `day_of_week(x)` diz em QUE dia rodou (1 = segunda), não há quanto tempo.

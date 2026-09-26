@@ -1,0 +1,30 @@
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="api", instance="a"}'
+        values: '1 1 0 0 0 0 0 0 0 0'    # t=0m,1m: 1 | t=2m em diante: 0
+    alert_rule_test:
+      - eval_time: 1m                   # condição falsa: inactive
+        alertname: InstanceDown
+        exp_alerts: []
+      - eval_time: 3m                   # verdadeira desde 2m, só 1m de 2m: pending -> lista vazia
+        alertname: InstanceDown
+        exp_alerts: []
+      - eval_time: 4m                   # 2m completos: firing
+        alertname: InstanceDown
+        exp_alerts:
+          - exp_labels: { severity: critical, job: api, instance: a }
+            exp_annotations: { summary: "a fora do ar" }
+    promql_expr_test:                   # o estado pending só é visível pela série ALERTS
+      - expr: ALERTS{alertname="InstanceDown"}
+        eval_time: 3m
+        exp_samples:
+          - labels: '{__name__="ALERTS", alertname="InstanceDown", alertstate="pending", job="api", instance="a", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="InstanceDown"}
+        eval_time: 4m
+        exp_samples:
+          - labels: '{__name__="ALERTS", alertname="InstanceDown", alertstate="firing", job="api", instance="a", severity="critical"}'
+            value: 1

@@ -1,0 +1,57 @@
+# Config "completa" do lab: usada quando você sobe sem EX=...
+# Timers curtos de propósito para tudo acontecer em 1-2 minutos.
+global:
+  resolve_timeout: 5m
+
+# Receivers: em produção seriam pagerduty_configs, slack_configs, email_configs...
+# Aqui todos são webhooks para o "espião" (receiver:8080), um caminho por receiver.
+receivers:
+  - name: default
+    webhook_configs:
+      - url: http://receiver:8080/hook/default
+        send_resolved: true
+  - name: pager
+    webhook_configs:
+      - url: http://receiver:8080/hook/pager
+        send_resolved: true
+  - name: slack
+    webhook_configs:
+      - url: http://receiver:8080/hook/slack
+        send_resolved: true
+  - name: dba
+    webhook_configs:
+      - url: http://receiver:8080/hook/dba
+        send_resolved: true
+  - name: blackhole          # receiver sem integração = descarta (padrão do Watchdog/InfoInhibitor)
+
+route:
+  receiver: default           # rota raiz: obrigatória, pega tudo que não casar com filhas
+  group_by: [alertname, cluster]
+  group_wait: 5s              # espera 5s juntando alertas do mesmo grupo antes da 1a notificação
+  group_interval: 15s         # grupo já notificado: espera 15s para mandar novidades (novo alerta/resolved)
+  repeat_interval: 2m         # nada mudou: reenvia o mesmo grupo a cada 2m
+  routes:
+    - matchers: [team="db"]
+      receiver: dba
+      continue: true          # continua avaliando as irmãs abaixo (dba E pager/slack)
+    - matchers: [severity="critical"]
+      receiver: pager
+    - matchers: [team="batch", severity="warning"]
+      receiver: slack
+      mute_time_intervals: [madrugada]   # jobs batch rodam de madrugada: warnings nesse horário são esperados
+    - matchers: [severity="warning"]
+      receiver: slack
+
+# Enquanto um alerta critical estiver firing num cluster, warnings do MESMO cluster são suprimidos.
+inhibit_rules:
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning"]
+    equal: [cluster]
+
+time_intervals:
+  - name: madrugada
+    time_intervals:
+      - times:
+          - start_time: "00:00"
+            end_time: "06:00"
+        location: America/Sao_Paulo

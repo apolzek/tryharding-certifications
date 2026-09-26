@@ -1,0 +1,1 @@
+sum(sort_cronjob_last_duration_seconds >= 0)

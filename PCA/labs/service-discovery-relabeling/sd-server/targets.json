@@ -1,0 +1,18 @@
+[
+  {
+    "targets": ["checkout-api:8000"],
+    "labels": {
+      "env": "prod",
+      "__meta_datacenter": "sa-east-1a",
+      "__meta_owner_team": "checkout"
+    }
+  },
+  {
+    "targets": ["search-api:8000"],
+    "labels": {
+      "env": "prod",
+      "__meta_datacenter": "sa-east-1a",
+      "__meta_owner_team": "search"
+    }
+  }
+]

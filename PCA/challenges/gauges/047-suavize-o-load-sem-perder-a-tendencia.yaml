@@ -1,0 +1,25 @@
+id: "047"
+title: "Suavize o load sem perder a tendência"
+topic: gauges
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/double_exponential_smoothing/
+prompt: |
+  O `double_exponential_smoothing_node_load1{host="web-1"}` é muito ruidoso. Aplique
+  **suavização exponencial dupla** (Holt) nos últimos 5 minutos com fator de suavização
+  **0.3** e fator de tendência **0.1**.
+hints:
+  - "A função é experimental e tem nome longo."
+  - "Assinatura: (range vector, sf, tf)."
+  - "double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.3, 0.1)"
+solution: 'double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.3, 0.1)'
+wrong_answers:
+  - 'sum_over_time(double_exponential_smoothing_node_load1[5m])'
+  - 'deriv(double_exponential_smoothing_node_load1[5m])'
+  - 'double_exponential_smoothing(double_exponential_smoothing_node_load1[5m], 0.3, 0.1) * 60'
+explanation: |
+  `sf` baixo = mais suave (dá mais peso ao passado); `tf` alto = segue mais a tendência.
+  Diferente de `avg_over_time`, a suavização de Holt não 'atrasa' tanto em rampas.
+  Era chamada `holt_winters()` antes do Prometheus 3.
+
+  Pegadinha: só funciona em gauges (e precisa da feature flag de funções experimentais).

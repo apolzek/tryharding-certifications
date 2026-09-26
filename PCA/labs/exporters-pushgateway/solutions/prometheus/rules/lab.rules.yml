@@ -1,0 +1,44 @@
+groups:
+  # EX01: as queries de node_exporter como recording rules
+  - name: node
+    rules:
+      - record: instance:node_cpu_utilisation:ratio_rate1m
+        expr: 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m]))
+      - record: instance:node_memory_utilisation:ratio
+        expr: 1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+      - record: instance:node_filesystem_utilisation:ratio
+        expr: |
+          1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+
+  # EX03: alertas de sondas
+  - name: blackbox
+    rules:
+      - alert: BlackboxProbeFailed
+        expr: probe_success == 0
+        for: 10s
+        labels: { severity: critical }
+        annotations:
+          summary: "Sonda {{ $labels.job }} falhando para {{ $labels.instance }}"
+      - alert: BlackboxSslCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 14 * 86400
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "Certificado de {{ $labels.instance }} expira em {{ $value | humanizeDuration }}"
+
+  # EX02 + EX04: batch jobs (textfile e Pushgateway)
+  - name: batch
+    rules:
+      # o job empurrou há muito tempo? (push_time_seconds é criado pelo Pushgateway a cada push)
+      - alert: PushgatewayJobStale
+        expr: time() - push_time_seconds{job="nightly-backup"} > 26 * 3600
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.job }}/{{ $labels.instance }} não empurra métricas há {{ $value | humanizeDuration }}"
+      # o job até roda, mas não TERMINA com sucesso? (timestamp de sucesso, empurrado pelo próprio job)
+      - alert: BackupNotSucceededRecently
+        expr: time() - backup_last_success_timestamp_seconds > 26 * 3600
+        labels: { severity: critical }
+        annotations:
+          summary: "Último backup OK de {{ $labels.instance }} foi há {{ $value | humanizeDuration }}"

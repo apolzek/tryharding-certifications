@@ -1,0 +1,25 @@
+id: "069"
+title: "O pod mais faminto de cada namespace"
+topic: aggregation
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_desc/
+prompt: |
+  Para cada **namespace**, retorne **o pod que mais usa CPU** (rate 5m de
+  `sort_desc_container_cpu_usage_seconds_total`), mantendo o label `pod` no resultado.
+hints:
+  - "topk aceita `by` também."
+  - "topk by (namespace) (1, ...)"
+  - "topk by (namespace) (1, rate(sort_desc_container_cpu_usage_seconds_total[5m]))"
+solution: 'topk by (namespace) (1, rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+accepted_answers:
+  - 'topk(1, rate(sort_desc_container_cpu_usage_seconds_total[5m])) by (namespace)'
+wrong_answers:
+  - 'max by (namespace) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+  - 'topk(1, rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+  - 'topk by (pod) (1, rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+explanation: |
+  Com `by (namespace)`, o `topk` escolhe o top 1 **dentro de cada grupo** e mantém todos os labels
+  da série vencedora (inclusive `pod`).
+
+  Pegadinha: `max by (namespace)` dá o valor certo, mas perde o label `pod` — você não sabe QUEM é.

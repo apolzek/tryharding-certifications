@@ -1,0 +1,27 @@
+id: "005"
+title: "Quantas séries um cenário expõe"
+topic: selectors-and-types
+level: basic
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/basics/
+prompt: |
+  O cenário `min_of` do lab expõe várias métricas cujo **nome começa com `min_of_`**.
+  Retorne **quantas séries**, somando todas essas métricas, existem agora (um número só).
+hints:
+  - "O nome da métrica é, na verdade, o label especial `__name__`."
+  - "Um seletor pode ser só `{__name__=~\"...\"}`."
+  - "count({__name__=~\"min_of_.*\"})"
+solution: 'count({__name__=~"min_of_.*"})'
+accepted_answers:
+  - 'count({__name__=~"min_of_.+"})'
+wrong_answers:
+  - 'count({__name__="min_of_.*"})'
+  - 'count(min_of_tenant_limit_rps)'
+  - 'count({__name__=~"min_of"})'
+explanation: |
+  `metrica{...}` é açúcar sintático para `{__name__="metrica", ...}`. Com `__name__=~` você
+  seleciona várias métricas de uma vez (útil para explorar, auditar cardinalidade e para
+  `count by (__name__) ({__name__=~".+"})`).
+
+  Pegadinha: um seletor precisa de pelo menos um matcher que **não** case string vazia;
+  `{__name__=~".*"}` é rejeitado, `{__name__=~".+"}` é aceito.

@@ -1,0 +1,22 @@
+id: '250'
+title: Quantos serviços estouram o SLO?
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  Quantos serviços têm **taxa de erro maior que 3%** (500 / total, `rate` 5m, por `service`)?
+  Uma série com o número.
+hints:
+- Calcule a razão por service, filtre > 0.03 e conte
+- NaN > 0.03 é falso
+solution: count(sum by(service)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by(service)(rate(sort_desc_http_requests_total[5m])) > 0.03)
+accepted_answers:
+- sum(sum by(service)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by(service)(rate(sort_desc_http_requests_total[5m])) > bool 0.03)
+wrong_answers:
+- count(sum by(service)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by(service)(rate(sort_desc_http_requests_total[5m])))
+- count(sum by(service)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by(service)(rate(sort_desc_http_requests_total[5m])) > bool 0.03)
+explanation: |
+  Precedência: `/` é avaliado antes de `>`, então não precisa de parênteses na razão.
+  checkout (0.05) e payments (0.12) passam → **2**. recommendations (NaN) não passa, porque
+  comparações com NaN são falsas. `sum(... > bool 0.03)` dá o mesmo resultado.

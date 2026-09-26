@@ -1,0 +1,24 @@
+receivers:
+  - name: default
+    webhook_configs: [{ url: http://receiver:8080/hook/default, send_resolved: true }]
+  - name: pager
+    webhook_configs: [{ url: http://receiver:8080/hook/pager, send_resolved: true }]
+  - name: slack
+    webhook_configs: [{ url: http://receiver:8080/hook/slack, send_resolved: true }]
+  - name: dba
+    webhook_configs: [{ url: http://receiver:8080/hook/dba, send_resolved: true }]
+
+route:
+  receiver: default
+  group_by: [alertname, cluster]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+  routes:
+    - matchers: [team="db"]            # 1) mais específica primeiro
+      receiver: dba
+      continue: true                   # 2) sem isso a busca PARA aqui (first match wins)
+    - matchers: [severity="critical"]
+      receiver: pager
+    - matchers: [severity=~"warn.*"]   # 3) regex é ANCORADA: "warn" só casa com "warn"
+      receiver: slack

@@ -1,0 +1,13 @@
+groups:
+  - name: api
+    rules:
+      # usado no painel "Throughput (req/s)" e no alerta abaixo
+      - record: job:http_requests:rate1m
+        expr: sum by (job) (delta(http_requests_total[1m])) / 60
+
+      - alert: ApiSemTrafego
+        expr: job:http_requests:rate1m{job="api"} < 1
+        labels:
+          severity: page
+        annotations:
+          summary: "API recebendo {{ $value | humanize }} req/s"

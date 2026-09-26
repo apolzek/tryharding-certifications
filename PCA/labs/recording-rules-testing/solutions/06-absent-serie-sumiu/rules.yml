@@ -1,0 +1,12 @@
+groups:
+  - name: ex06
+    rules:
+      - alert: BatchJobMissing
+        # up == 0 nunca dispara quando a série NÃO EXISTE (vetor vazio == 0 continua vazio).
+        # absent() devolve {job="batch"} = 1 quando não há nenhuma série; os labels vêm dos matchers de igualdade.
+        expr: absent(up{job="batch"})
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "nenhuma série up{job=\"batch\"}"

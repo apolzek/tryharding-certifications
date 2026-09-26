@@ -1,0 +1,30 @@
+id: "181"
+title: "Serviços acima do SLO de erro"
+topic: alerting-expressions
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_desc/
+prompt: |
+  Escreva a expressão do alerta: **serviços com taxa de erro (code="500") acima de 3%**, janela de 5 min,
+  em `sort_desc_http_requests_total{service, code}`. O valor retornado deve ser a taxa de erro.
+hints:
+  - "Taxa de erro por serviço: sum by (service) em cima e embaixo."
+  - "Filtre com `> 0.03`."
+  - "sum by (service)(rate(x{code=\"500\"}[5m])) / sum by (service)(rate(x[5m])) > 0.03"
+solution: |
+  sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m]))
+    / sum by (service) (rate(sort_desc_http_requests_total[5m]))
+  > 0.03
+accepted_answers:
+  - '0.03 < sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by (service) (rate(sort_desc_http_requests_total[5m]))'
+wrong_answers:
+  - 'sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by (service) (rate(sort_desc_http_requests_total[5m])) > 3'
+  - 'sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by (service) (rate(sort_desc_http_requests_total[5m])) > bool 0.03'
+  - 'sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])) > 0.03'
+explanation: |
+  payments (12%) e checkout (5%). Comparadores sem `bool` FILTRAM: o alerta dispara para cada série que
+  sobra, e o valor é a taxa (use em `{{ $value | humanizePercentage }}`).
+  O `recommendations` (NaN) nunca passa num filtro — comparações com NaN são falsas.
+
+  Pegadinha: fração vs porcentagem (`> 3` nunca dispara). `> bool` retorna 0/1 para TODOS e o alerta
+  dispararia sempre.

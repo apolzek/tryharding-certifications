@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  # ingere native histograms (negocia protobuf com quem suporta, ex.: client_golang)
+  scrape_native_histograms: true
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: app-go
+    # mantém TAMBÉM os buckets clássicos (_bucket) quando o alvo expõe os dois
+    always_scrape_classic_histograms: true
+    static_configs:
+      - targets: ['app-go:8080']
+        labels: { replica: a }
+      - targets: ['app-go-b:8080']
+        labels: { replica: b }
+
+  - job_name: app-python
+    static_configs:
+      - targets: ['app-python:8080']

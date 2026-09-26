@@ -1,0 +1,23 @@
+id: '209'
+title: offset dentro da agregação
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#3-offset
+prompt: |
+  Qual era a **soma** de todas as séries de `sort_desc_http_requests_total` **10 minutos atrás**?
+
+  Atenção à posição do `offset`.
+hints:
+- offset precisa vir colado no seletor, não depois de sum()
+- sum(x offset 10m)
+solution: sum(sort_desc_http_requests_total offset 10m)
+accepted_answers:
+- sum(sort_desc_http_requests_total offset 600s)
+wrong_answers:
+- sum(sort_desc_http_requests_total)
+- sum(sort_desc_http_requests_total) offset 10m
+tolerance: 1.0e-05
+explanation: |
+  `sum(x) offset 10m` é **erro de parse**: `offset` e `@` só podem vir logo depois de um seletor
+  (ou de uma subquery). O certo é `sum(x offset 10m)`.

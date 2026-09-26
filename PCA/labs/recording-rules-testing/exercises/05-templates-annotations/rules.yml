@@ -1,0 +1,11 @@
+# EXERCÍCIO 05: o teste exige annotations legíveis. Conserte a REGRA.
+groups:
+  - name: ex05
+    rules:
+      - alert: DiskAlmostFull
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.1
+        labels:
+          severity: warning
+        annotations:
+          summary: "disco {{ $labels.mount }} de {{ $labels.instance }} com {{ $value }} livre"
+          description: "restam {{ $value }} bytes"

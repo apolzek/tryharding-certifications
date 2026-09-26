@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+# Desde o Prometheus 3.x a retenção e a janela out-of-order moram no arquivo de config
+# (as flags --storage.tsdb.retention.* ainda existem, mas estão DEPRECATED) e mudam com reload.
+storage:
+  tsdb:
+    retention:
+      time: 15d        # apaga blocos mais velhos que isso (o que bater primeiro: time ou size)
+      # size: 512MB    # limite por tamanho (só blocos + WAL; unidades B, KB, MB, GB...)
+    out_of_order_time_window: 30m   # aceita amostras até 30m "no passado" em relação à head
+
+scrape_configs:
+  - job_name: prometheus          # o próprio Prometheus: é daqui que vêm os prometheus_tsdb_*
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: generator           # cardinalidade controlável (curl localhost:9151/control?users=N)
+    static_configs:
+      - targets: ["generator:8000"]

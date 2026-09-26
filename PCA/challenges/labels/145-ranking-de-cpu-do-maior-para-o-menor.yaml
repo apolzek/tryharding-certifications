@@ -1,0 +1,26 @@
+id: "145"
+title: "Ranking de CPU do maior para o menor"
+topic: labels
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_desc/
+prompt: |
+  Numa tabela, liste a CPU de cada pod (rate 5m de `sort_desc_container_cpu_usage_seconds_total`)
+  **ordenada do maior para o menor**. (A ordem das séries é verificada.)
+hints:
+  - "Existe uma função de ordenação por valor decrescente."
+  - "sort_desc(v)"
+  - "sort_desc(rate(sort_desc_container_cpu_usage_seconds_total[5m]))"
+solution: 'sort_desc(rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+accepted_answers:
+  - 'sort_desc(increase(sort_desc_container_cpu_usage_seconds_total[5m]) / 300)'
+wrong_answers:
+  - 'sort(rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+  - 'rate(sort_desc_container_cpu_usage_seconds_total[5m])'
+  - 'sort_desc(sort_desc_container_cpu_usage_seconds_total)'
+ordered: true
+explanation: |
+  `sort_desc` ordena pelo valor, decrescente. Só afeta consultas **instantâneas** (tabelas);
+  num gráfico a ordem das séries é irrelevante.
+
+  Pegadinha: sem `sort_desc`, a ordem é arbitrária (normalmente pelos labels) — o corretor rejeita.

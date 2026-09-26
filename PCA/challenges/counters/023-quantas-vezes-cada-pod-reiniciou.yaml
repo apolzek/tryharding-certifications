@@ -1,0 +1,25 @@
+id: "023"
+title: "Quantas vezes cada pod reiniciou"
+topic: counters
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/resets/
+prompt: |
+  `resets_process_cpu_seconds_total{pod}` é o `process_cpu_seconds_total` de 3 pods: ele volta a
+  zero toda vez que o processo reinicia. Sem métrica de restart, descubra **quantas vezes cada
+  pod reiniciou nos últimos 10 minutos**.
+hints:
+  - "Um counter que 'volta para trás' = reset."
+  - "Existe uma função que conta exatamente isso."
+  - "resets(resets_process_cpu_seconds_total[10m])"
+solution: 'resets(resets_process_cpu_seconds_total[10m])'
+wrong_answers:
+  - 'changes(resets_process_cpu_seconds_total[10m])'
+  - 'increase(resets_process_cpu_seconds_total[10m])'
+  - 'resets(resets_process_cpu_seconds_total[5m])'
+explanation: |
+  `resets()` conta quantas vezes o valor **diminuiu** entre amostras consecutivas:
+  estavel=0, instavel≈5, crashloop≈20.
+
+  Pegadinha: `changes()` conta qualquer mudança (num counter vivo = quase toda amostra).
+  E `resets()` em GAUGE não faz sentido: toda queda vira 'reset'.

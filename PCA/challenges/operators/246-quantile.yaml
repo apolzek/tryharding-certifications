@@ -1,0 +1,25 @@
+id: '246'
+title: '`quantile`: p90 entre partições'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  Qual o **percentil 90** do tamanho das partições de `sort_by_label_desc_kafka_log_size_bytes`,
+  **em GiB**? (φ vai de 0 a 1)
+hints:
+- quantile(φ, v) — φ é uma fração, não porcentagem
+- quantile(0.9, x) / 1024^3
+solution: quantile(0.9, sort_by_label_desc_kafka_log_size_bytes) / 1024^3
+accepted_answers:
+- quantile(0.9, sort_by_label_desc_kafka_log_size_bytes / 1024^3)
+- quantile(0.90, sort_by_label_desc_kafka_log_size_bytes) / 1073741824
+wrong_answers:
+- quantile(90, sort_by_label_desc_kafka_log_size_bytes) / 1024^3
+- avg(sort_by_label_desc_kafka_log_size_bytes) / 1024^3
+- quantile(0.9, sort_by_label_desc_kafka_log_size_bytes)
+tolerance: 0.001
+explanation: |
+  `quantile(0.9, v)` calcula o p90 **entre as séries** (não no tempo — isso seria `quantile_over_time`),
+  com interpolação linear: 12 valores de 1 a 12 GiB → posição 0.9×11 = 9.9 → **10.9 GiB**.
+  `quantile(90, ...)` retorna `+Inf` (φ > 1) com um warning.

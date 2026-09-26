@@ -1,0 +1,24 @@
+id: "147"
+title: "Ordenar por zona e depois por nó"
+topic: labels
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_by_label/
+prompt: |
+  Liste `sort_by_label_node_load1` agrupado visualmente: **primeiro por `zone`**, e dentro de cada
+  zona **por `node`** (ordem natural, crescente). (A ordem é verificada.)
+hints:
+  - "sort_by_label aceita vários labels."
+  - "O primeiro label é o critério principal."
+  - "sort_by_label(sort_by_label_node_load1, \"zone\", \"node\")"
+solution: 'sort_by_label(sort_by_label_node_load1, "zone", "node")'
+wrong_answers:
+  - 'sort_by_label(sort_by_label_node_load1, "node", "zone")'
+  - 'sort_by_label(sort_by_label_node_load1, "node")'
+  - 'sort_by_label_desc(sort_by_label_node_load1, "zone", "node")'
+ordered: true
+explanation: |
+  Os labels seguintes desempatam o anterior: us-east-1a (node-1, node-3, …, node-11) e depois
+  us-east-1b (node-2, node-4, …, node-12).
+
+  Pegadinha: a ordem dos argumentos define a prioridade.

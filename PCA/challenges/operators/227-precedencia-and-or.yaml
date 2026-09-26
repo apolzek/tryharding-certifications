@@ -1,0 +1,23 @@
+id: '227'
+title: 'Precedência: `and` antes de `or`'
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#11-precedência-de-operadores
+prompt: |
+  Queremos os CronJobs de `sort_cronjob_last_duration_seconds` que são **(mais longos que 100 s OU
+  mais curtos que 50 s)** **E**, ao mesmo tempo, **mais curtos que 100 s**.
+
+  (É artificial de propósito: o objetivo é acertar a precedência.)
+hints:
+- and tem precedência MAIOR que or
+- Sem parênteses, a or b and c = a or (b and c)
+solution: (sort_cronjob_last_duration_seconds > 100 or sort_cronjob_last_duration_seconds < 50) and sort_cronjob_last_duration_seconds < 100
+accepted_answers:
+- sort_cronjob_last_duration_seconds < 50
+wrong_answers:
+- sort_cronjob_last_duration_seconds > 100 or sort_cronjob_last_duration_seconds < 50 and sort_cronjob_last_duration_seconds < 100
+explanation: |
+  Precedência (maior → menor): `^` · `* / % atan2` · `+ -` · comparações · `and unless` · `or`.
+  Sem parênteses, `a > 100 or a < 50 and a < 100` vira `a > 100 or (a < 50 and a < 100)` e o
+  `backup` (120) entra indevidamente. Com parênteses: `cleanup` (8) e `report` (45).

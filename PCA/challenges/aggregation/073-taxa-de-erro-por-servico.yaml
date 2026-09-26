@@ -1,0 +1,29 @@
+id: "073"
+title: "Taxa de erro por serviço"
+topic: aggregation
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_desc/
+prompt: |
+  Calcule a **taxa de erro (fração 0..1) de cada serviço**: req/s com `code="500"` dividido pelo
+  total de req/s, usando `sort_desc_http_requests_total` e janelas de 5 min.
+hints:
+  - "Agregue numerador e denominador pelo MESMO label antes de dividir."
+  - "sum by (service) (rate(...{code=\"500\"}[5m])) / sum by (service) (rate(...[5m]))"
+  - "Se você dividir sem agregar, o label `code` impede o casamento das séries."
+solution: |
+  sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m]))
+  /
+  sum by (service) (rate(sort_desc_http_requests_total[5m]))
+accepted_answers:
+  - 'sum(rate(sort_desc_http_requests_total{code="500"}[5m])) by (service) / sum(rate(sort_desc_http_requests_total[5m])) by (service)'
+wrong_answers:
+  - 'rate(sort_desc_http_requests_total{code="500"}[5m]) / rate(sort_desc_http_requests_total[5m])'
+  - 'sum(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum(rate(sort_desc_http_requests_total[5m]))'
+  - 'sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by (service) (rate(sort_desc_http_requests_total{code="200"}[5m]))'
+explanation: |
+  payments 12%, checkout 5%, cart 1%, recommendations **NaN** (0/0: nenhum tráfego).
+  Agregar os dois lados `by (service)` deixa os labels iguais e a divisão casa 1-para-1.
+
+  Pegadinha: dividir as séries cruas casa `code="500"` com `code="500"` e dá 1 (100%).
+  E dividir erros por *sucessos* (code 200) não é taxa de erro.

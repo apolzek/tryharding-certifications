@@ -1,0 +1,8 @@
+groups:
+  - name: orders
+    rules:
+      - alert: OrdersDown
+        expr: up{job="orders"} == 0
+        for: 30s
+        labels:
+          severity: page

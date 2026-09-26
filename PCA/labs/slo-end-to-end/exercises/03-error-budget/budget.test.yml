@@ -1,0 +1,23 @@
+# docker run --rm -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.15.0 test rules budget.test.yml
+rule_files: [budget.yml]
+evaluation_interval: 5m
+tests:
+  # 30 dias de tráfego: 36.000 req/h, das quais 18 falham (0,05%) -> metade do budget gasto
+  - interval: 1h
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+35982x720'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+18x720'
+    promql_expr_test:
+      # comparamos inteiros (x * 10^n arredondado) para não brigar com ponto flutuante
+      - expr: round(job:slo_errors_per_request:ratio_rate30d * 1e6)       # 0,0005 -> 500
+        eval_time: 30d
+        exp_samples: [{ labels: '{job="checkout"}', value: 500 }]
+      - expr: round(job:slo_error_budget_remaining:ratio * 1000)          # 0,5 -> 500
+        eval_time: 30d
+        exp_samples: [{ labels: '{job="checkout"}', value: 500 }]
+      # budget total = 0,1% de 30d = 43,2 min; metade = 21,6 min
+      - expr: round(job:slo_error_budget_remaining:minutes * 10)          # 21,6 min -> 216
+        eval_time: 30d
+        exp_samples: [{ labels: '{job="checkout"}', value: 216 }]

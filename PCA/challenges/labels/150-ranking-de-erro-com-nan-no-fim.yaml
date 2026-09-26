@@ -1,0 +1,29 @@
+id: "150"
+title: "Ranking de erro com NaN no fim"
+topic: labels
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_desc/
+prompt: |
+  Liste a **taxa de erro de cada serviço** (req/s code="500" ÷ req/s total, rate 5m, `sum by (service)`)
+  de `sort_desc_http_requests_total`, **ordenada da maior para a menor**. (A ordem é verificada.)
+hints:
+  - "Calcule a razão por serviço e envolva em sort_desc."
+  - "O serviço sem tráfego dá 0/0 = NaN. Veja onde ele aparece."
+  - "sort_desc(sum by (service) (rate(x{code=\"500\"}[5m])) / sum by (service) (rate(x[5m])))"
+solution: |
+  sort_desc(
+    sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m]))
+  /
+    sum by (service) (rate(sort_desc_http_requests_total[5m]))
+  )
+wrong_answers:
+  - 'sort(sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by (service) (rate(sort_desc_http_requests_total[5m])))'
+  - 'sort_desc(sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])))'
+  - 'sum by (service) (rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by (service) (rate(sort_desc_http_requests_total[5m]))'
+ordered: true
+explanation: |
+  payments (12%) → checkout (5%) → cart (1%) → recommendations (NaN).
+  `sort` e `sort_desc` sempre colocam NaN no **fim**.
+
+  Pegadinha: ordenar só o numerador (req/s de erro) ranqueia pelo volume, não pela taxa.

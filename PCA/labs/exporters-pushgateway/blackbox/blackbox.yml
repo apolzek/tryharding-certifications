@@ -1,0 +1,53 @@
+# Módulos do blackbox_exporter. O Prometheus escolhe o módulo com ?module=<nome>.
+modules:
+  # HTTP GET esperando 2xx (o módulo mais usado do mundo)
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      valid_status_codes: []        # vazio = qualquer 2xx
+      follow_redirects: true
+
+  # HTTPS validando o certificado contra a CA do lab
+  http_2xx_lab_ca:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      fail_if_not_ssl: true
+      tls_config:
+        ca_file: /certs/ca.crt
+
+  # HTTP checando o CORPO da resposta
+  http_body_ok:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      fail_if_body_not_matches_regexp: ["Healthy"]
+
+  # só abre a conexão TCP
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: ip4
+
+  # ping (ICMP echo)
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: ip4
+
+  # consulta DNS: o ALVO é o servidor DNS; a pergunta fica aqui
+  dns_pushgateway:
+    prober: dns
+    timeout: 5s
+    dns:
+      preferred_ip_protocol: ip4
+      transport_protocol: udp
+      query_name: pushgateway
+      query_type: A
+      valid_rcodes: [NOERROR]

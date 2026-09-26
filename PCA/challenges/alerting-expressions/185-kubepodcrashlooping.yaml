@@ -1,0 +1,26 @@
+id: "185"
+title: "KubePodCrashLooping"
+topic: alerting-expressions
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/increase/
+prompt: |
+  Alerta de crashloop: **containers com mais de 3 restarts nos últimos 15 minutos**, com o nº de restarts
+  como valor. Use `increase_kube_pod_container_status_restarts_total`.
+hints:
+  - "Restarts na janela = increase()."
+  - "Filtre com > 3."
+  - "increase(increase_kube_pod_container_status_restarts_total[15m]) > 3"
+solution: 'increase(increase_kube_pod_container_status_restarts_total[15m]) > 3'
+accepted_answers:
+  - 'rate(increase_kube_pod_container_status_restarts_total[15m]) * 900 > 3'
+wrong_answers:
+  - 'increase_kube_pod_container_status_restarts_total > 3'
+  - 'rate(increase_kube_pod_container_status_restarts_total[15m]) > 3'
+  - 'resets(increase_kube_pod_container_status_restarts_total[15m]) > 3'
+explanation: |
+  Só o checkout-7d9f (~7,5 restarts em 15 min). O kube-prometheus usa
+  `increase(kube_pod_container_status_restarts_total[10m]) > 0` + `for: 15m`, combinado com o estado
+  `CrashLoopBackOff`.
+
+  Pegadinha: o valor bruto (> 3) dispara para qualquer pod que já reiniciou 4 vezes na VIDA.

@@ -1,0 +1,23 @@
+id: '235'
+title: '`group_right`: o lado many à direita'
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  Mesmo resultado do desafio anterior (counter `info_http_server_requests_total` + label `version`),
+  mas agora `target_info` tem que ficar do **lado esquerdo** da operação.
+hints:
+- Se o lado 'many' está à direita, o modificador é group_right
+- target_info * on(...) group_right(version) x
+solution: target_info * on(job, instance) group_right(version) info_http_server_requests_total
+accepted_answers:
+- info_http_server_requests_total * on(job, instance) group_left(version) target_info
+wrong_answers:
+- target_info * on(job, instance) group_left(version) info_http_server_requests_total
+- target_info * on(job, instance) group_right info_http_server_requests_total
+tolerance: 1.0e-05
+explanation: |
+  `group_right` é o espelho: o lado **direito** tem mais séries por chave. Os labels do resultado
+  vêm do lado "many" (direita) + os listados em `group_right(...)` do lado "one" (esquerda).
+  Com `group_left` aqui, o PromQL reclama porque a direita tem 2 séries para a mesma chave.

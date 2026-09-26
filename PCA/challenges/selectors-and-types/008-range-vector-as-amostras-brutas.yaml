@@ -1,0 +1,29 @@
+id: "008"
+title: "Range vector: as amostras brutas"
+topic: selectors-and-types
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/count_over_time/
+prompt: |
+  Para depurar um sensor você quer ver **todas as amostras cruas dos últimos 30 segundos**
+  de `delta_node_hwmon_temp_celsius{host="zeus"}` (não um valor calculado).
+
+  Retorne esse **range vector**.
+hints:
+  - "Um seletor seguido de `[duração]` vira um range vector."
+  - "Range vector só pode ser retornado por uma consulta instantânea (não dá para gráfico)."
+  - "delta_node_hwmon_temp_celsius{host=\"zeus\"}[30s]"
+solution: 'delta_node_hwmon_temp_celsius{host="zeus"}[30s]'
+accepted_answers:
+  - 'delta_node_hwmon_temp_celsius{host=~"zeus"}[30s]'
+wrong_answers:
+  - 'delta_node_hwmon_temp_celsius{host="zeus"}'
+  - 'delta_node_hwmon_temp_celsius{host="zeus"}[1m]'
+  - 'delta_node_hwmon_temp_celsius[30s]'
+explanation: |
+  Tipos em PromQL: **instant vector** (1 amostra por série), **range vector** (várias amostras por série),
+  **scalar** e **string**. `x[30s]` com scrape de 5 s traz ~6 amostras por série.
+  O corretor compara o nº de amostras e o último valor.
+
+  Pegadinha: no Grafana/`query_range` um range vector dá erro — ele serve para alimentar funções
+  como `rate()`, `avg_over_time()` etc.

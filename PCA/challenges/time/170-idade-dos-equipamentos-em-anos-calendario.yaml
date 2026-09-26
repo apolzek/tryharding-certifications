@@ -1,0 +1,24 @@
+id: "170"
+title: "Idade dos equipamentos em anos-calendário"
+topic: time
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/year/
+prompt: |
+  Para o inventário, calcule **há quantos anos-calendário** cada equipamento foi fabricado:
+  ano atual − ano de fabricação (`year_device_manufactured_timestamp_seconds{device}`).
+hints:
+  - "year(v) extrai o ano de cada timestamp; year() sem argumento é o ano atual."
+  - "year() não tem labels: converta para scalar."
+  - "scalar(year()) - year(x)"
+solution: 'scalar(year()) - year(year_device_manufactured_timestamp_seconds)'
+accepted_answers:
+  - '-(year(year_device_manufactured_timestamp_seconds) - scalar(year()))'
+wrong_answers:
+  - 'year() - year(year_device_manufactured_timestamp_seconds)'
+  - 'year(year_device_manufactured_timestamp_seconds)'
+  - '(time() - year_device_manufactured_timestamp_seconds) / 86400'
+explanation: |
+  `scalar(year()) - year(x)` dá a diferença de ano-calendário (não a idade exata em anos).
+
+  Pegadinha: `year() - year(x)` é vetor-vetor com labels diferentes → vazio.

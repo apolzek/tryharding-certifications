@@ -1,0 +1,26 @@
+id: "121"
+title: "Quantos alvos UP por job"
+topic: absence-and-staleness
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/absent/
+prompt: |
+  Todo scrape gera a métrica sintética `up` (1 = scrape OK, 0 = falhou). Retorne **quantos alvos estão
+  UP em cada job**.
+hints:
+  - "up vale 1 quando o alvo está no ar."
+  - "Somar os 1s de cada job dá a contagem de alvos UP."
+  - "sum by (job) (up)"
+solution: 'sum by (job) (up)'
+accepted_answers:
+  - 'sum(up) by (job)'
+wrong_answers:
+  - 'sum(up)'
+  - 'up'
+  - 'count(up) by (instance)'
+explanation: |
+  `sum by (job) (up)` = alvos UP; `count by (job) (up)` = alvos CONFIGURADOS. A diferença entre os dois
+  é quantos estão DOWN.
+
+  Pegadinha: `count by (job) (up)` conta também os alvos com up = 0. E `count by (job) (up == 1)` faz
+  o job com TODOS os alvos fora sumir do resultado (em vez de aparecer com 0).

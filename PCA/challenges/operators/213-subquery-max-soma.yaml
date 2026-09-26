@@ -1,0 +1,24 @@
+id: '213'
+title: Subquery sobre uma agregação
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#5-subqueries
+prompt: |
+  `sort_desc_http_requests_total{service, code}` é um counter.
+
+  Qual foi a **maior taxa total** (soma de todos os serviços e códigos, `rate` de 1m) observada
+  nos **últimos 15 minutos**, com resolução de **1m**?
+hints:
+- Primeiro sum(rate(...[1m])), depois uma subquery [15m:1m]
+- max_over_time(sum(rate(x[1m]))[15m:1m])
+solution: max_over_time(sum(rate(sort_desc_http_requests_total[1m]))[15m:1m])
+accepted_answers:
+- max_over_time(sum(rate(sort_desc_http_requests_total[1m]))[15m:])
+wrong_answers:
+- sum(max_over_time(sort_desc_http_requests_total[15m]))
+- max_over_time(sum(rate(sort_desc_http_requests_total[1m]))[15m])
+tolerance: 0.02
+explanation: |
+  Você não pode escrever `sum(rate(x[1m]))[15m]` (range só em seletor): precisa da sintaxe de
+  subquery `[15m:1m]`. Resultado: **300 req/s** (99+95+88+0 de 200 e 1+5+12+0 de 500).

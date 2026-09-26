@@ -1,0 +1,24 @@
+id: "064"
+title: "Top 3 pods por CPU"
+topic: aggregation
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_desc/
+prompt: |
+  Retorne os **3 pods que mais usam CPU agora** (rate de 5 min do counter
+  `sort_desc_container_cpu_usage_seconds_total`, em cores), mantendo os labels de cada pod.
+hints:
+  - "Existe um operador de agregação que devolve as N maiores séries."
+  - "topk(N, expr)"
+  - "topk(3, rate(sort_desc_container_cpu_usage_seconds_total[5m]))"
+solution: 'topk(3, rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+wrong_answers:
+  - 'topk(3, sum by (namespace) (rate(sort_desc_container_cpu_usage_seconds_total[5m])))'
+  - 'max(rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+  - 'topk(1, rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+explanation: |
+  `topk` é um operador de agregação que **mantém os labels originais** (diferente de `max`).
+  Sem `by`, ele escolhe as 3 maiores entre todas as séries.
+
+  Pegadinha: `topk` sobre o counter BRUTO ranqueia pelo total acumulado (quem está no ar há mais
+  tempo), não pelo uso atual. Sempre `rate()` primeiro.

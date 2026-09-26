@@ -1,0 +1,23 @@
+id: '218'
+title: Comparação filtra
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#7-operadores-de-comparação
+prompt: |
+  `sort_cronjob_last_duration_seconds{cronjob}` é a duração da última execução de cada CronJob.
+
+  Retorne só os CronJobs que demoraram **mais de 60 segundos** (com o valor da duração).
+hints:
+- Comparação sem bool funciona como FILTRO
+- x > 60
+solution: sort_cronjob_last_duration_seconds > 60
+accepted_answers:
+- sort_cronjob_last_duration_seconds >= 61
+- 60 < sort_cronjob_last_duration_seconds
+wrong_answers:
+- sort_cronjob_last_duration_seconds > bool 60
+- sort_cronjob_last_duration_seconds
+explanation: |
+  Sem `bool`, uma comparação vetor-escalar é um **filtro**: mantém as séries onde a condição é
+  verdadeira, **com o valor original** (e o nome da métrica). Só `backup` (120 s) passa.

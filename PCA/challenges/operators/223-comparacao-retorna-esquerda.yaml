@@ -1,0 +1,23 @@
+id: '223'
+title: Comparação devolve o valor da esquerda
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#7-operadores-de-comparação
+prompt: |
+  Retorne as **réplicas desejadas** (`ceil_kube_deployment_spec_replicas`) dos deployments em que
+  elas são **diferentes** das disponíveis (`label_replace_kube_deployment_status_replicas_available`).
+  O valor retornado deve ser o número de réplicas **desejadas**.
+hints:
+- Comparação vetor-vetor sem bool é um filtro que mantém o valor da ESQUERDA
+- a != b
+solution: ceil_kube_deployment_spec_replicas != label_replace_kube_deployment_status_replicas_available
+accepted_answers:
+- ceil_kube_deployment_spec_replicas > label_replace_kube_deployment_status_replicas_available
+wrong_answers:
+- ceil_kube_deployment_spec_replicas - label_replace_kube_deployment_status_replicas_available
+- label_replace_kube_deployment_status_replicas_available != ceil_kube_deployment_spec_replicas
+explanation: |
+  `a != b` (one-to-one) mantém as séries de `a` que têm par em `b` com valor diferente, e devolve o
+  **valor de `a`**: `checkout` → **5**. É o padrão do alerta `KubeDeploymentReplicasMismatch`
+  do kube-prometheus. Subtrair daria 2 (outra pergunta).

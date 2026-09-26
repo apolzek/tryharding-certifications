@@ -1,0 +1,26 @@
+id: "074"
+title: "Os 2 filesystems mais cheios"
+topic: aggregation
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort/
+prompt: |
+  Retorne os **2 filesystems com a MENOR fração de espaço livre** (avail/size), usando
+  `sort_node_filesystem_avail_bytes` e `sort_node_filesystem_size_bytes` (labels `node`, `mountpoint`).
+hints:
+  - "Calcule a fração primeiro: avail / size (os labels são iguais, casa 1-para-1)."
+  - "O oposto de topk."
+  - "bottomk(2, avail / size)"
+solution: 'bottomk(2, sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes)'
+accepted_answers:
+  - 'topk(2, -(sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes)) * -1'
+wrong_answers:
+  - 'bottomk(2, sort_node_filesystem_avail_bytes)'
+  - 'topk(2, sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes)'
+  - 'bottomk(1, sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes)'
+explanation: |
+  Ranquear por **fração** (e não por bytes) evita que discos pequenos pareçam 'mais cheios'
+  só por serem pequenos. `bottomk` mantém os labels das séries escolhidas.
+
+  Pegadinha: `bottomk(2, avail)` pega os discos com menos BYTES livres, que não são
+  necessariamente os mais cheios.

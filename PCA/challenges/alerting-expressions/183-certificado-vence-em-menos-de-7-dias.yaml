@@ -1,0 +1,25 @@
+id: "183"
+title: "Certificado vence em menos de 7 dias"
+topic: alerting-expressions
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort/
+prompt: |
+  Expressão do alerta `SSLCertExpiringSoon`: **alvos cujo certificado vence em menos de 7 dias**, com
+  o valor em segundos restantes. Use `sort_probe_ssl_earliest_cert_expiry{target}`.
+hints:
+  - "Segundos restantes = expiração − time()."
+  - "7 dias = 7 * 86400 segundos."
+  - "x - time() < 7 * 86400"
+solution: 'sort_probe_ssl_earliest_cert_expiry - time() < 7 * 86400'
+accepted_answers:
+  - 'sort_probe_ssl_earliest_cert_expiry - time() < 604800'
+  - '(sort_probe_ssl_earliest_cert_expiry - time()) < 86400 * 7'
+wrong_answers:
+  - 'sort_probe_ssl_earliest_cert_expiry < 7 * 86400'
+  - 'sort_probe_ssl_earliest_cert_expiry - time() < 7'
+  - 'time() - sort_probe_ssl_earliest_cert_expiry < 7 * 86400'
+explanation: |
+  Só o legacy.example.com (3 dias). Comparar o timestamp direto com 7 dias nunca dispara (o valor é ~1,79 bilhão).
+
+  Pegadinha: `time() - x` é negativo para certificados válidos, e `< 7*86400` dispararia para TODOS.

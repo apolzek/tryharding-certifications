@@ -1,0 +1,23 @@
+id: '242'
+title: '`count_values`: quantos nós com cada preço'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  `days_in_month_node_total_hourly_cost{node, instance_type}` é o custo por hora de cada nó.
+
+  Retorne quantos nós existem **com cada valor de custo**, colocando o valor num label chamado **`cost`**.
+hints:
+- Existe um agregador que transforma o VALOR em label
+- count_values("cost", ...)
+solution: count_values("cost", days_in_month_node_total_hourly_cost)
+accepted_answers:
+- count_values without(node, instance_type, job, instance, env) ("cost", days_in_month_node_total_hourly_cost)
+wrong_answers:
+- count_values("price", days_in_month_node_total_hourly_cost)
+- count by(instance_type)(days_in_month_node_total_hourly_cost)
+explanation: |
+  `count_values("label", v)` cria uma série por **valor distinto**, com o valor no label indicado, e
+  conta as ocorrências: `{cost="0.096"}` → 2, `{cost="0.34"}` → 1. Clássico para
+  "quantas instâncias rodam cada versão" quando a versão é o **valor** da métrica.

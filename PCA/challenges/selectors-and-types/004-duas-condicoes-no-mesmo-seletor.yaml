@@ -1,0 +1,29 @@
+id: "004"
+title: "Duas condições no mesmo seletor"
+topic: selectors-and-types
+level: intermediate
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/basics/
+prompt: |
+  Você quer ver a memória (`label_replace_container_memory_working_set_bytes`) só das imagens
+  do **registry interno** (`image` começando com `registry.local/`), mas **sem** os pods do `payments`.
+
+  Retorne essas séries com um único seletor.
+hints:
+  - "Dá para colocar vários matchers dentro das chaves, separados por vírgula (é um AND)."
+  - "Um matcher `=~` no label image e um `!~` no label pod."
+  - "{image=~\"registry.local/.*\", pod!~\"payments-.*\"}"
+solution: 'label_replace_container_memory_working_set_bytes{image=~"registry.local/.*", pod!~"payments-.*"}'
+accepted_answers:
+  - 'label_replace_container_memory_working_set_bytes{image=~"registry\\.local/.*", image!~".*payments.*"}'
+  - 'label_replace_container_memory_working_set_bytes{image=~`registry\.local/shop/.*`, pod!~`payments.*`}'
+wrong_answers:
+  - 'label_replace_container_memory_working_set_bytes{image=~"registry.local/.*"}'
+  - 'label_replace_container_memory_working_set_bytes{image=~"registry.local"}'
+  - 'label_replace_container_memory_working_set_bytes{pod!~"payments-.*"}'
+explanation: |
+  Todos os matchers de um seletor precisam casar (AND). Resultado: os 3 pods do checkout.
+
+  Dica de sintaxe: o `.` na regex casa qualquer caractere; para ser estrito use `registry\\.local`
+  entre aspas duplas (escape duplo) ou uma string crua com crases: `` `registry\.local` ``.
+  Pegadinha: sem o `/.*` final a regex ancorada não casa nada.

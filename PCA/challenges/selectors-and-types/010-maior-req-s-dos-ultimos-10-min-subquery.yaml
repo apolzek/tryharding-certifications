@@ -1,0 +1,25 @@
+id: "010"
+title: "Maior req/s dos últimos 10 min (subquery)"
+topic: selectors-and-types
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/max_over_time/
+prompt: |
+  O counter `max_over_time_http_requests_total` tem rajadas periódicas.
+  O time quer saber: **qual foi a maior taxa (req/s, `rate` de 1 min) nos últimos 10 minutos?**
+hints:
+  - "`max_over_time` precisa de um range vector, mas `rate(...)` devolve instant vector."
+  - "Uma subquery `expr[10m:]` transforma o resultado de uma expressão num range vector."
+  - "max_over_time(rate(max_over_time_http_requests_total[1m])[10m:])"
+solution: 'max_over_time(rate(max_over_time_http_requests_total[1m])[10m:])'
+accepted_answers:
+  - 'max_over_time(rate(max_over_time_http_requests_total[1m])[10m:5s])'
+wrong_answers:
+  - 'max_over_time(max_over_time_http_requests_total[10m])'
+  - 'rate(max_over_time_http_requests_total[10m])'
+explanation: |
+  Subquery `<instant expr>[range:step]` avalia a expressão em vários instantes (a cada `step`,
+  padrão = `evaluation_interval`, 5 s aqui) e devolve um range vector.
+
+  Pegadinha: `max_over_time` direto no counter dá o maior VALOR do counter (o último),
+  e `rate(...[10m])` dá a MÉDIA de 10 min, que esconde a rajada.

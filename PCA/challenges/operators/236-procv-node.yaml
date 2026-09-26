@@ -1,0 +1,30 @@
+id: '236'
+title: 'PROCV de verdade: IP → nome do nó'
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  `label_replace_node_cpu_usage_percent{endpoint="10.0.0.5:9100"}` tem só o IP:porta do nó.
+  `label_replace_kube_node_info{internal_ip="10.0.0.5", node="worker-1"}` (valor 1) mapeia IP → nome.
+
+  Retorne o uso de CPU de cada nó **com o label `node`** (worker-1, worker-2...).
+hints:
+- Primeiro crie um label internal_ip no lado da CPU com label_replace (tirando a :porta)
+- label_replace(x, "internal_ip", "$1", "endpoint", "(.*):.*")
+- '... * on(internal_ip) group_left(node) label_replace_kube_node_info'
+solution: label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*") * on(internal_ip) group_left(node) label_replace_kube_node_info
+accepted_answers:
+- label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "([^:]+):.*") * on(internal_ip) group_left(node) label_replace_kube_node_info
+- label_replace_kube_node_info * on(internal_ip) group_right(node) label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*")
+wrong_answers:
+- label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*") * on(internal_ip) label_replace_kube_node_info
+- label_replace_node_cpu_usage_percent * on(job, instance) group_left(node) label_replace_kube_node_info
+ignore_labels:
+- endpoint
+- internal_ip
+explanation: |
+  É o PROCV/VLOOKUP clássico: a "chave" precisa existir com o **mesmo nome e valor** dos dois lados.
+  `label_replace` cria `internal_ip` a partir de `endpoint` (regex ancorada, `$1` = IP), depois
+  `* on(internal_ip) group_left(node)` copia o nome do nó. Mesmo padrão de
+  `node_cpu... * on(instance) group_left(nodename) node_uname_info` no node_exporter.

@@ -1,0 +1,24 @@
+id: '215'
+title: 'Precedência: % de disco usado'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#6-operadores-aritméticos
+prompt: |
+  Com `sort_node_filesystem_avail_bytes` e `sort_node_filesystem_size_bytes` (mesmos labels
+  `node`, `mountpoint`), calcule a **porcentagem usada** (0–100) de cada filesystem.
+hints:
+- usado = 1 − livre/total
+- Parênteses! 100 * (1 - a / b)
+solution: 100 * (1 - sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes)
+accepted_answers:
+- (sort_node_filesystem_size_bytes - sort_node_filesystem_avail_bytes) / sort_node_filesystem_size_bytes * 100
+- 100 - 100 * sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes
+wrong_answers:
+- 100 * 1 - sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes
+- 100 * sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes
+tolerance: 0.001
+explanation: |
+  `/` tem precedência maior que `-`, então `1 - a / b` já é `1 - (a/b)`; mas o `100 *` precisa dos
+  parênteses em volta de tudo. As duas métricas têm exatamente os mesmos labels (fora `__name__`),
+  então o casamento é **one-to-one** automático.

@@ -1,0 +1,26 @@
+id: "124"
+title: "Quais workers apareceram"
+topic: absence-and-staleness
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/present_over_time/
+prompt: |
+  Os workers de `present_over_time_worker_active_tasks{worker}` vivem e morrem o tempo todo.
+  Retorne **todos os workers que apareceram pelo menos uma vez nos últimos 10 minutos**, com valor 1.
+hints:
+  - "Você não quer o valor, só 'apareceu ou não'."
+  - "Existe uma função _over_time que sempre devolve 1."
+  - "present_over_time(present_over_time_worker_active_tasks[10m])"
+solution: 'present_over_time(present_over_time_worker_active_tasks[10m])'
+accepted_answers:
+  - 'count_over_time(present_over_time_worker_active_tasks[10m]) > bool 0'
+  - 'last_over_time(present_over_time_worker_active_tasks[10m]) * 0 + 1'
+wrong_answers:
+  - 'present_over_time_worker_active_tasks'
+  - 'count_over_time(present_over_time_worker_active_tasks[10m])'
+  - 'max_over_time(present_over_time_worker_active_tasks[10m])'
+explanation: |
+  `present_over_time(v[10m])` devolve 1 para cada série com pelo menos uma amostra na janela: worker-a,
+  worker-b e worker-c (o 'cron' que vive 20 s a cada 5 min).
+
+  Pegadinha: a consulta instantânea só mostra quem está vivo AGORA — o worker-c quase nunca aparece.

@@ -1,0 +1,25 @@
+id: "045"
+title: "O que mudou no último scrape"
+topic: gauges
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/idelta/
+prompt: |
+  A fila `idelta_rabbitmq_queue_messages{queue="emails"}` recebe lotes de 500 mensagens e é drenada
+  aos poucos. Retorne **a diferença entre as duas últimas amostras** da fila (procurando-as no último minuto).
+hints:
+  - "É um gauge e você quer só as 2 últimas amostras."
+  - "É a versão 'instantânea' de delta()."
+  - "idelta(idelta_rabbitmq_queue_messages[1m])"
+solution: 'idelta(idelta_rabbitmq_queue_messages[1m])'
+accepted_answers:
+  - 'idelta(idelta_rabbitmq_queue_messages[30s])'
+wrong_answers:
+  - 'delta(idelta_rabbitmq_queue_messages[1m])'
+  - 'irate(idelta_rabbitmq_queue_messages[1m])'
+  - 'idelta_rabbitmq_queue_messages - idelta_rabbitmq_queue_messages offset 1m'
+explanation: |
+  `idelta()` = última amostra − penúltima (≈ −100 enquanto drena, ≈ +400 quando chega um lote).
+
+  Pegadinha: `irate()` trata a queda como reset e é por segundo; `delta(...[1m])` cobre 2 ciclos
+  inteiros e fica perto de zero.

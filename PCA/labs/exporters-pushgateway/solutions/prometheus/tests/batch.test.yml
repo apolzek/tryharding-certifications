@@ -1,0 +1,24 @@
+# promtool test rules: prova que PushgatewayJobStale dispara quando o push fica velho.
+#   docker run --rm -v "$PWD/solutions/prometheus:/p:ro" -w /p --entrypoint promtool prom/prometheus:v3.15.0 test rules tests/batch.test.yml
+rule_files:
+  - ../rules/lab.rules.yml
+evaluation_interval: 1m
+tests:
+  - interval: 1h
+    input_series:
+      # push feito no instante 0 e nunca mais: o valor (timestamp do push) fica parado em 0
+      - series: 'push_time_seconds{job="nightly-backup",instance="db01"}'
+        values: '0x30'
+      # outro job que empurra toda hora: sempre fresco
+      - series: 'push_time_seconds{job="nightly-backup",instance="db02"}'
+        values: '0+3600x30'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: PushgatewayJobStale
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: PushgatewayJobStale
+        exp_alerts:
+          - exp_labels: { severity: warning, job: nightly-backup, instance: db01 }
+            exp_annotations:
+              summary: "nightly-backup/db01 não empurra métricas há 1d 3h 0m 0s"

@@ -1,0 +1,30 @@
+# EXERCÍCIO 05: a árvore de rotas manda alertas para o receiver errado.
+# Tabela desejada (verifique com amtool config routes test):
+#   team=db  severity=critical -> dba,pager
+#   team=db  severity=warning  -> dba,slack
+#   team=web severity=critical -> pager
+#   team=web severity=warning  -> slack
+#   severity=info              -> default
+receivers:
+  - name: default
+    webhook_configs: [{ url: http://receiver:8080/hook/default, send_resolved: true }]
+  - name: pager
+    webhook_configs: [{ url: http://receiver:8080/hook/pager, send_resolved: true }]
+  - name: slack
+    webhook_configs: [{ url: http://receiver:8080/hook/slack, send_resolved: true }]
+  - name: dba
+    webhook_configs: [{ url: http://receiver:8080/hook/dba, send_resolved: true }]
+
+route:
+  receiver: default
+  group_by: [alertname, cluster]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+  routes:
+    - matchers: [severity="critical"]
+      receiver: pager
+    - matchers: [team="db"]
+      receiver: dba
+    - matchers: [severity=~"warn"]
+      receiver: slack

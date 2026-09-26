@@ -1,0 +1,29 @@
+id: "075"
+title: "Participação de cada pod no namespace"
+topic: aggregation
+level: advanced
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+prompt: |
+  Qual a **fração da CPU do namespace** que cada pod consome? Para cada pod:
+  rate 5m do pod ÷ soma do rate 5m do namespace dele. Use `sort_desc_container_cpu_usage_seconds_total`.
+hints:
+  - "O lado direito tem menos labels (só namespace): é uma divisão muitos-para-um."
+  - "Use `on (namespace)` + `group_left` para casar cada pod com o total do namespace."
+  - "rate(...) / on (namespace) group_left sum by (namespace) (rate(...))"
+solution: |
+  rate(sort_desc_container_cpu_usage_seconds_total[5m])
+    / on (namespace) group_left
+  sum by (namespace) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))
+accepted_answers:
+  - 'rate(sort_desc_container_cpu_usage_seconds_total[5m]) / ignoring (pod) group_left sum without (pod) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+wrong_answers:
+  - 'rate(sort_desc_container_cpu_usage_seconds_total[5m]) / on (namespace) sum by (namespace) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+  - 'rate(sort_desc_container_cpu_usage_seconds_total[5m]) / scalar(sum(rate(sort_desc_container_cpu_usage_seconds_total[5m])))'
+  - 'sum by (namespace) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+explanation: |
+  Muitos pods (lado esquerdo) para um total (lado direito) = `group_left`. O resultado mantém os
+  labels do lado esquerdo, então você sabe qual pod é. Em cada namespace as frações somam 1.
+
+  Pegadinha: sem `group_left`, o Prometheus exige casamento 1-para-1 e a query dá erro
+  ("many-to-one matching"). Dividir pelo total GLOBAL (scalar) responde outra pergunta.

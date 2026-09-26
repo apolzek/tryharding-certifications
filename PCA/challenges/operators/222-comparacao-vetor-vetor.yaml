@@ -1,0 +1,26 @@
+id: '222'
+title: Comparando dois vetores com ignoring
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  `sort_desc_http_requests_total{service, code}` é um counter de requisições por código.
+
+  Retorne a taxa (`rate` de 5m) de **erros 500** dos serviços em que ela é **maior que 10% da taxa
+  de 200** do mesmo serviço.
+hints:
+- 'Os dois lados diferem no label code: use ignoring(code)'
+- rate(500) > ignoring(code) rate(200) * 0.1
+solution: rate(sort_desc_http_requests_total{code="500"}[5m]) > ignoring(code) rate(sort_desc_http_requests_total{code="200"}[5m]) * 0.1
+accepted_answers:
+- rate(sort_desc_http_requests_total{code="500"}[5m]) > on(service, job, instance, env) 0.1 * rate(sort_desc_http_requests_total{code="200"}[5m])
+wrong_answers:
+- rate(sort_desc_http_requests_total{code="500"}[5m]) > rate(sort_desc_http_requests_total{code="200"}[5m]) * 0.1
+- rate(sort_desc_http_requests_total{code="500"}[5m]) > bool ignoring(code) rate(sort_desc_http_requests_total{code="200"}[5m]) * 0.1
+ignore_labels:
+- code
+explanation: |
+  Sem `ignoring(code)` nada casa (`code="500"` ≠ `code="200"`) e o resultado é vazio.
+  Comparação vetor-vetor filtra e devolve o **valor do lado esquerdo**: só `payments` (12 > 8.8).
+  A multiplicação `* 0.1` é feita antes da comparação (precedência maior).

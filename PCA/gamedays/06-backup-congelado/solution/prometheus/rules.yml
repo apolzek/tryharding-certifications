@@ -1,0 +1,16 @@
+groups:
+  - name: backup
+    rules:
+      # SLA do gameday: "1 dia" = 30 segundos. O backup deve rodar a cada 30s.
+      - alert: BackupNaoRodou
+        # a Pushgateway guarda o último valor PARA SEMPRE: alerte pela IDADE do dado
+        expr: time() - push_time_seconds{job="backup"} > 30
+        labels:
+          severity: page
+        annotations:
+          summary: "backup de {{ $labels.instance }} não roda há {{ $value | humanizeDuration }}"
+
+      - alert: BackupFalhou
+        expr: backup_last_status{job="backup"} == 0
+        labels:
+          severity: page

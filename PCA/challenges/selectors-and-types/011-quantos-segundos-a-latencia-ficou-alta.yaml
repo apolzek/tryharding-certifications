@@ -1,0 +1,27 @@
+id: "011"
+title: "Quantos segundos a latência ficou alta"
+topic: selectors-and-types
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/count_over_time/
+prompt: |
+  A métrica `count_over_time_request_latency_ms` (gauge, em ms) às vezes passa de 200 ms.
+  Calcule **por quantos segundos, nos últimos 5 minutos, ela ficou acima de 200 ms**,
+  amostrando a cada 5 s (o scrape interval).
+hints:
+  - "Primeiro filtre: `x > 200` só mantém as amostras altas."
+  - "Uma subquery `[5m:5s]` produz uma amostra a cada 5 s; conte-as e multiplique por 5."
+  - "count_over_time((count_over_time_request_latency_ms > 200)[5m:5s]) * 5"
+solution: 'count_over_time((count_over_time_request_latency_ms > 200)[5m:5s]) * 5'
+accepted_answers:
+  - 'sum_over_time((count_over_time_request_latency_ms > bool 200)[5m:5s]) * 5'
+  - '5 * count_over_time((count_over_time_request_latency_ms > 200)[5m:5s])'
+wrong_answers:
+  - 'count_over_time(count_over_time_request_latency_ms[5m]) * 5'
+  - 'count_over_time((count_over_time_request_latency_ms > 200)[5m:5s])'
+  - 'sum_over_time((count_over_time_request_latency_ms > 200)[5m:5s]) * 5'
+explanation: |
+  Filtrar dentro da subquery faz os pontos "baixos" sumirem; `count_over_time` conta só os altos.
+  Com `> bool` os pontos viram 0/1 e `sum_over_time` faz o mesmo papel.
+
+  Pegadinha: `sum_over_time` SEM `bool` soma as latências (ms), não conta pontos.

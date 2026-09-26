@@ -1,0 +1,28 @@
+id: "193"
+title: "Orçamento vai estourar este mês"
+topic: alerting-expressions
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/days_in_month/
+prompt: |
+  Alerta de FinOps: **times cujo custo projetado para o fim do mês** (custo até agora ÷ dia do mês ×
+  dias no mês) **passa do orçamento** `days_in_month_cloud_budget_monthly_dollars{team}`.
+  Custo acumulado: `days_in_month_cloud_cost_month_to_date_dollars{team}`. Valor = custo projetado.
+hints:
+  - "A projeção: x / scalar(day_of_month()) * scalar(days_in_month())."
+  - "Compare vetor com vetor: os labels (team, job, instance, env) são iguais nos dois lados."
+  - "projecao > days_in_month_cloud_budget_monthly_dollars"
+solution: |
+  days_in_month_cloud_cost_month_to_date_dollars / scalar(day_of_month()) * scalar(days_in_month())
+    > days_in_month_cloud_budget_monthly_dollars
+accepted_answers:
+  - 'days_in_month_cloud_cost_month_to_date_dollars * scalar(days_in_month() / day_of_month()) > days_in_month_cloud_budget_monthly_dollars'
+wrong_answers:
+  - 'days_in_month_cloud_cost_month_to_date_dollars > days_in_month_cloud_budget_monthly_dollars'
+  - 'days_in_month_cloud_cost_month_to_date_dollars / day_of_month() * days_in_month() > days_in_month_cloud_budget_monthly_dollars'
+  - 'days_in_month_cloud_cost_month_to_date_dollars / scalar(day_of_month()) * scalar(days_in_month()) > bool days_in_month_cloud_budget_monthly_dollars'
+explanation: |
+  O platform gasta ~40 USD/dia: projeção ≈ 1200 > 1000. O data (~750) não dispara.
+  Comparação vetor-vetor filtra o lado esquerdo mantendo o valor do lado esquerdo.
+
+  Pegadinha: comparar o custo ATUAL só alerta depois que o dinheiro já foi gasto.

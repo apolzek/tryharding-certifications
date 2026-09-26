@@ -1,0 +1,14 @@
+groups:
+  - name: search
+    rules:
+      - alert: SearchTaxaDeErroAlta
+        expr: |
+          rate(http_errors_total{job="search"}[1m])
+            /
+          rate(http_requests_total{job="search"}[1m])
+            > 0.05
+        for: 10s
+        labels:
+          severity: page
+        annotations:
+          summary: "search com {{ $value | humanizePercentage }} de erro"

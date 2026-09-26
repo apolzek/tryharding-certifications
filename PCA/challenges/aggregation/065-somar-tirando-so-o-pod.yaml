@@ -1,0 +1,25 @@
+id: "065"
+title: "Somar tirando só o pod"
+topic: aggregation
+level: intermediate
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+prompt: |
+  Some a CPU (rate 5m de `sort_desc_container_cpu_usage_seconds_total`) **removendo apenas o label
+  `pod`** — todos os outros labels (namespace, job, instance, env) devem continuar no resultado.
+hints:
+  - "Em vez de listar o que fica, liste o que sai."
+  - "Existe o oposto de `by`."
+  - "sum without (pod) (rate(...[5m]))"
+solution: 'sum without (pod) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+accepted_answers:
+  - 'sum by (namespace, job, instance, env) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+wrong_answers:
+  - 'sum by (namespace) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+  - 'sum without (namespace) (rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+  - 'sum(rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+explanation: |
+  `without (pod)` remove só `pod` e preserva o resto — ótimo em recording rules, porque
+  labels como `job`/`instance`/`env` continuam disponíveis para roteamento de alertas.
+
+  Pegadinha: `sum by (namespace)` também soma certo, mas perde job/instance/env.

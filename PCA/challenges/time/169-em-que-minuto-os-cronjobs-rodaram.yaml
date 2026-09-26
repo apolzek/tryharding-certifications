@@ -1,0 +1,22 @@
+id: "169"
+title: "Em que minuto os cronjobs rodaram"
+topic: time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/minute/
+prompt: |
+  Retorne **o minuto da hora (0–59)** da última execução de cada cronjob em
+  `minute_kube_cronjob_status_last_schedule_time{cronjob}`.
+hints:
+  - "Existe uma função minute()."
+  - "Passe o vetor de timestamps."
+  - "minute(minute_kube_cronjob_status_last_schedule_time)"
+solution: 'minute(minute_kube_cronjob_status_last_schedule_time)'
+wrong_answers:
+  - 'minute()'
+  - 'hour(minute_kube_cronjob_status_last_schedule_time)'
+  - 'minute_kube_cronjob_status_last_schedule_time % 60'
+explanation: |
+  cleanup roda a cada 5 min (minuto múltiplo de 5), report em 2, 17, 32, 47.
+
+  Pegadinha: `x % 60` dá os SEGUNDOS do timestamp, não o minuto.

@@ -1,0 +1,35 @@
+# Usado pelo check.sh: o alerta PaymentsDown precisa disparar TAMBÉM quando
+# a série up{job="payments"} simplesmente não existe.
+rule_files:
+  - /work/rules.yml
+evaluation_interval: 5s
+tests:
+  - name: target sumiu (nenhuma série up{job="payments"})
+    interval: 5s
+    input_series:
+      - series: 'up{job="prometheus", instance="localhost:9090"}'
+        values: '1x60'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="PaymentsDown", alertstate="firing"})
+        eval_time: 2m
+        exp_samples:
+          - value: 1
+  - name: target existe mas está down
+    interval: 5s
+    input_series:
+      - series: 'up{job="payments", instance="app:9182"}'
+        values: '0x60'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="PaymentsDown", alertstate="firing"})
+        eval_time: 2m
+        exp_samples:
+          - value: 1
+  - name: tudo ok, nada dispara
+    interval: 5s
+    input_series:
+      - series: 'up{job="payments", instance="app:9182"}'
+        values: '1x60'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="PaymentsDown"})
+        eval_time: 2m
+        exp_samples: []

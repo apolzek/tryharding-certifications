@@ -1,0 +1,22 @@
+id: '230'
+title: 'One-to-one: fração livre do disco'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  Calcule a **fração livre** (0–1) de cada filesystem:
+  `sort_node_filesystem_avail_bytes` dividido por `sort_node_filesystem_size_bytes`.
+hints:
+- 'Os labels são idênticos: basta dividir'
+- a / b
+solution: sort_node_filesystem_avail_bytes / sort_node_filesystem_size_bytes
+accepted_answers:
+- sort_node_filesystem_avail_bytes / on(node, mountpoint, job, instance, env) sort_node_filesystem_size_bytes
+wrong_answers:
+- sum(sort_node_filesystem_avail_bytes) / sum(sort_node_filesystem_size_bytes)
+- sort_node_filesystem_size_bytes / sort_node_filesystem_avail_bytes
+tolerance: 0.001
+explanation: |
+  Casamento **one-to-one** padrão: cada série da esquerda encontra a série da direita com o
+  mesmo conjunto de labels (sem contar `__name__`, que é descartado do resultado). 5 séries.

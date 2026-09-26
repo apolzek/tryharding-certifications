@@ -1,0 +1,41 @@
+# Rode:  promtool test rules examples/http.test.yml
+rule_files:
+  - http.rules.yml            # caminho relativo a ESTE arquivo
+evaluation_interval: 1m       # de quanto em quanto as regras são avaliadas no teste
+
+tests:
+  - name: taxa e razão de erro do job api
+    interval: 1m              # espaçamento entre as amostras de input_series
+    input_series:
+      # 'a+bxn' = começa em a, soma b, n vezes  ->  n+1 amostras
+      - series: 'http_requests_total{job="api", instance="a", code="200"}'
+        values: '0+240x30'    # 240/min = 4/s
+      - series: 'http_requests_total{job="api", instance="a", code="500"}'
+        values: '0+60x30'     # 60/min  = 1/s
+      - series: 'http_requests_total{job="api", instance="b", code="200"}'
+        values: '0+300x30'    # 300/min = 5/s
+
+    promql_expr_test:
+      - expr: job:http_requests:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'job:http_requests:rate5m{job="api"}'
+            value: 10
+      - expr: job:http_requests_errors:ratio_rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'job:http_requests_errors:ratio_rate5m{job="api"}'
+            value: 0.1
+
+    alert_rule_test:
+      - eval_time: 3m         # condição verdadeira desde ~1m, mas for: 5m -> ainda PENDING
+        alertname: HighErrorRatio
+        exp_alerts: []        # pending NÃO aparece em exp_alerts
+      - eval_time: 10m
+        alertname: HighErrorRatio
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: api
+            exp_annotations:
+              summary: "api com 10% de erros"

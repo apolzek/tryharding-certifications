@@ -1,0 +1,23 @@
+id: "093"
+title: "Dispersão robusta a outliers"
+topic: over-time
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/mad_over_time/
+prompt: |
+  A latência dos probes (`mad_over_time_probe_duration_seconds{target}`) tem outliers que estragam o
+  desvio padrão. Calcule a **mediana dos desvios absolutos (MAD)** de cada alvo nos últimos 10 minutos.
+hints:
+  - "Existe uma função experimental específica: Median Absolute Deviation."
+  - "mad_over_time(v[10m])"
+  - "mad_over_time(mad_over_time_probe_duration_seconds[10m])"
+solution: 'mad_over_time(mad_over_time_probe_duration_seconds[10m])'
+wrong_answers:
+  - 'stddev_over_time(mad_over_time_probe_duration_seconds[10m])'
+  - 'quantile_over_time(0.5, mad_over_time_probe_duration_seconds[10m])'
+  - 'avg_over_time(mad_over_time_probe_duration_seconds[10m])'
+explanation: |
+  MAD = mediana(|xᵢ − mediana(x)|). Como usa medianas, poucos outliers quase não mudam o resultado,
+  ao contrário do desvio padrão (que eleva os desvios ao quadrado).
+
+  Pegadinha: `quantile_over_time(0.5, ...)` é a mediana dos VALORES, não dos desvios.

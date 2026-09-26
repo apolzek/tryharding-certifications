@@ -1,0 +1,25 @@
+id: "108"
+title: "Desvio padrão da latência"
+topic: histograms
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_stddev/
+prompt: |
+  Os dois serviços de `histogram_stddev_request_duration_seconds{service}` têm a MESMA média (100 ms).
+  Calcule o **desvio padrão da latência de cada serviço** (native histogram, 5 min).
+hints:
+  - "Existe uma função de desvio padrão para native histograms."
+  - "histogram_stddev(rate(h[5m]))"
+  - "histogram_stddev(rate(histogram_stddev_request_duration_seconds[5m]))"
+solution: 'histogram_stddev(rate(histogram_stddev_request_duration_seconds[5m]))'
+accepted_answers:
+  - 'sqrt(histogram_stdvar(rate(histogram_stddev_request_duration_seconds[5m])))'
+wrong_answers:
+  - 'histogram_avg(rate(histogram_stddev_request_duration_seconds[5m]))'
+  - 'histogram_stdvar(rate(histogram_stddev_request_duration_seconds[5m]))'
+  - 'stddev(histogram_avg(rate(histogram_stddev_request_duration_seconds[5m])))'
+explanation: |
+  stable ≈ 10 ms; erratic entre ~30 e ~130 ms. A média esconde isso; o desvio padrão mostra.
+  `histogram_stddev = sqrt(histogram_stdvar)`.
+
+  Pegadinha: é uma estimativa (usa o ponto médio geométrico de cada bucket), e só existe para native histograms.

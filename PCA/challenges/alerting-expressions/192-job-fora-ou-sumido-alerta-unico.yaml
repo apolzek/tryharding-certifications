@@ -1,0 +1,27 @@
+id: "192"
+title: "Job fora OU sumido (alerta único)"
+topic: alerting-expressions
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/absent/
+prompt: |
+  Escreva UM alerta que dispare se o job `lab` estiver **fora do ar (`up == 0`) OU tiver sumido** do
+  Prometheus (nenhuma série `up{job="lab"}`). Neste lab o job está saudável: o resultado esperado é **vazio**.
+hints:
+  - "Duas condições com `or`."
+  - "Uma é `up{job=\"lab\"} == 0`, a outra usa absent()."
+  - "up{job=\"lab\"} == 0 or absent(up{job=\"lab\"})"
+solution: 'up{job="lab"} == 0 or absent(up{job="lab"})'
+accepted_answers:
+  - 'absent(up{job="lab"} == 1)'
+  - 'absent(up{job="lab"}) or up{job="lab"} == 0'
+wrong_answers:
+  - 'up{job="lab"}'
+  - 'up{job="lab"} == 1 or absent(up{job="lab"})'
+  - 'present_over_time(up{job="lab"}[5m])'
+expect_empty: true
+explanation: |
+  `or` junta os dois casos. `absent(up{job="lab"} == 1)` também funciona ('não existe nenhum alvo up=1'),
+  mas o alerta sai sem o label `job` (o argumento não é um seletor simples).
+
+  Pegadinha: só `up == 0` fica mudo se o service discovery perder o alvo.

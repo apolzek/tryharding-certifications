@@ -1,0 +1,93 @@
+name: pca-service-discovery-relabeling
+
+# Uma única imagem (python stdlib) roda como vários "serviços" diferentes.
+# O comportamento de cada alvo vem das env vars (ver target/target.py).
+x-target: &target
+  image: python:3.14-alpine
+  command: ["python", "-u", "/app/target.py"]
+  volumes:
+    - ./target:/app:ro
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=2)"]
+    interval: 3s
+    timeout: 3s
+    retries: 20
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle          # habilita POST /-/reload
+    volumes:
+      - ./prometheus:/etc/prometheus    # diretório inteiro: edições no host aparecem no container
+    ports: ["9120:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  # 2º Prometheus, só para o exercício de sharding com hashmod
+  prometheus-shard1:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/shard1.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus:/etc/prometheus
+    ports: ["9129:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  payments-api:
+    <<: *target
+    environment: { SERVICE: payments-api, TEAM: payments, HIGH_CARD: "150" }
+    ports: ["9121:8000"]
+
+  payments-worker:
+    <<: *target
+    environment: { SERVICE: payments-worker, TEAM: payments }
+    ports: ["9122:8000"]
+
+  checkout-api:
+    <<: *target
+    environment: { SERVICE: checkout-api, TEAM: checkout, VERSION: "2.3.1" }
+    ports: ["9123:8000"]
+
+  search-api:
+    <<: *target
+    environment: { SERVICE: search-api, TEAM: search }
+    ports: ["9124:8000"]
+
+  # métricas em caminho não padrão + métricas com label job= "de dentro"
+  legacy-batch:
+    <<: *target
+    environment: { SERVICE: legacy-batch, TEAM: data, METRICS_PATH: /admin/metrics, JOB_LABEL: nightly-batch }
+    ports: ["9125:8000"]
+
+  # "blackbox" de mentira: GET /probe?target=host:porta
+  prober:
+    <<: *target
+    environment: { SERVICE: prober, TEAM: sre }
+    ports: ["9126:8000"]
+
+  # servidor de http_sd: devolve sd/targets.json em /targets.json
+  sd-server:
+    <<: *target
+    environment: { SERVICE: sd-server, TEAM: sre, SD_FILE: /sd/targets.json }
+    volumes:
+      - ./target:/app:ro
+      - ./sd-server:/sd:ro
+    ports: ["9127:8000"]
+
+  # alvo que começa FORA da descoberta: você o adiciona no file_sd ao vivo
+  inventory-api:
+    <<: *target
+    environment: { SERVICE: inventory-api, TEAM: inventory }
+    ports: ["9128:8000"]

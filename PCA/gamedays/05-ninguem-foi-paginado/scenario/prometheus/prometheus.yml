@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # exporter do datalake (time data)
+  - job_name: datalake
+    static_configs:
+      - targets: ['app:9182']
+
+  # o checkout está FORA DO AR de verdade (ninguém escuta nessa porta)
+  - job_name: checkout
+    static_configs:
+      - targets: ['app:9189']

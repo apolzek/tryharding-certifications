@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Gera um dashboard Grafana por função a partir de functions/<fn>/lab.yaml.
 
+Também gera:
+  - ../labs/<lab>/lab.yaml (mesmo formato; `function: <lab>` = nome da pasta do lab) -> uid fn-<lab>,
+    com o link do guia apontando para labs/<lab>/README.md (ex.: labs/promql-operators);
+  - dashboards ESTÁTICOS: todo static-dashboards/<pasta>/<nome>.json é copiado como está para
+    dashboards/<pasta>/ (ex.: "00 - Meu progresso PCA"). Edite o JSON lá, não em dashboards/,
+    porque dashboards/**/*.json é APAGADO e recriado a cada execução.
+
 Formato do lab.yaml (veja functions/rate/lab.yaml como exemplo completo):
 
 function: rate                 # nome da função (= nome da pasta)
@@ -37,6 +44,7 @@ panels:
 import json
 import pathlib
 import re
+import shutil
 import sys
 
 import yaml
@@ -44,6 +52,11 @@ import yaml
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FUNCS = ROOT / "functions"
 OUT = ROOT / "dashboards"
+# lab.yaml de labs fora deste diretório (mesmo formato; `function` = nome da pasta do lab)
+EXTRA_LABS = ROOT.parent / "labs"
+# dashboards feitos à mão (JSON do Grafana), copiados como estão para dashboards/<pasta>/
+# — ex.: "00 - Meu progresso PCA". Sobrevivem à regeneração porque a fonte fica aqui.
+STATIC = ROOT / "static-dashboards"
 
 DS = {"type": "prometheus", "uid": "prometheus"}
 
@@ -154,7 +167,8 @@ def panel(p, pid, x, y):
 def build(lab, readme_url):
     fn = lab["function"]
     panels, pid, x, y = [], 1, 0, 0
-    intro = lab.get("intro", "").rstrip() + f"\n\n📘 Guia completo: `functions/{fn}/README.md`"
+    readme = readme_url or f"functions/{fn}/README.md"
+    intro = lab.get("intro", "").rstrip() + f"\n\n📘 Guia completo: `{readme}`"
     ih = lab.get("intro_height", 6)
     panels.append(panel({"type": "text", "title": lab["title"], "content": intro, "width": 24, "height": ih}, pid, 0, 0))
     y = ih
@@ -190,14 +204,16 @@ def main():
         if not only:
             old.unlink()
     n, errors = 0, 0
-    for labf in sorted(FUNCS.glob("*/lab.yaml")):
+    labs = [(f, None) for f in sorted(FUNCS.glob("*/lab.yaml"))]
+    labs += [(f, f"labs/{f.parent.name}/README.md") for f in sorted(EXTRA_LABS.glob("*/lab.yaml"))]
+    for labf, readme in labs:
         fn = labf.parent.name
         if only and fn not in only:
             continue
         try:
             lab = yaml.safe_load(labf.read_text())
             assert lab.get("function") == fn, f"function={lab.get('function')} != pasta {fn}"
-            dash = build(lab, None)
+            dash = build(lab, readme)
         except Exception as e:  # noqa
             print(f"ERRO {labf}: {e}", file=sys.stderr)
             errors += 1
@@ -207,7 +223,15 @@ def main():
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{fn}.json").write_text(json.dumps(dash, indent=2, ensure_ascii=False))
         n += 1
-    print(f"{n} dashboards gerados, {errors} erros")
+    ns = 0
+    for f in sorted(STATIC.glob("**/*.json")):
+        if only and f.stem not in only:
+            continue
+        dst = OUT / f.relative_to(STATIC)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(f, dst)
+        ns += 1
+    print(f"{n} dashboards gerados + {ns} estáticos (static-dashboards/), {errors} erros")
     return 1 if errors else 0
 
 

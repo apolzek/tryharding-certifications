@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ── exporter de máquina ──
+  - job_name: node
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # ── métricas DO PRÓPRIO blackbox (não são as sondas!) ──
+  - job_name: blackbox-exporter
+    static_configs:
+      - targets: ['blackbox:9115']
+
+  # ── Pushgateway ──
+  # ⚠️ BUG (exercício 06): falta uma linha aqui. Veja o que acontece com os labels job/instance.
+  - job_name: pushgateway
+    static_configs:
+      - targets: ['pushgateway:9091']
+
+  # exercício 03: adicione aqui os jobs de sondas do blackbox (http, tcp, dns, icmp)

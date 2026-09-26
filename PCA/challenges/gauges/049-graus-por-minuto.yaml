@@ -1,0 +1,26 @@
+id: "049"
+title: "Graus por minuto"
+topic: gauges
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/deriv/
+prompt: |
+  Mostre **quantos °C por minuto** a temperatura do rack (`deriv_node_hwmon_temp_celsius`)
+  está subindo ou descendo, usando regressão linear no último minuto.
+hints:
+  - "deriv() dá a inclinação POR SEGUNDO."
+  - "Converta para minuto."
+  - "deriv(deriv_node_hwmon_temp_celsius[1m]) * 60"
+solution: 'deriv(deriv_node_hwmon_temp_celsius[1m]) * 60'
+accepted_answers:
+  - '60 * deriv(deriv_node_hwmon_temp_celsius[1m])'
+wrong_answers:
+  - 'deriv(deriv_node_hwmon_temp_celsius[1m])'
+  - 'deriv(deriv_node_hwmon_temp_celsius[1m]) * 3600'
+  - 'delta(deriv_node_hwmon_temp_celsius[1m]) / 60'
+explanation: |
+  Todas as funções "por segundo" (`rate`, `irate`, `deriv`) usam segundos. Multiplique para mudar a unidade.
+
+  Observação: `delta(x[1m])` dá um número PARECIDO (variação no último minuto), mas usa só o primeiro e o
+  último ponto (e extrapola), enquanto `deriv` usa todos os pontos — com ruído eles divergem.
+  Pegadinha: `delta(x[1m]) / 60` já é por segundo; dividir de novo não faz sentido.

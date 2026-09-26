@@ -1,0 +1,25 @@
+id: '248'
+title: '`without` mantém job e instance'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  Some o tamanho de todas as partições de `sort_by_label_desc_kafka_log_size_bytes{topic, partition}`,
+  **removendo só o label `partition`** — todos os outros labels (`topic`, `job`, `instance`, `env`)
+  devem continuar no resultado.
+hints:
+- by mantém SÓ os labels listados; without remove SÓ os listados
+- sum without(partition)(...)
+solution: sum without(partition)(sort_by_label_desc_kafka_log_size_bytes)
+accepted_answers:
+- sum by(topic, job, instance, env)(sort_by_label_desc_kafka_log_size_bytes)
+- sum(sort_by_label_desc_kafka_log_size_bytes) without (partition)
+wrong_answers:
+- sum by(topic)(sort_by_label_desc_kafka_log_size_bytes)
+- sum(sort_by_label_desc_kafka_log_size_bytes)
+tolerance: 0.001
+explanation: |
+  `without(partition)` remove apenas `partition` e **preserva** `topic`, `job`, `instance`, `env`.
+  `by(topic)` jogaria fora `job`/`instance` também. Em recording rules, `without` é preferido
+  justamente por preservar os labels de alvo. Valor: 78 GiB.

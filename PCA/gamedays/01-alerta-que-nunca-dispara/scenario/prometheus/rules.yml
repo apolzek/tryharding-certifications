@@ -1,0 +1,15 @@
+groups:
+  - name: checkout
+    rules:
+      - alert: CheckoutErrosAltos
+        # "Janela curtinha pra reagir rápido" + "for longo pra não acordar ninguém à toa"
+        expr: |
+          sum(rate(http_requests_total{job="checkout", code="500"}[5s]))
+            /
+          sum(rate(http_requests_total{job="checkout"}[5s]))
+            > 0.1
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Checkout com {{ $value | humanizePercentage }} de erro"

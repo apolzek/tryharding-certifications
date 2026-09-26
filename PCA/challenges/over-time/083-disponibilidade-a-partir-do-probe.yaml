@@ -1,0 +1,25 @@
+id: "083"
+title: "Disponibilidade a partir do probe"
+topic: over-time
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/avg_over_time/
+prompt: |
+  `avg_over_time_probe_success{service}` vale 1 (ok) ou 0 (falhou). Calcule a **disponibilidade
+  (fração 0..1) de cada serviço nos últimos 10 minutos**.
+hints:
+  - "A média de uma série 0/1 é a fração do tempo em que ela valeu 1."
+  - "avg_over_time(v[10m])"
+  - "avg_over_time(avg_over_time_probe_success[10m])"
+solution: 'avg_over_time(avg_over_time_probe_success[10m])'
+accepted_answers:
+  - 'sum_over_time(avg_over_time_probe_success[10m]) / count_over_time(avg_over_time_probe_success[10m])'
+wrong_answers:
+  - 'avg(avg_over_time_probe_success)'
+  - 'min_over_time(avg_over_time_probe_success[10m])'
+  - 'sum_over_time(avg_over_time_probe_success[10m])'
+explanation: |
+  checkout = 1 (100%), search ≈ 0,75 (fica 30 s fora a cada 2 min).
+  É o SLI de disponibilidade mais simples: `avg_over_time(probe_success[30d])`.
+
+  Pegadinha: `sum_over_time` conta quantas amostras OK, não a fração.

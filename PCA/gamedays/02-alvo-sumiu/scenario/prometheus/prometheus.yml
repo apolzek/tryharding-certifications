@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: payments
+    static_configs:
+      - targets: ['app:9182']
+        labels:
+          env: production
+          team: payments
+    relabel_configs:
+      # PR #4821 "só raspar produção" (review aprovado em 2 min)
+      - source_labels: [env]
+        regex: prod
+        action: keep

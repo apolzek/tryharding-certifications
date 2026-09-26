@@ -1,0 +1,24 @@
+id: "146"
+title: "Ordem natural dos nós"
+topic: labels
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_by_label/
+prompt: |
+  Liste `sort_by_label_node_load1` **ordenado pelo nome do nó** em ordem natural
+  (node-1, node-2, …, node-10, node-11, node-12). (A ordem é verificada.)
+hints:
+  - "Ordenar por LABEL, não por valor."
+  - "A função (experimental) usa ordem natural."
+  - "sort_by_label(sort_by_label_node_load1, \"node\")"
+solution: 'sort_by_label(sort_by_label_node_load1, "node")'
+wrong_answers:
+  - 'sort(sort_by_label_node_load1)'
+  - 'sort_by_label_desc(sort_by_label_node_load1, "node")'
+  - 'sort_by_label(sort_by_label_node_load1, "zone")'
+ordered: true
+explanation: |
+  `sort_by_label` usa ordem **natural**: `node-2` vem antes de `node-10` (a ordem alfabética pura colocaria
+  node-10 logo depois de node-1).
+
+  Pegadinha: `sort()` ordena pelo VALOR (o load), não pelo nome.

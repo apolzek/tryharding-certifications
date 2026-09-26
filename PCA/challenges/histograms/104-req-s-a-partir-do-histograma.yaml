@@ -1,0 +1,25 @@
+id: "104"
+title: "Req/s a partir do histograma"
+topic: histograms
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_count/
+prompt: |
+  Você não tem um counter de requisições, só o histograma de latência. Calcule as **req/s de cada rota**
+  (janela de 1 min) usando o **native histogram** `histogram_count_http_request_duration_seconds`.
+hints:
+  - "Cada observação do histograma é uma requisição."
+  - "Existe uma função que extrai a contagem de um native histogram."
+  - "histogram_count(rate(histogram_count_http_request_duration_seconds[1m]))"
+solution: 'histogram_count(rate(histogram_count_http_request_duration_seconds[1m]))'
+accepted_answers:
+  - 'rate(histogram_count_http_request_duration_seconds_count[1m])'
+wrong_answers:
+  - 'histogram_count(histogram_count_http_request_duration_seconds)'
+  - 'histogram_sum(rate(histogram_count_http_request_duration_seconds[1m]))'
+  - 'histogram_count(rate(histogram_count_http_request_duration_seconds[1m])) * 60'
+explanation: |
+  `histogram_count(rate(h[1m]))` = observações por segundo = req/s. É equivalente a
+  `rate(h_count[1m])` na forma clássica.
+
+  Pegadinha: sem `rate`, `histogram_count(h)` é o total acumulado desde o início do processo.

@@ -1,0 +1,27 @@
+{
+ "total": 1256,
+ "by_domain": {
+  "observability": 43,
+  "fundamentals": 93,
+  "promql": 986,
+  "instrumentation": 64,
+  "alerting": 70
+ },
+ "by_origin": {
+  "curated": 153,
+  "top15": 15,
+  "lesson": 909,
+  "lab": 179
+ },
+ "labs": [
+  "alertmanager",
+  "exporters-pushgateway",
+  "federation-remote-write",
+  "instrumentation",
+  "promql-operators",
+  "recording-rules-testing",
+  "service-discovery-relabeling",
+  "slo-end-to-end",
+  "tsdb-storage"
+ ]
+}

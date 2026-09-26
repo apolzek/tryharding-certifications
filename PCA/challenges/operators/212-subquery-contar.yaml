@@ -1,0 +1,23 @@
+id: '212'
+title: 'Subquery: quantos minutos acima do limite?'
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#5-subqueries
+prompt: |
+  Avaliando **uma vez por minuto** nos **últimos 30 minutos**: em quantos desses pontos a taxa
+  `rate(rate_http_requests_total{route="/api/search"}[1m])` estava **acima de 30 req/s**?
+hints:
+- Filtre com > 30 DENTRO da subquery e conte os pontos que sobraram
+- count_over_time((expr > 30)[30m:1m])
+solution: count_over_time((rate(rate_http_requests_total{route="/api/search"}[1m]) > 30)[30m:1m])
+accepted_answers:
+- sum_over_time((rate(rate_http_requests_total{route="/api/search"}[1m]) > bool 30)[30m:1m])
+wrong_answers:
+- count_over_time(rate(rate_http_requests_total{route="/api/search"}[1m])[30m:1m])
+- count_over_time((rate(rate_http_requests_total{route="/api/search"}[1m]) > bool 30)[30m:1m])
+tolerance: 0.001
+explanation: |
+  O filtro `> 30` dentro da subquery **remove** os pontos abaixo do limite; `count_over_time` conta os
+  que sobraram. Com `> bool 30` os pontos viram 0/1 e aí você **soma** (`sum_over_time`) em vez de contar.
+  Sem o filtro, `count_over_time(...[30m:1m])` sempre dá 30.

@@ -1,0 +1,23 @@
+id: '229'
+title: '`or vector(0)`: nunca retornar vazio'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#9-operadores-lógicos-and-or-unless
+prompt: |
+  Some a taxa (`rate` 5m) de `sort_desc_http_requests_total` do serviço `search`.
+  Esse serviço **não existe** (ainda). A query deve retornar **0** em vez de vazio, para o painel
+  do Grafana não mostrar "No data".
+hints:
+- Uma agregação de nada é vazio
+- Complete com or vector(0)
+solution: sum(rate(sort_desc_http_requests_total{service="search"}[5m])) or vector(0)
+accepted_answers:
+- sum(rate(sort_desc_http_requests_total{service="search"}[5m])) or on() vector(0)
+wrong_answers:
+- sum(rate(sort_desc_http_requests_total{service="search"}[5m]))
+- sum(rate(sort_desc_http_requests_total{service="search"}[5m])) and vector(0)
+explanation: |
+  `sum()` de um vetor vazio retorna **vazio** (não 0). `or vector(0)` completa com uma série sem
+  labels valendo 0. Funciona porque `sum()` sem `by` também não tem labels: se a série existir,
+  ela "ganha" do `vector(0)` (mesmo label set `{}`).

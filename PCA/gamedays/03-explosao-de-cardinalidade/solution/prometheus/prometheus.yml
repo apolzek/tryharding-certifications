@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: checkout
+    # rede de proteção: se um deploy futuro explodir de novo, o scrape falha
+    # (up=0) em vez de derrubar o Prometheus inteiro
+    sample_limit: 1000
+    label_limit: 30
+    static_configs:
+      - targets: ['app:9182']
+    metric_relabel_configs:
+      # métrica de debug com user_id (cardinalidade ilimitada): fora!
+      - source_labels: [__name__]
+        regex: app_requests_by_user_total
+        action: drop

@@ -1,0 +1,27 @@
+id: "006"
+title: "Erros no último 10 min com offset"
+topic: selectors-and-types
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/increase/
+prompt: |
+  O counter `irate_node_network_transmit_errs_total{device="eth0"}` sobe 1 a cada 40 s.
+  **Sem usar funções**, só com o modificador `offset`, calcule quantos erros de transmissão
+  aconteceram nos **últimos 10 minutos**.
+hints:
+  - "`x offset 10m` é o valor que x tinha 10 minutos atrás."
+  - "Valor de agora menos o valor de 10 min atrás."
+  - "irate_node_network_transmit_errs_total - irate_node_network_transmit_errs_total offset 10m"
+solution: 'irate_node_network_transmit_errs_total - irate_node_network_transmit_errs_total offset 10m'
+accepted_answers:
+  - 'irate_node_network_transmit_errs_total{device="eth0"} - irate_node_network_transmit_errs_total{device="eth0"} offset 10m'
+  - '-(irate_node_network_transmit_errs_total offset 10m - irate_node_network_transmit_errs_total)'
+wrong_answers:
+  - 'irate_node_network_transmit_errs_total offset 10m'
+  - 'rate(irate_node_network_transmit_errs_total[10m])'
+  - 'irate_node_network_transmit_errs_total offset 10m - irate_node_network_transmit_errs_total'
+explanation: |
+  `offset` desloca a avaliação no tempo **só daquele seletor**. `x - x offset 10m` = 15 (600 s / 40 s).
+
+  Pegadinha: essa subtração ingênua **quebra se o counter resetar** na janela (fica negativa).
+  Em produção use `increase(x[10m])`, que compensa resets (mas extrapola, então raramente dá inteiro).

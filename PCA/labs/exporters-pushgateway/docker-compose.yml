@@ -1,0 +1,62 @@
+name: pca-exporters-pushgateway
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-lifecycle
+    volumes:
+      - ${PROM_DIR:-./prometheus}:/etc/prometheus:ro
+    ports: ["9140:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    command:
+      - --path.rootfs=/host                        # métricas do HOST, não do container
+      - --collector.textfile.directory=/textfile   # textfile collector
+    volumes:
+      - /:/host:ro,rslave
+      - ${TEXTFILE_DIR:-./textfile}:/textfile:ro
+    ports: ["9141:9100"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9100/metrics"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.28.0
+    command: ["--config.file=/config/blackbox.yml"]
+    volumes:
+      - ./blackbox:/config:ro
+      - ./certs/ca.crt:/certs/ca.crt:ro
+    ports: ["9142:9115"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9115/-/healthy"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  pushgateway:
+    image: prom/pushgateway:v1.11.3
+    ports: ["9143:9091"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9091/-/ready"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  # site HTTPS interno (CA do lab) para o blackbox medir certificado
+  https-site:
+    image: python:3.14-alpine
+    command: ["python", "-u", "/server.py"]
+    working_dir: /tmp
+    volumes:
+      - ./https-site/server.py:/server.py:ro
+      - ./certs:/certs:ro

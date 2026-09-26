@@ -1,0 +1,22 @@
+id: '241'
+title: Quantas versões distintas?
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  Quantas **versões diferentes** de `sort_by_label_app_build_info{version}` estão em produção?
+  (uma série com o número)
+hints:
+- Primeiro reduza para 1 série por versão, depois conte as séries
+- count(group by(version)(...))
+solution: count(group by(version)(sort_by_label_app_build_info))
+accepted_answers:
+- count(count by(version)(sort_by_label_app_build_info))
+- count(sum by(version)(sort_by_label_app_build_info))
+wrong_answers:
+- count(sort_by_label_app_build_info)
+- count by(version)(sort_by_label_app_build_info)
+explanation: |
+  Agregações aninhadas: `group by(version)` deixa uma série por versão (valor 1), e o `count` de
+  fora conta essas séries → **4**. Usar `count(x)` direto contaria pods (11).

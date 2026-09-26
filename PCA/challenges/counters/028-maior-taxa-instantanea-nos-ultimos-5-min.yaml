@@ -1,0 +1,25 @@
+id: "028"
+title: "Maior taxa instantânea nos últimos 5 min"
+topic: counters
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/irate/
+prompt: |
+  Para dimensionar o autoscaling, o time quer o **pico de req/s instantâneo** (irate) da rota
+  `/api/orders` (`irate_http_requests_total`) **nos últimos 5 minutos**.
+hints:
+  - "Calcule o irate e depois pegue o máximo ao longo do tempo."
+  - "Uma subquery `[5m:]` transforma a expressão em range vector."
+  - "max_over_time(irate(irate_http_requests_total[1m])[5m:])"
+solution: 'max_over_time(irate(irate_http_requests_total[1m])[5m:])'
+accepted_answers:
+  - 'max_over_time(irate(irate_http_requests_total[30s])[5m:5s])'
+wrong_answers:
+  - 'max_over_time(rate(irate_http_requests_total[1m])[5m:])'
+  - 'avg_over_time(irate(irate_http_requests_total[1m])[5m:])'
+  - 'max_over_time(irate_http_requests_total[5m])'
+explanation: |
+  Com subquery a cada 5 s, o irate enxerga as rajadas (~100 req/s) e o `max_over_time` pega o pico.
+
+  Pegadinha: `max_over_time(rate(x[1m])[5m:])` nunca passa de ~29, porque o rate de 1 min
+  já diluiu a rajada de 15 s.

@@ -1,0 +1,23 @@
+id: '240'
+title: '`count by`: pods por versão'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  `sort_by_label_app_build_info{pod, version}` vale 1 por pod.
+
+  Quantos pods estão rodando **cada versão**?
+hints:
+- count conta séries
+- count by(version)(...)
+solution: count by(version)(sort_by_label_app_build_info)
+accepted_answers:
+- sum by(version)(sort_by_label_app_build_info)
+- count(sort_by_label_app_build_info) by (version)
+wrong_answers:
+- group by(version)(sort_by_label_app_build_info)
+- count(sort_by_label_app_build_info)
+explanation: |
+  `count by(version)` conta quantas séries há em cada grupo: 1.10.0 → 5, 1.10.12 → 3, 1.9.2 → 2,
+  1.2.0 → 1. Como o valor é sempre 1, `sum by(version)` dá o mesmo. `group by` daria 1 para todas.

@@ -1,0 +1,556 @@
+# Questões originais — domínio Instrumentation and Exporters (enunciado EN, explicação pt-BR)
+- id: instr-001
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    Which of the following should be instrumented as a counter?
+  options:
+  - 'The total number of HTTP requests served since the process started'
+  - 'The current number of items in a queue'
+  - 'The current temperature of a CPU'
+  - 'The amount of free disk space'
+  answer: A
+  explanation_pt: |
+    Counter = valor que só SOBE (ou zera em restart): requisições, erros, bytes enviados. Fila, temperatura e espaço livre sobem e descem, então são gauges.
+  source: https://prometheus.io/docs/concepts/metric_types/#counter
+  lang: en
+- id: instr-002
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    Which of the following should be instrumented as a gauge?
+  options:
+  - 'Number of errors since startup'
+  - 'Bytes sent over the network since startup'
+  - 'Number of requests currently being processed (in-flight)'
+  - 'Total number of completed jobs'
+  answer: C
+  explanation_pt: |
+    Gauge representa um valor que pode subir e descer: requisições em andamento, memória em uso, tamanho de fila. Os demais são contagens acumuladas (counters).
+  source: https://prometheus.io/docs/concepts/metric_types/#gauge
+  lang: en
+- id: instr-003
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    A classic histogram named http_request_duration_seconds is exposed. Which set of series does it produce?
+  options:
+  - 'http_request_duration_seconds{quantile="..."}, _sum and _count'
+  - 'http_request_duration_seconds_total and _max'
+  - 'http_request_duration_seconds_min, _max and _avg'
+  - 'http_request_duration_seconds_bucket{le="..."}, http_request_duration_seconds_sum and http_request_duration_seconds_count'
+  answer: D
+  explanation_pt: |
+    Histograma clássico: um `_bucket` por limite `le` (cumulativo, incluindo `+Inf`), mais `_sum` e `_count`. A série com label `quantile` é característica do summary.
+  source: https://prometheus.io/docs/concepts/metric_types/#histogram
+  lang: en
+- id: instr-004
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    Which series does a summary metric named rpc_duration_seconds expose?
+  options:
+  - 'rpc_duration_seconds_bucket{le="..."} only'
+  - 'rpc_duration_seconds{quantile="..."}, rpc_duration_seconds_sum and rpc_duration_seconds_count'
+  - 'rpc_duration_seconds_total'
+  - 'rpc_duration_seconds_created only'
+  answer: B
+  explanation_pt: |
+    Summary expõe quantis pré-calculados no cliente (label `quantile`, ex.: 0.5, 0.9, 0.99) mais `_sum` e `_count`. Não tem buckets.
+  source: https://prometheus.io/docs/concepts/metric_types/#summary
+  lang: en
+- id: instr-005
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    You need the 99th percentile latency aggregated across 50 replicas of a service. Which metric type should the service expose?
+  options:
+  - 'Histogram'
+  - 'Summary'
+  - 'Gauge with the last observed latency'
+  - 'Counter of requests'
+  answer: A
+  explanation_pt: |
+    Buckets de histogramas podem ser SOMADOS entre instâncias e o quantil é calculado no servidor com `histogram_quantile`. Quantis de summary são calculados em cada processo e não podem ser agregados corretamente (média de p99 não é p99).
+  source: https://prometheus.io/docs/practices/histograms/
+  lang: en
+- id: instr-006
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    What is an advantage of a summary over a classic histogram?
+  options:
+  - 'Its quantiles can be aggregated across instances'
+  - 'It is cheaper for the server to compute quantiles at query time'
+  - 'Its quantiles are computed in the client with a configurable error, without having to choose bucket boundaries in advance'
+  - 'Quantiles and the time window can be changed freely at query time'
+  answer: C
+  explanation_pt: |
+    Summary dá quantis precisos (dentro do erro configurado) por instância, sem escolher buckets. Em troca: não agrega, os quantis e a janela são fixados no código, e o cálculo custa CPU no cliente.
+  source: https://prometheus.io/docs/practices/histograms/
+  lang: en
+- id: instr-007
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    In a classic histogram, what does the bucket http_request_duration_seconds_bucket{le="0.5"} count?
+  options:
+  - 'Observations between the previous bucket boundary and 0.5 seconds'
+  - 'Observations greater than 0.5 seconds'
+  - 'The 50th percentile of the observations'
+  - 'All observations less than or equal to 0.5 seconds'
+  answer: D
+  explanation_pt: |
+    Buckets são CUMULATIVOS: `le` = "less than or equal". O bucket `le="0.5"` inclui também o que caiu nos buckets menores. Por isso os valores crescem com `le`.
+  source: https://prometheus.io/docs/concepts/metric_types/#histogram
+  lang: en
+- id: instr-008
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    In a classic histogram, the bucket with le="+Inf" always has the same value as which series?
+  options:
+  - '_sum'
+  - '_count'
+  - 'The largest finite bucket'
+  - 'The first bucket'
+  answer: B
+  explanation_pt: |
+    O bucket `+Inf` contém TODAS as observações, então é igual ao `_count`. O `_sum` é a soma dos valores observados (ex.: segundos somados).
+  source: https://prometheus.io/docs/concepts/metric_types/#histogram
+  lang: en
+- id: instr-009
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    According to Prometheus naming conventions, which suffix should a counter have?
+  options:
+  - '_total'
+  - '_count'
+  - '_counter'
+  - '_sum'
+  answer: A
+  explanation_pt: |
+    Counters terminam em `_total` (ex.: `http_requests_total`). `_count` e `_sum` são sufixos gerados por histogramas e summaries.
+  source: https://prometheus.io/docs/practices/naming/#metric-names
+  lang: en
+- id: instr-010
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    Which metric name best follows Prometheus naming best practices?
+  options:
+  - 'http_request_duration_ms'
+  - 'httpRequestDurationSeconds'
+  - 'http_request_duration_seconds'
+  - 'request_latency_minutes_total'
+  answer: C
+  explanation_pt: |
+    Use snake_case, unidades BASE (segundos, bytes) e o sufixo da unidade no nome. Milissegundos e minutos não são unidades base; `_total` é só para counters.
+  source: https://prometheus.io/docs/practices/naming/#base-units
+  lang: en
+- id: instr-011
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    How do the Prometheus conventions recommend exposing a ratio, such as cache hit ratio?
+  options:
+  - 'As a percentage from 0 to 100'
+  - 'As a value from 0 to 1'
+  - 'As two separate labels hit="true|false"'
+  - 'As a string'
+  answer: B
+  explanation_pt: |
+    Razões devem ir de 0 a 1 (ex.: sufixo `_ratio`). A conversão para porcentagem fica para o dashboard.
+  source: https://prometheus.io/docs/practices/naming/#base-units
+  lang: en
+- id: instr-012
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    A developer created the metrics http_requests_get_total, http_requests_post_total and http_requests_put_total. What is the recommended alternative?
+  options:
+  - 'Keep them, since separate names are faster to query'
+  - 'A gauge named http_requests_by_method'
+  - 'Use a summary with a method quantile'
+  - 'A single counter http_requests_total with a method label'
+  answer: D
+  explanation_pt: |
+    Dimensões pertencem aos LABELS, não ao nome. Com `http_requests_total{method="GET"}` dá para somar tudo (`sum(rate(http_requests_total[5m]))`) ou quebrar por método (`by (method)`).
+  source: https://prometheus.io/docs/practices/naming/#labels
+  lang: en
+- id: instr-013
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    What is the purpose of a prefix such as prometheus_, process_ or node_ at the start of a metric name?
+  options:
+  - 'It is a single-word namespace indicating the domain (application or library) the metric belongs to'
+  - 'It selects the metric type'
+  - 'It indicates the unit of the metric'
+  - 'It is required by the exposition format parser'
+  answer: A
+  explanation_pt: |
+    A doc recomenda um prefixo de uma palavra relativo ao domínio (namespace), por exemplo `prometheus_notifications_total`, `process_cpu_seconds_total`, `http_request_duration_seconds`.
+  source: https://prometheus.io/docs/practices/naming/#metric-names
+  lang: en
+- id: instr-014
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    Which language does NOT have an official client library maintained by the Prometheus project?
+  options:
+  - 'Go'
+  - 'Python'
+  - 'Node.js'
+  - 'Rust'
+  answer: C
+  explanation_pt: |
+    As bibliotecas oficiais são Go, Java/Scala, Python, Ruby e Rust. Node.js (prom-client), .NET, PHP e outras são bibliotecas de terceiros.
+  source: https://prometheus.io/docs/instrumenting/clientlibs/
+  lang: en
+- id: instr-015
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    What is an exporter in the Prometheus ecosystem?
+  options:
+  - 'A tool that exports Prometheus data to CSV'
+  - 'A process that fetches metrics from a third-party system and exposes them in the Prometheus format'
+  - 'A component that sends alerts to Slack'
+  - 'The remote write client'
+  answer: B
+  explanation_pt: |
+    Quando você não pode instrumentar o código (MySQL, Linux, hardware, HAProxy), um exporter traduz as estatísticas nativas desse sistema para métricas Prometheus em um `/metrics`.
+  source: https://prometheus.io/docs/instrumenting/exporters/
+  lang: en
+- id: instr-016
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    On which port does node_exporter listen by default?
+  options:
+  - '9100'
+  - '9090'
+  - '9093'
+  - '9115'
+  answer: A
+  explanation_pt: |
+    Portas padrão comuns: Prometheus 9090, Alertmanager 9093, Pushgateway 9091, node_exporter 9100, blackbox_exporter 9115.
+  source: https://github.com/prometheus/prometheus/wiki/Default-port-allocations
+  lang: en
+- id: instr-017
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    A nightly cron job on a server should expose the time of its last successful run. The host already runs node_exporter. What is the simplest supported approach?
+  options:
+  - 'Make the cron job listen on a port until the next run'
+  - 'Write directly to the Prometheus TSDB directory'
+  - 'Add a label to the node_cpu_seconds_total series'
+  - 'Have the job write a .prom file into the directory read by node_exporter''s textfile collector'
+  answer: D
+  explanation_pt: |
+    O textfile collector do node_exporter lê arquivos `*.prom` (formato texto) de um diretório configurado e os expõe junto com as métricas da máquina. É o caminho indicado para batch jobs presos a uma máquina (escreva num arquivo temporário e renomeie, para ser atômico).
+  source: https://github.com/prometheus/node_exporter#textfile-collector
+  lang: en
+- id: instr-018
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    Which metric does blackbox_exporter expose to indicate whether a probe succeeded?
+  options:
+  - 'up'
+  - 'probe_http_status_code only'
+  - 'probe_success'
+  - 'blackbox_ok'
+  answer: C
+  explanation_pt: |
+    `probe_success` é 1 quando a sonda passou e 0 quando falhou. Atenção: `up` do job blackbox indica apenas que o EXPORTER respondeu, não que o alvo testado está saudável.
+  source: https://github.com/prometheus/blackbox_exporter
+  lang: en
+- id: instr-019
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    For which use case does the Prometheus documentation recommend the Pushgateway?
+  options:
+  - 'Capturing the outcome of service-level batch jobs'
+  - 'Turning Prometheus into a push-based system for all services'
+  - 'Receiving metrics from long-running services behind NAT'
+  - 'Replacing node_exporter on short-lived hosts'
+  answer: A
+  explanation_pt: |
+    A doc diz que o único caso válido é capturar o resultado de batch jobs de nível de serviço (não ligados a uma máquina ou instância). Para outros casos, prefira o modelo pull.
+  source: https://prometheus.io/docs/practices/pushing/
+  lang: en
+- id: instr-020
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    Which is a documented pitfall of using the Pushgateway?
+  options:
+  - 'It can only store gauges'
+  - 'It rejects metrics with labels'
+  - 'It must be scraped with honor_labels: false'
+  - 'Pushed series are never forgotten automatically; they stay exposed until deleted through the Pushgateway API'
+  answer: D
+  explanation_pt: |
+    Riscos listados na doc: ponto único de falha/gargalo, perda do monitoramento de saúde via `up` por instância, e séries que persistem para sempre até serem apagadas manualmente (ex.: instância que já não existe continua aparecendo).
+  source: https://prometheus.io/docs/practices/pushing/
+  lang: en
+- id: instr-021
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    What scrape setting should be used when Prometheus scrapes a Pushgateway?
+  options:
+  - 'honor_timestamps: false'
+  - 'scrape_interval: 1s'
+  - 'honor_labels: true'
+  - 'metrics_path: /push'
+  answer: C
+  explanation_pt: |
+    Com `honor_labels: true`, os labels `job` e `instance` empurrados pelo batch job são mantidos; senão virariam `exported_job`/`exported_instance` e o `job` seria o do Pushgateway.
+  source: https://github.com/prometheus/pushgateway#about-the-job-and-instance-labels
+  lang: en
+- id: instr-022
+  domain: Instrumentation and Exporters
+  difficulty: hard
+  question: |
+    A batch job pushes metrics to the Pushgateway with an HTTP PUT to /metrics/job/backup. What happens to metrics previously pushed to that same group?
+  options:
+  - 'Only metrics with the same names as the new push are replaced'
+  - 'All metrics in the group are replaced by the newly pushed ones'
+  - 'The new values are added to the old ones'
+  - 'The request is rejected because the group exists'
+  answer: B
+  explanation_pt: |
+    PUT substitui TODAS as métricas do grupo (job + labels de agrupamento). POST substitui só as métricas com o mesmo nome. DELETE remove o grupo.
+  source: https://github.com/prometheus/pushgateway#put-method
+  lang: en
+- id: instr-023
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    Which metric does the Pushgateway add to each group to record the time of the last successful push?
+  options:
+  - 'push_time_seconds'
+  - 'last_push_timestamp'
+  - 'up'
+  - 'pushgateway_build_info'
+  answer: A
+  explanation_pt: |
+    Cada grupo recebe `push_time_seconds` (último push bem-sucedido) e `push_failure_time_seconds` (último push que falhou). Um alerta comum é `time() - push_time_seconds > limite`.
+  source: https://github.com/prometheus/pushgateway#about-timestamps
+  lang: en
+- id: instr-024
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    In the Prometheus text exposition format, what does the line "# TYPE http_requests_total counter" do?
+  options:
+  - 'It is a comment ignored by all parsers'
+  - 'It creates the metric with value 0'
+  - 'It sets the unit of the metric'
+  - 'It declares the metric type for the metric family http_requests_total'
+  answer: D
+  explanation_pt: |
+    Linhas `# HELP` (descrição) e `# TYPE` (counter, gauge, histogram, summary, untyped) são metadados interpretados pelo parser. Comentários comuns são as outras linhas iniciadas por `#`.
+  source: https://prometheus.io/docs/instrumenting/exposition_formats/
+  lang: en
+- id: instr-025
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    Which line is a valid sample in the Prometheus text exposition format?
+  options:
+  - 'http_requests_total(method=post) = 1027'
+  - 'http_requests_total{method: "post"} 1027'
+  - 'http_requests_total{method="post",code="200"} 1027 1395066363000'
+  - '{method="post"} http_requests_total 1027'
+  answer: C
+  explanation_pt: |
+    Formato: `nome{label="valor",...} valor [timestamp]`. O timestamp é opcional, em milissegundos desde a epoch. Labels usam `=` e aspas duplas.
+  source: https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-example
+  lang: en
+- id: instr-026
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    How must an OpenMetrics text exposition end?
+  options:
+  - 'With an empty line'
+  - 'With the line "# EOF"'
+  - 'With a # TYPE line'
+  - 'With a checksum'
+  answer: B
+  explanation_pt: |
+    No OpenMetrics o payload termina obrigatoriamente em `# EOF`, o que permite detectar respostas truncadas. O formato texto clássico do Prometheus não tem esse marcador.
+  source: https://prometheus.io/docs/specs/om/open_metrics_spec/
+  lang: en
+- id: instr-027
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    What is the recommended pattern for exposing static metadata such as the version and git commit of a running application?
+  options:
+  - 'Put the version into the metric name, e.g. app_v1_2_3_up'
+  - 'Add version and commit labels to every metric'
+  - 'Expose a string-valued metric'
+  - 'An info-style gauge with value 1 carrying the metadata as labels, e.g. app_build_info{version="1.2.3",revision="abc"} 1'
+  answer: D
+  explanation_pt: |
+    Métricas `*_info` (ou `*_build_info`) têm valor constante 1 e carregam metadados em labels. Quando necessário, junte com outras séries via `* on(instance) group_left(version) app_build_info`. Colocar a versão em todas as métricas multiplica a cardinalidade a cada deploy.
+  source: https://prometheus.io/docs/practices/instrumentation/#info-metrics
+  lang: en
+- id: instr-028
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    A batch job wants to expose when it last completed successfully. What does the documentation recommend exposing?
+  options:
+  - 'A counter of seconds since the last success, incremented every second'
+  - 'A log line only'
+  - 'A gauge with the Unix timestamp (in seconds) of the last success, e.g. job_last_success_timestamp_seconds'
+  - 'A summary of success durations'
+  answer: C
+  explanation_pt: |
+    Exponha o INSTANTE (timestamp Unix em segundos) em um gauge; o "tempo desde" é calculado na consulta com `time() - job_last_success_timestamp_seconds`. Assim o valor não precisa ser atualizado continuamente.
+  source: https://prometheus.io/docs/practices/instrumentation/#batch-jobs
+  lang: en
+- id: instr-029
+  domain: Instrumentation and Exporters
+  difficulty: hard
+  question: |
+    Your SLO says 95% of requests must complete in 300 ms or less. Instrumenting latency as a classic histogram, what bucket choice lets you measure this SLO exactly?
+  options:
+  - 'Any buckets; histogram_quantile gives the exact value'
+  - 'Include a bucket boundary at exactly 0.3 seconds'
+  - 'Use only the +Inf bucket'
+  - 'Use buckets in milliseconds'
+  answer: B
+  explanation_pt: |
+    Com um bucket `le="0.3"`, a fração de requisições boas é exata: `rate(x_bucket{le="0.3"}[5m]) / rate(x_count[5m])`. Quantis via `histogram_quantile` são aproximados por interpolação.
+  source: https://prometheus.io/docs/practices/histograms/#apdex-score
+  lang: en
+- id: instr-030
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    A counter errors_total{type="timeout"} is only created the first time a timeout happens. Why does the documentation recommend initializing known label combinations to 0 at startup?
+  options:
+  - 'Missing series make expressions like rate() and alerts behave unexpectedly, since there is no series until the first event'
+  - 'Counters cannot start at a non-zero value'
+  - 'Uninitialized counters are exported as gauges'
+  - 'Prometheus refuses to scrape targets with missing series'
+  answer: A
+  explanation_pt: |
+    Se a série só aparece no primeiro evento, o primeiro incremento é "invisível" para `rate`/`increase` e consultas/alertas veem "no data" em vez de 0. Inicializar com 0 os valores de label conhecidos evita isso.
+  source: https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics
+  lang: en
+- id: instr-031
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    Which metrics are typically exposed automatically by the official client libraries (e.g. Go, Python) without extra code?
+  options:
+  - 'http_requests_total and http_request_duration_seconds'
+  - 'up and scrape_duration_seconds'
+  - 'node_cpu_seconds_total'
+  - 'Process metrics such as process_cpu_seconds_total, process_resident_memory_bytes and process_start_time_seconds'
+  answer: D
+  explanation_pt: |
+    As client libraries registram por padrão coletores de processo (CPU, memória, file descriptors, start time) e de runtime (ex.: `go_*`). Métricas HTTP dependem de middleware; `up` é gerada pelo servidor Prometheus.
+  source: https://prometheus.io/docs/instrumenting/writing_clientlibs/#process-metrics
+  lang: en
+- id: instr-032
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    Where are the quantiles of a summary (for example 0.5, 0.9, 0.99) and its time window defined?
+  options:
+  - 'In the PromQL query'
+  - 'In prometheus.yml'
+  - 'In the application code, when the summary is created with the client library'
+  - 'In Grafana'
+  answer: C
+  explanation_pt: |
+    Objectives e janela (`MaxAge`) do summary são fixados na instrumentação. Mudar o quantil exige mudar o código. No histograma, o quantil é escolhido na consulta.
+  source: https://prometheus.io/docs/practices/histograms/
+  lang: en
+- id: instr-033
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    What is a key advantage of native histograms over classic histograms?
+  options:
+  - 'They can be aggregated with avg() of quantiles'
+  - 'They provide high-resolution exponential buckets without predefining bucket boundaries, stored as a single series instead of one series per bucket'
+  - 'They are computed by Alertmanager'
+  - 'They require no scrape configuration at all in any Prometheus version'
+  answer: B
+  explanation_pt: |
+    Native histograms usam buckets exponenciais esparsos, com resolução alta e ajustável, e cada histograma é UMA série (amostra complexa). No Prometheus 3.15 a ingestão é controlada por `scrape_native_histograms` (default false).
+  source: https://prometheus.io/docs/specs/native_histograms/
+  lang: en
+- id: instr-034
+  domain: Instrumentation and Exporters
+  difficulty: easy
+  question: |
+    node_filesystem_avail_bytes reports the free space of a filesystem. What type of metric is it?
+  options:
+  - 'Gauge'
+  - 'Counter'
+  - 'Histogram'
+  - 'Summary'
+  answer: A
+  explanation_pt: |
+    Espaço livre sobe e desce: gauge. Use `predict_linear`/`deriv` em gauges e `rate`/`increase` apenas em counters.
+  source: https://prometheus.io/docs/concepts/metric_types/#gauge
+  lang: en
+- id: instr-035
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    What happens to a counter value when the instrumented process restarts?
+  options:
+  - 'It continues from the previous value stored in Prometheus'
+  - 'It becomes negative'
+  - 'It is reset to zero; functions like rate() and increase() detect and compensate for the reset'
+  - 'The series is renamed with a _reset suffix'
+  answer: C
+  explanation_pt: |
+    Counters vivem na memória do processo e voltam a 0 no restart. `rate`, `irate` e `increase` interpretam qualquer queda como reset e ajustam o cálculo. Por isso nunca se usa `rate` em gauges.
+  source: https://prometheus.io/docs/concepts/metric_types/#counter
+  lang: en
+- id: instr-036
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    What is a reasonable guideline for label cardinality when instrumenting a metric?
+  options:
+  - 'Use labels for any value that may be useful, including request IDs'
+  - 'Never use labels'
+  - 'Put every label into the metric name instead'
+  - 'Keep the set of values of each label bounded and small; as a rule of thumb keep most metrics well below ~10 label value combinations and avoid unbounded values'
+  answer: D
+  explanation_pt: |
+    A doc de instrumentação sugere manter a cardinalidade da maioria das métricas abaixo de 10 e investigar métricas que passem de ~100 séries. Valores ilimitados (IDs, e-mails) nunca devem ser labels.
+  source: https://prometheus.io/docs/practices/instrumentation/#do-not-overuse-labels
+  lang: en
+- id: instr-037
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: |
+    How does blackbox_exporter receive the address it must probe when Prometheus scrapes it?
+  options:
+  - 'As a target URL parameter on the /probe endpoint, e.g. /probe?target=https://example.com&module=http_2xx'
+  - 'From its own list of static targets in blackbox.yml'
+  - 'From a DNS SRV lookup performed by the exporter'
+  - 'Through the Pushgateway'
+  answer: A
+  explanation_pt: |
+    O blackbox segue o padrão "multi-target exporter": o Prometheus chama `/probe` passando `target` e `module` como parâmetros (via `__param_target` e `params.module`). O `blackbox.yml` define os módulos, não os alvos.
+  source: https://prometheus.io/docs/guides/multi-target-exporter/
+  lang: en

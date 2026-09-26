@@ -1,0 +1,27 @@
+id: "107"
+title: "Workers ocupados (Lei de Little)"
+topic: histograms
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_sum/
+prompt: |
+  Quantos **workers estão ocupados, em média**, em cada fila? Você tem o native histogram da duração
+  dos jobs `histogram_sum_job_duration_seconds{queue}` (5 min de janela).
+  Dica de negócio: concorrência média = (jobs/s) × (duração média) = segundos de trabalho por segundo.
+hints:
+  - "(jobs/s) × (s/job) = soma das durações por segundo."
+  - "A soma das durações por segundo é o rate da soma do histograma."
+  - "histogram_sum(rate(histogram_sum_job_duration_seconds[5m]))"
+solution: 'histogram_sum(rate(histogram_sum_job_duration_seconds[5m]))'
+accepted_answers:
+  - 'rate(histogram_sum_job_duration_seconds_sum[5m])'
+  - 'histogram_count(rate(histogram_sum_job_duration_seconds[5m])) * histogram_avg(rate(histogram_sum_job_duration_seconds[5m]))'
+wrong_answers:
+  - 'histogram_count(rate(histogram_sum_job_duration_seconds[5m]))'
+  - 'histogram_avg(rate(histogram_sum_job_duration_seconds[5m]))'
+  - 'rate(histogram_sum_job_duration_seconds_count[5m])'
+explanation: |
+  Lei de Little: L = λ × W. emails: 10 jobs/s × 0,2 s = 2 workers; reports: 0,5 × 8 s ≈ 4
+  (e ~8 quando os relatórios ficam lentos). `histogram_sum(rate(h))` já é λ × W.
+
+  Pegadinha: a contagem (jobs/s) sozinha não mostra que os reports dobraram de duração.

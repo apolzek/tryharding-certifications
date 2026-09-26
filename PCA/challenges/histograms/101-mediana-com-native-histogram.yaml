@@ -1,0 +1,26 @@
+id: "101"
+title: "Mediana com native histogram"
+topic: histograms
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_quantile/
+prompt: |
+  O mesmo histograma também é exposto como **native histogram** (`histogram_quantile_http_request_duration_seconds`, sem sufixo).
+  Calcule a **mediana (p50) de cada rota** (juntando os pods), janela de 5 min, usando o native histogram.
+hints:
+  - "Native histogram não tem `_bucket` nem `le`: a série inteira é o histograma."
+  - "rate() e sum() funcionam direto nele."
+  - "histogram_quantile(0.5, sum by (route) (rate(histogram_quantile_http_request_duration_seconds[5m])))"
+solution: 'histogram_quantile(0.5, sum by (route) (rate(histogram_quantile_http_request_duration_seconds[5m])))'
+accepted_answers:
+  - 'histogram_quantile(0.5, sum(rate(histogram_quantile_http_request_duration_seconds[5m])) by (route))'
+wrong_answers:
+  - 'histogram_quantile(0.5, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m])))'
+  - 'histogram_quantile(0.5, sum(rate(histogram_quantile_http_request_duration_seconds[5m])))'
+  - 'histogram_quantile(0.5, rate(histogram_quantile_http_request_duration_seconds[5m]))'
+explanation: |
+  Com native histograms você agrega pelos labels que quer manter — **sem `le`**. A resolução é bem maior
+  (buckets exponenciais), então a interpolação erra menos que nos buckets clássicos.
+
+  Pegadinha: o resultado difere um pouco da versão clássica (buckets diferentes); por isso a versão
+  com `_bucket` não é aceita aqui.

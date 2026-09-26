@@ -1,0 +1,22 @@
+groups:
+  - name: api
+    rules:
+      # counter -> rate() (entende reset), e SÓ DEPOIS agrega
+      - record: job:http_requests:rate1m
+        expr: sum by (job) (rate(http_requests_total[1m]))
+
+      - alert: ApiSemTrafego
+        expr: job:http_requests:rate1m{job="api"} < 1
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "API recebendo {{ $value | humanize }} req/s"
+
+      # o sintoma real (restarts) merece o seu próprio sinal
+      - alert: ApiReiniciandoMuito
+        expr: resets(http_requests_total{job="api"}[10m]) > 3
+        labels:
+          severity: ticket
+        annotations:
+          summary: "{{ $labels.instance }} reiniciou {{ $value }} vezes em 10m"

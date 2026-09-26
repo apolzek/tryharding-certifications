@@ -1,0 +1,30 @@
+id: "144"
+title: "Utilização vs capacidade planejada"
+topic: labels
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_join/
+prompt: |
+  A capacidade planejada está em `label_join_capacity_rps{key="checkout/prod"}` (req/s máximas).
+  Calcule a **utilização (fração 0..1)** de cada `key`: req/s atuais (rate 5m de
+  `label_join_http_requests_total`, somado por service+environment) ÷ capacidade.
+  O resultado deve ter só o label `key`.
+hints:
+  - "Crie `key` do lado das requisições com label_join (depois do rate)."
+  - "Agregue `sum by (key)` e divida casando `on (key)`."
+  - "sum by (key) (label_join(rate(x[5m]), \"key\", \"/\", \"service\", \"environment\")) / on (key) label_join_capacity_rps"
+solution: |
+  sum by (key) (label_join(rate(label_join_http_requests_total[5m]), "key", "/", "service", "environment"))
+    / on (key)
+  label_join_capacity_rps
+accepted_answers:
+  - 'sum by (key) (label_join(rate(label_join_http_requests_total[5m]), "key", "/", "service", "environment")) / sum by (key) (label_join_capacity_rps)'
+wrong_answers:
+  - 'rate(label_join_http_requests_total[5m]) / on (key) label_join_capacity_rps'
+  - 'sum by (key) (label_join(rate(label_join_http_requests_total[5m]), "key", "/", "environment", "service")) / on (key) label_join_capacity_rps'
+  - 'sum by (key) (label_join(label_join_http_requests_total, "key", "/", "service", "environment")) / on (key) label_join_capacity_rps'
+explanation: |
+  checkout/prod 75%, checkout/staging 20%, payments/prod 80%, payments/staging 25%.
+  `on (key)` casa só pela chave; como o lado esquerdo foi agregado `by (key)`, é 1-para-1.
+
+  Pegadinha: esquecer o `rate()` divide o total acumulado pela capacidade.

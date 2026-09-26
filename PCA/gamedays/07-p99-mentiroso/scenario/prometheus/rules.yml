@@ -1,0 +1,17 @@
+groups:
+  - name: checkout-slo
+    rules:
+      # SLO: 99% das requisições do checkout em menos de 500ms
+      - record: job:http_request_duration_seconds:p99
+        expr: |
+          avg by (job) (
+            histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="checkout"}[1m]))
+          )
+
+      - alert: CheckoutLatenciaP99Alta
+        expr: job:http_request_duration_seconds:p99{job="checkout"} > 0.5
+        for: 10s
+        labels:
+          severity: page
+        annotations:
+          summary: "p99 do checkout em {{ $value | humanizeDuration }}"

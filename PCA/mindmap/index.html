@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCA Mapa Mental</title>
+<meta name="description" content="Mapa mental interativo da PCA com links para lições, labs, desafios, gamedays e flashcards (gerado por mindmap/build.py).">
+<style>
+:root{--bg:#f6f5f2;--surface:#fff;--text:#1b1f24;--muted:#5d6570;--border:#dcdad3;--link:#0a64d8;--code:rgba(120,120,120,.14)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141517;--surface:#1d1f22;--text:#e7e6e2;--muted:#a2a7ae;--border:#34373c;--link:#6fb1ff;--code:rgba(200,200,200,.12)}}
+:root[data-theme="dark"]{--bg:#141517;--surface:#1d1f22;--text:#e7e6e2;--muted:#a2a7ae;--border:#34373c;--link:#6fb1ff;--code:rgba(200,200,200,.12)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 16px 6px;max-width:1200px;margin:0 auto}
+header h1{margin:0;font-size:1.25rem}
+header p{margin:2px 0 0;color:var(--muted);font-size:.88rem}
+a{color:var(--link)}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em;background:var(--code);padding:0 4px;border-radius:4px}
+#map{margin:8px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;height:78vh;position:relative;overflow:hidden}
+#map .markmap{width:100%;height:100%}
+#map svg{width:100%;height:100%;color:var(--text)}
+#map .markmap-foreign a{color:var(--link)}
+#offline{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--muted)}
+#outline{max-width:1200px;margin:18px auto 40px;padding:0 16px}
+#outline h2{font-size:1.05rem}
+#outline ul{list-style:none;padding-left:18px;margin:2px 0}
+#outline ul.d0{padding-left:0}
+#outline li{margin:2px 0}
+#outline summary{cursor:pointer}
+#outline .lk{font-size:.8rem;text-decoration:none;border:1px solid var(--border);border-radius:99px;padding:0 7px;margin-left:2px;white-space:nowrap;background:var(--surface)}
+#outline .lk:hover{border-color:var(--link)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.bar a,.bar button{font:inherit;font-size:.85rem;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:4px 10px;text-decoration:none;cursor:pointer}
+@media print{#map,.bar{display:none}#outline details{display:block}#outline details>*{display:block}}
+</style>
+</head>
+<body>
+<header>
+  <h1>PCA · Mapa mental</h1>
+  <p>Clique nos nós para expandir ou recolher, e nos links para abrir a lição, o lab, os desafios ou os cards. O mapa usa markmap via CDN (precisa de internet); o <a href="#outline">outline abaixo</a> funciona offline.</p>
+  <div class="bar"><a href="../STUDY-PLAN.md">🗓️ Plano de estudo</a><a href="../flashcards/flashcards.html">🃏 Flashcards</a><a href="markmap-links.md">📄 markmap-links.md</a><button id="expand" type="button">Expandir outline</button></div>
+</header>
+<div id="map">
+  <div class="markmap"><script type="text/template">
+---
+title: PCA · mapa mental com links
+markmap:
+  initialExpandLevel: 3
+  maxWidth: 420
+  colorFreezeLevel: 2
+---
+# PCA [🗓️ plano de estudo](../STUDY-PLAN.md) [🃏 flashcards](../flashcards/flashcards.html) [🎯 desafios](../challenges/) [📝 simulado](../exam/) [🔥 gamedays](../gamedays/) [📚 funções PromQL](../promql-functions-lab/)
+
+## PromQL (28%) [🃏 cards](../flashcards/flashcards.html#d=promql)
+### Data Types [🧪 promql-operators](../labs/promql-operators/) [🎯 selectors-and-types](../challenges/selectors-and-types/)
+- instant vector (set of samples, one per series at one timestamp)
+- range vector (e.g. `http_requests_total[5m]`)
+- scalar (single numeric, e.g. `42` or `scalar(...)`) [📘 scalar](../promql-functions-lab/functions/scalar/)
+- string (only in literal contexts)
+### Selectors [🧪 promql-operators](../labs/promql-operators/) [🎯 selectors-and-types](../challenges/selectors-and-types/)
+- metric name selector: `http_requests_total`
+- label matchers: `{job="api", env="prod"}`
+- matchers: `=`, `!=`, `=~` (regex), `!~` (negated regex)
+- range selector duration units: ms, s, m, h, d, w, y (`[5m]`)
+- offset modifier: `http_requests_total offset 1h` [🎯 time](../challenges/time/)
+- @ modifier: `http_requests_total @ 1609746000` [🎯 time](../challenges/time/)
+### Operators [🧪 promql-operators](../labs/promql-operators/) [🎯 operators](../challenges/operators/)
+- arithmetic: `+ - * / % ^`
+- comparison: `== != > < >= <=`, `> bool 0`
+- logical/set: `and`, `or`, `unless`
+- vector matching
+  - `on(label)` / `ignoring(label)`
+  - `group_left` / `group_right` (many-to-one / one-to-many)
+### Aggregation Operators [🧪 promql-operators](../labs/promql-operators/) [🎯 aggregation](../challenges/aggregation/)
+- `sum`, `min`, `max`, `avg`, `count`
+- `stddev`, `stdvar`
+- `topk(5, ...)`, `bottomk(5, ...)`
+- `count_values("ver", build_info)`, `quantile(0.9, ...)`
+- grouping: `sum by (job) (...)`, `sum without (instance) (...)`
+### Functions
+- `rate(http_requests_total[5m])` (per-second avg, counters) [📘 rate](../promql-functions-lab/functions/rate/) [🎯 counters](../challenges/counters/)
+- `irate(...)` (instant rate, last 2 samples) [📘 irate](../promql-functions-lab/functions/irate/) [🎯 counters](../challenges/counters/)
+- `increase(http_requests_total[1h])` [📘 increase](../promql-functions-lab/functions/increase/) [🎯 counters](../challenges/counters/)
+- `delta()`, `idelta()`, `deriv()` (gauges) [📘 delta](../promql-functions-lab/functions/delta/) [📘 idelta](../promql-functions-lab/functions/idelta/) [📘 deriv](../promql-functions-lab/functions/deriv/) [🎯 gauges](../challenges/gauges/)
+- `histogram_quantile(0.95, sum by(le)(rate(http_request_duration_seconds_bucket[5m])))` [📘 histogram_quantile](../promql-functions-lab/functions/histogram_quantile/) [📘 rate](../promql-functions-lab/functions/rate/) [🎯 histograms](../challenges/histograms/)
+- `predict_linear(node_filesystem_free_bytes[1h], 4*3600)` [📘 predict_linear](../promql-functions-lab/functions/predict_linear/) [🎯 gauges](../challenges/gauges/)
+- `label_replace(v, "new", "$1", "src", "(.*)")`, `label_join()` [📘 label_replace](../promql-functions-lab/functions/label_replace/) [📘 label_join](../promql-functions-lab/functions/label_join/) [🎯 labels](../challenges/labels/)
+- `absent(up{job="api"})`, `absent_over_time()` [📘 absent](../promql-functions-lab/functions/absent/) [📘 absent_over_time](../promql-functions-lab/functions/absent_over_time/) [🎯 absence-and-staleness](../challenges/absence-and-staleness/) [🎯 over-time](../challenges/over-time/) [🔥 alvo-sumiu](../gamedays/02-alvo-sumiu/)
+- `avg_over_time()`, `max_over_time()`, `min_over_time()`, `sum_over_time()`, `count_over_time()` [📘 avg_over_time](../promql-functions-lab/functions/avg_over_time/) [📘 max_over_time](../promql-functions-lab/functions/max_over_time/) [📘 min_over_time](../promql-functions-lab/functions/min_over_time/) [📘 sum_over_time](../promql-functions-lab/functions/sum_over_time/) [📘 count_over_time](../promql-functions-lab/functions/count_over_time/) [🎯 over-time](../challenges/over-time/)
+- `clamp_max()`, `clamp_min()`, `round()`, `ceil()`, `floor()` [📘 clamp_max](../promql-functions-lab/functions/clamp_max/) [📘 clamp_min](../promql-functions-lab/functions/clamp_min/) [📘 round](../promql-functions-lab/functions/round/) [📘 ceil](../promql-functions-lab/functions/ceil/) [📘 floor](../promql-functions-lab/functions/floor/)
+- `vector(1)`, `scalar(...)` [📘 vector](../promql-functions-lab/functions/vector/) [📘 scalar](../promql-functions-lab/functions/scalar/)
+### Counters vs Gauges in Queries [🧪 instrumentation](../labs/instrumentation/) [🎯 counters](../challenges/counters/) [🔥 counter-negativo](../gamedays/04-counter-negativo/)
+- `rate()`/`increase()` only valid on counters (monotonic) [📘 rate](../promql-functions-lab/functions/rate/) [📘 increase](../promql-functions-lab/functions/increase/)
+- counter reset handling (rate auto-corrects on restart to 0)
+- gauges: use value directly or `delta()`/`deriv()` [📘 delta](../promql-functions-lab/functions/delta/) [📘 deriv](../promql-functions-lab/functions/deriv/) [🎯 gauges](../challenges/gauges/)
+
+## Prometheus Fundamentals (20%) [🃏 cards](../flashcards/flashcards.html#d=fundamentals)
+### Architecture
+- Prometheus server: retrieval (scraper), TSDB, PromQL HTTP API (:9090) [🧪 tsdb-storage](../labs/tsdb-storage/)
+- pull-based scraping over HTTP /metrics
+- service discovery feeds target list
+- Pushgateway (:9091) for short-lived batch jobs [🧪 exporters-pushgateway](../labs/exporters-pushgateway/)
+- Alertmanager (:9093) handles alert routing [🧪 alertmanager](../labs/alertmanager/)
+- exporters expose third-party metrics
+- client libraries instrument app code [🧪 instrumentation](../labs/instrumentation/)
+### Service Discovery [🧪 service-discovery-relabeling](../labs/service-discovery-relabeling/) [🔥 alvo-sumiu](../gamedays/02-alvo-sumiu/)
+- `static_configs.targets`
+- `kubernetes_sd_configs` (role: node, pod, endpoints, service, ingress)
+- `consul_sd_configs`, `file_sd_configs`, `ec2_sd_configs`, `dns_sd_configs`
+- `relabel_configs` (source_labels, regex, action, target_label)
+- `__meta_*` labels (e.g. __meta_kubernetes_pod_label_app)
+- `__address__`, `__scheme__`, `__metrics_path__`
+### Scraping [🧪 service-discovery-relabeling](../labs/service-discovery-relabeling/)
+- `scrape_interval` (global default 1m), `scrape_timeout`
+- `job` label (from job_name) and `instance` label (from __address__)
+- target /metrics endpoint exposition [🧪 instrumentation](../labs/instrumentation/) [🔥 alvo-sumiu](../gamedays/02-alvo-sumiu/)
+- `honor_labels: true` (preserve exposed labels)
+- `metric_relabel_configs` (drop after scrape)
+### Configuration
+- prometheus.yml top-level: global, scrape_configs, rule_files, alerting, remote_write/remote_read [🧪 federation-remote-write](../labs/federation-remote-write/) [🎯 alerting-expressions](../challenges/alerting-expressions/)
+- `global.scrape_interval`, `global.evaluation_interval`, `global.external_labels` [🧪 federation-remote-write](../labs/federation-remote-write/)
+- reload: `kill -HUP <pid>` or POST `/-/reload` (requires --web.enable-lifecycle) [🔥 reload-silencioso](../gamedays/10-reload-silencioso/)
+- validate: `promtool check config prometheus.yml`
+### Storage (TSDB) [🧪 tsdb-storage](../labs/tsdb-storage/)
+- local TSDB under --storage.tsdb.path
+- blocks (2h default), chunks, WAL (write-ahead log), head block
+- `--storage.tsdb.retention.time=15d`, `--storage.tsdb.retention.size=50GB`
+- remote_write (to Cortex/Thanos/Mimir), remote_read [🧪 federation-remote-write](../labs/federation-remote-write/)
+- compaction of blocks
+### Metric Data Format & Labels
+- naming: `<namespace>_<name>_<unit>_total` (e.g. http_requests_total) [🧪 instrumentation](../labs/instrumentation/)
+- base units (seconds, bytes), `_total` suffix for counters [🧪 instrumentation](../labs/instrumentation/)
+- labels add dimensions; cardinality = unique label combos [🎯 labels](../challenges/labels/) [🔥 explosao-de-cardinalidade](../gamedays/03-explosao-de-cardinalidade/)
+- series identity = metric name + sorted label set
+### Limitations
+- not for durable event logging / individual events
+- cardinality explosion (high-cardinality labels like user_id) [🔥 explosao-de-cardinalidade](../gamedays/03-explosao-de-cardinalidade/)
+- single-node by default; HA needs Thanos/Cortex/Mimir federation [🧪 federation-remote-write](../labs/federation-remote-write/)
+
+## Observability Concepts (18%) [🃏 cards](../flashcards/flashcards.html#d=observability)
+### Pillars of Observability
+- metrics (Prometheus core)
+- logs (Loki/ELK, out of scope for storage)
+- traces (Tempo/Jaeger)
+### Metric Types [🧪 instrumentation](../labs/instrumentation/)
+- Counter (only increases, e.g. requests_total) [🎯 counters](../challenges/counters/)
+- Gauge (up/down, e.g. memory_usage_bytes) [🎯 gauges](../challenges/gauges/)
+- Histogram (`_bucket{le="..."}`, `_sum`, `_count`) [🎯 histograms](../challenges/histograms/)
+- Summary (precomputed `{quantile="0.99"}`, `_sum`, `_count`) [🎯 histograms](../challenges/histograms/)
+### Monitoring Concepts
+- white-box (instrumented internals) vs black-box (probe externally) [🧪 exporters-pushgateway](../labs/exporters-pushgateway/)
+- push (Pushgateway) vs pull (default scrape) [🧪 exporters-pushgateway](../labs/exporters-pushgateway/)
+- USE method: Utilization, Saturation, Errors (resources) [🧪 slo-end-to-end](../labs/slo-end-to-end/)
+- RED method: Rate, Errors, Duration (services) [🧪 slo-end-to-end](../labs/slo-end-to-end/)
+- Four Golden Signals: latency, traffic, errors, saturation [🧪 slo-end-to-end](../labs/slo-end-to-end/)
+### SLI / SLO / SLA [🧪 slo-end-to-end](../labs/slo-end-to-end/)
+- SLI: measured ratio (e.g. good_requests / total_requests)
+- SLO: target (e.g. 99.9% over 30d)
+- SLA: contractual consequence
+- error budget = 1 - SLO (e.g. 0.1%)
+
+## Alerting & Dashboarding (18%) [🎯 alerting-expressions](../challenges/alerting-expressions/) [🃏 cards](../flashcards/flashcards.html#d=alerting)
+### Alerting Rules [🧪 alertmanager](../labs/alertmanager/) [🔥 alerta-que-nunca-dispara](../gamedays/01-alerta-que-nunca-dispara/)
+- rule fields: `alert`, `expr`, `for`, `labels`, `annotations`
+- example: `expr: up == 0`, `for: 5m`
+- states: inactive -> pending (during `for`) -> firing
+- recording rules: `record: job:http_requests:rate5m`, `expr: sum by(job)(rate(...))` [📘 rate](../promql-functions-lab/functions/rate/) [🧪 recording-rules-testing](../labs/recording-rules-testing/)
+- validate: `promtool check rules rules.yml` [🧪 recording-rules-testing](../labs/recording-rules-testing/)
+### Alertmanager [🧪 alertmanager](../labs/alertmanager/) [🔥 ninguem-foi-paginado](../gamedays/05-ninguem-foi-paginado/)
+- routing tree: `route.receiver`, `route.match`, `route.group_by`, `route.routes`
+- `group_wait`, `group_interval`, `repeat_interval`
+- inhibition (inhibit_rules: source_match, target_match, equal)
+- silences (via UI/amtool, matchers + duration)
+- receivers: email_configs, slack_configs, pagerduty_configs, webhook_configs
+- deduplication across HA Alertmanager peers
+- HA via `--cluster.peer` gossip
+### Dashboarding [🧪 slo-end-to-end](../labs/slo-end-to-end/)
+- Prometheus expression browser (:9090/graph)
+- console templates (Go templating under consoles/)
+- Grafana integration
+  - add Prometheus data source (URL :9090)
+  - panels with PromQL queries + `$__rate_interval`
+- visualization: rate over counters, not raw counter values
+
+## Instrumentation and Exporters (16%) [🃏 cards](../flashcards/flashcards.html#d=instrumentation)
+### Instrumentation [🧪 instrumentation](../labs/instrumentation/)
+- client libraries: client_golang, client_python, client_java, client_ruby
+- direct instrumentation: prometheus.NewCounterVec(...).WithLabelValues().Inc()
+- exposition format / OpenMetrics (text format, `# HELP`, `# TYPE`)
+- best practices: snake_case, base units, low-cardinality labels [🔥 explosao-de-cardinalidade](../gamedays/03-explosao-de-cardinalidade/)
+### Exporters [🧪 exporters-pushgateway](../labs/exporters-pushgateway/)
+- node_exporter (host: node_cpu_seconds_total, node_memory_*)
+- blackbox_exporter (probe modules: http_2xx, icmp, tcp_connect)
+- cAdvisor (container_cpu_usage_seconds_total)
+- mysqld_exporter, postgres_exporter, snmp_exporter
+- custom exporter when no library + scrape /metrics
+### Pushgateway [🧪 exporters-pushgateway](../labs/exporters-pushgateway/) [🔥 backup-congelado](../gamedays/06-backup-congelado/)
+- use case: cron/batch job pushes before exit
+- push via `echo "metric 1" | curl --data-binary @- :9091/metrics/job/<job>`
+- caveats: metrics persist until deleted (stale), not for service-level, single point
+  </script></div>
+  <div id="offline">Não consegui carregar o markmap (jsDelivr). Sem internet? Use o <a href="#outline">outline</a> logo abaixo: ele tem os mesmos nós e links.</div>
+</div>
+<section id="outline">
+  <h2>Outline (HTML puro, funciona offline)</h2>
+  <ul class="d0"><li><details open><summary><span class="t">PCA</span> <a class="lk" href="../STUDY-PLAN.md">🗓️ plano de estudo</a> <a class="lk" href="../flashcards/flashcards.html">🃏 flashcards</a> <a class="lk" href="../challenges/">🎯 desafios</a> <a class="lk" href="../exam/">📝 simulado</a> <a class="lk" href="../gamedays/">🔥 gamedays</a> <a class="lk" href="../promql-functions-lab/">📚 funções PromQL</a></summary><ul class="d1"><li><details open><summary><span class="t">PromQL (28%)</span> <a class="lk" href="../flashcards/flashcards.html#d=promql">🃏 cards</a></summary><ul class="d2"><li><details ><summary><span class="t">Data Types</span> <a class="lk" href="../labs/promql-operators/">🧪 promql-operators</a> <a class="lk" href="../challenges/selectors-and-types/">🎯 selectors-and-types</a></summary><ul class="d3"><li><span class="t">instant vector (set of samples, one per series at one timestamp)</span> </li><li><span class="t">range vector (e.g. <code>http_requests_total[5m]</code>)</span> </li><li><span class="t">scalar (single numeric, e.g. <code>42</code> or <code>scalar(...)</code>)</span> <a class="lk" href="../promql-functions-lab/functions/scalar/">📘 scalar</a></li><li><span class="t">string (only in literal contexts)</span> </li></ul></details></li><li><details ><summary><span class="t">Selectors</span> <a class="lk" href="../labs/promql-operators/">🧪 promql-operators</a> <a class="lk" href="../challenges/selectors-and-types/">🎯 selectors-and-types</a></summary><ul class="d3"><li><span class="t">metric name selector: <code>http_requests_total</code></span> </li><li><span class="t">label matchers: <code>{job=&quot;api&quot;, env=&quot;prod&quot;}</code></span> </li><li><span class="t">matchers: <code>=</code>, <code>!=</code>, <code>=~</code> (regex), <code>!~</code> (negated regex)</span> </li><li><span class="t">range selector duration units: ms, s, m, h, d, w, y (<code>[5m]</code>)</span> </li><li><span class="t">offset modifier: <code>http_requests_total offset 1h</code></span> <a class="lk" href="../challenges/time/">🎯 time</a></li><li><span class="t">@ modifier: <code>http_requests_total @ 1609746000</code></span> <a class="lk" href="../challenges/time/">🎯 time</a></li></ul></details></li><li><details ><summary><span class="t">Operators</span> <a class="lk" href="../labs/promql-operators/">🧪 promql-operators</a> <a class="lk" href="../challenges/operators/">🎯 operators</a></summary><ul class="d3"><li><span class="t">arithmetic: <code>+ - * / % ^</code></span> </li><li><span class="t">comparison: <code>== != &gt; &lt; &gt;= &lt;=</code>, <code>&gt; bool 0</code></span> </li><li><span class="t">logical/set: <code>and</code>, <code>or</code>, <code>unless</code></span> </li><li><details ><summary><span class="t">vector matching</span> </summary><ul class="d4"><li><span class="t"><code>on(label)</code> / <code>ignoring(label)</code></span> </li><li><span class="t"><code>group_left</code> / <code>group_right</code> (many-to-one / one-to-many)</span> </li></ul></details></li></ul></details></li><li><details ><summary><span class="t">Aggregation Operators</span> <a class="lk" href="../labs/promql-operators/">🧪 promql-operators</a> <a class="lk" href="../challenges/aggregation/">🎯 aggregation</a></summary><ul class="d3"><li><span class="t"><code>sum</code>, <code>min</code>, <code>max</code>, <code>avg</code>, <code>count</code></span> </li><li><span class="t"><code>stddev</code>, <code>stdvar</code></span> </li><li><span class="t"><code>topk(5, ...)</code>, <code>bottomk(5, ...)</code></span> </li><li><span class="t"><code>count_values(&quot;ver&quot;, build_info)</code>, <code>quantile(0.9, ...)</code></span> </li><li><span class="t">grouping: <code>sum by (job) (...)</code>, <code>sum without (instance) (...)</code></span> </li></ul></details></li><li><details ><summary><span class="t">Functions</span> </summary><ul class="d3"><li><span class="t"><code>rate(http_requests_total[5m])</code> (per-second avg, counters)</span> <a class="lk" href="../promql-functions-lab/functions/rate/">📘 rate</a> <a class="lk" href="../challenges/counters/">🎯 counters</a></li><li><span class="t"><code>irate(...)</code> (instant rate, last 2 samples)</span> <a class="lk" href="../promql-functions-lab/functions/irate/">📘 irate</a> <a class="lk" href="../challenges/counters/">🎯 counters</a></li><li><span class="t"><code>increase(http_requests_total[1h])</code></span> <a class="lk" href="../promql-functions-lab/functions/increase/">📘 increase</a> <a class="lk" href="../challenges/counters/">🎯 counters</a></li><li><span class="t"><code>delta()</code>, <code>idelta()</code>, <code>deriv()</code> (gauges)</span> <a class="lk" href="../promql-functions-lab/functions/delta/">📘 delta</a> <a class="lk" href="../promql-functions-lab/functions/idelta/">📘 idelta</a> <a class="lk" href="../promql-functions-lab/functions/deriv/">📘 deriv</a> <a class="lk" href="../challenges/gauges/">🎯 gauges</a></li><li><span class="t"><code>histogram_quantile(0.95, sum by(le)(rate(http_request_duration_seconds_bucket[5m])))</code></span> <a class="lk" href="../promql-functions-lab/functions/histogram_quantile/">📘 histogram_quantile</a> <a class="lk" href="../promql-functions-lab/functions/rate/">📘 rate</a> <a class="lk" href="../challenges/histograms/">🎯 histograms</a></li><li><span class="t"><code>predict_linear(node_filesystem_free_bytes[1h], 4*3600)</code></span> <a class="lk" href="../promql-functions-lab/functions/predict_linear/">📘 predict_linear</a> <a class="lk" href="../challenges/gauges/">🎯 gauges</a></li><li><span class="t"><code>label_replace(v, &quot;new&quot;, &quot;$1&quot;, &quot;src&quot;, &quot;(.*)&quot;)</code>, <code>label_join()</code></span> <a class="lk" href="../promql-functions-lab/functions/label_replace/">📘 label_replace</a> <a class="lk" href="../promql-functions-lab/functions/label_join/">📘 label_join</a> <a class="lk" href="../challenges/labels/">🎯 labels</a></li><li><span class="t"><code>absent(up{job=&quot;api&quot;})</code>, <code>absent_over_time()</code></span> <a class="lk" href="../promql-functions-lab/functions/absent/">📘 absent</a> <a class="lk" href="../promql-functions-lab/functions/absent_over_time/">📘 absent_over_time</a> <a class="lk" href="../challenges/absence-and-staleness/">🎯 absence-and-staleness</a> <a class="lk" href="../challenges/over-time/">🎯 over-time</a> <a class="lk" href="../gamedays/02-alvo-sumiu/">🔥 alvo-sumiu</a></li><li><span class="t"><code>avg_over_time()</code>, <code>max_over_time()</code>, <code>min_over_time()</code>, <code>sum_over_time()</code>, <code>count_over_time()</code></span> <a class="lk" href="../promql-functions-lab/functions/avg_over_time/">📘 avg_over_time</a> <a class="lk" href="../promql-functions-lab/functions/max_over_time/">📘 max_over_time</a> <a class="lk" href="../promql-functions-lab/functions/min_over_time/">📘 min_over_time</a> <a class="lk" href="../promql-functions-lab/functions/sum_over_time/">📘 sum_over_time</a> <a class="lk" href="../promql-functions-lab/functions/count_over_time/">📘 count_over_time</a> <a class="lk" href="../challenges/over-time/">🎯 over-time</a></li><li><span class="t"><code>clamp_max()</code>, <code>clamp_min()</code>, <code>round()</code>, <code>ceil()</code>, <code>floor()</code></span> <a class="lk" href="../promql-functions-lab/functions/clamp_max/">📘 clamp_max</a> <a class="lk" href="../promql-functions-lab/functions/clamp_min/">📘 clamp_min</a> <a class="lk" href="../promql-functions-lab/functions/round/">📘 round</a> <a class="lk" href="../promql-functions-lab/functions/ceil/">📘 ceil</a> <a class="lk" href="../promql-functions-lab/functions/floor/">📘 floor</a></li><li><span class="t"><code>vector(1)</code>, <code>scalar(...)</code></span> <a class="lk" href="../promql-functions-lab/functions/vector/">📘 vector</a> <a class="lk" href="../promql-functions-lab/functions/scalar/">📘 scalar</a></li></ul></details></li><li><details ><summary><span class="t">Counters vs Gauges in Queries</span> <a class="lk" href="../labs/instrumentation/">🧪 instrumentation</a> <a class="lk" href="../challenges/counters/">🎯 counters</a> <a class="lk" href="../gamedays/04-counter-negativo/">🔥 counter-negativo</a></summary><ul class="d3"><li><span class="t"><code>rate()</code>/<code>increase()</code> only valid on counters (monotonic)</span> <a class="lk" href="../promql-functions-lab/functions/rate/">📘 rate</a> <a class="lk" href="../promql-functions-lab/functions/increase/">📘 increase</a></li><li><span class="t">counter reset handling (rate auto-corrects on restart to 0)</span> </li><li><span class="t">gauges: use value directly or <code>delta()</code>/<code>deriv()</code></span> <a class="lk" href="../promql-functions-lab/functions/delta/">📘 delta</a> <a class="lk" href="../promql-functions-lab/functions/deriv/">📘 deriv</a> <a class="lk" href="../challenges/gauges/">🎯 gauges</a></li></ul></details></li></ul></details></li><li><details open><summary><span class="t">Prometheus Fundamentals (20%)</span> <a class="lk" href="../flashcards/flashcards.html#d=fundamentals">🃏 cards</a></summary><ul class="d2"><li><details ><summary><span class="t">Architecture</span> </summary><ul class="d3"><li><span class="t">Prometheus server: retrieval (scraper), TSDB, PromQL HTTP API (:9090)</span> <a class="lk" href="../labs/tsdb-storage/">🧪 tsdb-storage</a></li><li><span class="t">pull-based scraping over HTTP /metrics</span> </li><li><span class="t">service discovery feeds target list</span> </li><li><span class="t">Pushgateway (:9091) for short-lived batch jobs</span> <a class="lk" href="../labs/exporters-pushgateway/">🧪 exporters-pushgateway</a></li><li><span class="t">Alertmanager (:9093) handles alert routing</span> <a class="lk" href="../labs/alertmanager/">🧪 alertmanager</a></li><li><span class="t">exporters expose third-party metrics</span> </li><li><span class="t">client libraries instrument app code</span> <a class="lk" href="../labs/instrumentation/">🧪 instrumentation</a></li></ul></details></li><li><details ><summary><span class="t">Service Discovery</span> <a class="lk" href="../labs/service-discovery-relabeling/">🧪 service-discovery-relabeling</a> <a class="lk" href="../gamedays/02-alvo-sumiu/">🔥 alvo-sumiu</a></summary><ul class="d3"><li><span class="t"><code>static_configs.targets</code></span> </li><li><span class="t"><code>kubernetes_sd_configs</code> (role: node, pod, endpoints, service, ingress)</span> </li><li><span class="t"><code>consul_sd_configs</code>, <code>file_sd_configs</code>, <code>ec2_sd_configs</code>, <code>dns_sd_configs</code></span> </li><li><span class="t"><code>relabel_configs</code> (source_labels, regex, action, target_label)</span> </li><li><span class="t"><code>__meta_*</code> labels (e.g. __meta_kubernetes_pod_label_app)</span> </li><li><span class="t"><code>__address__</code>, <code>__scheme__</code>, <code>__metrics_path__</code></span> </li></ul></details></li><li><details ><summary><span class="t">Scraping</span> <a class="lk" href="../labs/service-discovery-relabeling/">🧪 service-discovery-relabeling</a></summary><ul class="d3"><li><span class="t"><code>scrape_interval</code> (global default 1m), <code>scrape_timeout</code></span> </li><li><span class="t"><code>job</code> label (from job_name) and <code>instance</code> label (from __address__)</span> </li><li><span class="t">target /metrics endpoint exposition</span> <a class="lk" href="../labs/instrumentation/">🧪 instrumentation</a> <a class="lk" href="../gamedays/02-alvo-sumiu/">🔥 alvo-sumiu</a></li><li><span class="t"><code>honor_labels: true</code> (preserve exposed labels)</span> </li><li><span class="t"><code>metric_relabel_configs</code> (drop after scrape)</span> </li></ul></details></li><li><details ><summary><span class="t">Configuration</span> </summary><ul class="d3"><li><span class="t">prometheus.yml top-level: global, scrape_configs, rule_files, alerting, remote_write/remote_read</span> <a class="lk" href="../labs/federation-remote-write/">🧪 federation-remote-write</a> <a class="lk" href="../challenges/alerting-expressions/">🎯 alerting-expressions</a></li><li><span class="t"><code>global.scrape_interval</code>, <code>global.evaluation_interval</code>, <code>global.external_labels</code></span> <a class="lk" href="../labs/federation-remote-write/">🧪 federation-remote-write</a></li><li><span class="t">reload: <code>kill -HUP &lt;pid&gt;</code> or POST <code>/-/reload</code> (requires --web.enable-lifecycle)</span> <a class="lk" href="../gamedays/10-reload-silencioso/">🔥 reload-silencioso</a></li><li><span class="t">validate: <code>promtool check config prometheus.yml</code></span> </li></ul></details></li><li><details ><summary><span class="t">Storage (TSDB)</span> <a class="lk" href="../labs/tsdb-storage/">🧪 tsdb-storage</a></summary><ul class="d3"><li><span class="t">local TSDB under --storage.tsdb.path</span> </li><li><span class="t">blocks (2h default), chunks, WAL (write-ahead log), head block</span> </li><li><span class="t"><code>--storage.tsdb.retention.time=15d</code>, <code>--storage.tsdb.retention.size=50GB</code></span> </li><li><span class="t">remote_write (to Cortex/Thanos/Mimir), remote_read</span> <a class="lk" href="../labs/federation-remote-write/">🧪 federation-remote-write</a></li><li><span class="t">compaction of blocks</span> </li></ul></details></li><li><details ><summary><span class="t">Metric Data Format &amp; Labels</span> </summary><ul class="d3"><li><span class="t">naming: <code>&lt;namespace&gt;_&lt;name&gt;_&lt;unit&gt;_total</code> (e.g. http_requests_total)</span> <a class="lk" href="../labs/instrumentation/">🧪 instrumentation</a></li><li><span class="t">base units (seconds, bytes), <code>_total</code> suffix for counters</span> <a class="lk" href="../labs/instrumentation/">🧪 instrumentation</a></li><li><span class="t">labels add dimensions; cardinality = unique label combos</span> <a class="lk" href="../challenges/labels/">🎯 labels</a> <a class="lk" href="../gamedays/03-explosao-de-cardinalidade/">🔥 explosao-de-cardinalidade</a></li><li><span class="t">series identity = metric name + sorted label set</span> </li></ul></details></li><li><details ><summary><span class="t">Limitations</span> </summary><ul class="d3"><li><span class="t">not for durable event logging / individual events</span> </li><li><span class="t">cardinality explosion (high-cardinality labels like user_id)</span> <a class="lk" href="../gamedays/03-explosao-de-cardinalidade/">🔥 explosao-de-cardinalidade</a></li><li><span class="t">single-node by default; HA needs Thanos/Cortex/Mimir federation</span> <a class="lk" href="../labs/federation-remote-write/">🧪 federation-remote-write</a></li></ul></details></li></ul></details></li><li><details open><summary><span class="t">Observability Concepts (18%)</span> <a class="lk" href="../flashcards/flashcards.html#d=observability">🃏 cards</a></summary><ul class="d2"><li><details ><summary><span class="t">Pillars of Observability</span> </summary><ul class="d3"><li><span class="t">metrics (Prometheus core)</span> </li><li><span class="t">logs (Loki/ELK, out of scope for storage)</span> </li><li><span class="t">traces (Tempo/Jaeger)</span> </li></ul></details></li><li><details ><summary><span class="t">Metric Types</span> <a class="lk" href="../labs/instrumentation/">🧪 instrumentation</a></summary><ul class="d3"><li><span class="t">Counter (only increases, e.g. requests_total)</span> <a class="lk" href="../challenges/counters/">🎯 counters</a></li><li><span class="t">Gauge (up/down, e.g. memory_usage_bytes)</span> <a class="lk" href="../challenges/gauges/">🎯 gauges</a></li><li><span class="t">Histogram (<code>_bucket{le=&quot;...&quot;}</code>, <code>_sum</code>, <code>_count</code>)</span> <a class="lk" href="../challenges/histograms/">🎯 histograms</a></li><li><span class="t">Summary (precomputed <code>{quantile=&quot;0.99&quot;}</code>, <code>_sum</code>, <code>_count</code>)</span> <a class="lk" href="../challenges/histograms/">🎯 histograms</a></li></ul></details></li><li><details ><summary><span class="t">Monitoring Concepts</span> </summary><ul class="d3"><li><span class="t">white-box (instrumented internals) vs black-box (probe externally)</span> <a class="lk" href="../labs/exporters-pushgateway/">🧪 exporters-pushgateway</a></li><li><span class="t">push (Pushgateway) vs pull (default scrape)</span> <a class="lk" href="../labs/exporters-pushgateway/">🧪 exporters-pushgateway</a></li><li><span class="t">USE method: Utilization, Saturation, Errors (resources)</span> <a class="lk" href="../labs/slo-end-to-end/">🧪 slo-end-to-end</a></li><li><span class="t">RED method: Rate, Errors, Duration (services)</span> <a class="lk" href="../labs/slo-end-to-end/">🧪 slo-end-to-end</a></li><li><span class="t">Four Golden Signals: latency, traffic, errors, saturation</span> <a class="lk" href="../labs/slo-end-to-end/">🧪 slo-end-to-end</a></li></ul></details></li><li><details ><summary><span class="t">SLI / SLO / SLA</span> <a class="lk" href="../labs/slo-end-to-end/">🧪 slo-end-to-end</a></summary><ul class="d3"><li><span class="t">SLI: measured ratio (e.g. good_requests / total_requests)</span> </li><li><span class="t">SLO: target (e.g. 99.9% over 30d)</span> </li><li><span class="t">SLA: contractual consequence</span> </li><li><span class="t">error budget = 1 - SLO (e.g. 0.1%)</span> </li></ul></details></li></ul></details></li><li><details open><summary><span class="t">Alerting &amp; Dashboarding (18%)</span> <a class="lk" href="../challenges/alerting-expressions/">🎯 alerting-expressions</a> <a class="lk" href="../flashcards/flashcards.html#d=alerting">🃏 cards</a></summary><ul class="d2"><li><details ><summary><span class="t">Alerting Rules</span> <a class="lk" href="../labs/alertmanager/">🧪 alertmanager</a> <a class="lk" href="../gamedays/01-alerta-que-nunca-dispara/">🔥 alerta-que-nunca-dispara</a></summary><ul class="d3"><li><span class="t">rule fields: <code>alert</code>, <code>expr</code>, <code>for</code>, <code>labels</code>, <code>annotations</code></span> </li><li><span class="t">example: <code>expr: up == 0</code>, <code>for: 5m</code></span> </li><li><span class="t">states: inactive -&gt; pending (during <code>for</code>) -&gt; firing</span> </li><li><span class="t">recording rules: <code>record: job:http_requests:rate5m</code>, <code>expr: sum by(job)(rate(...))</code></span> <a class="lk" href="../promql-functions-lab/functions/rate/">📘 rate</a> <a class="lk" href="../labs/recording-rules-testing/">🧪 recording-rules-testing</a></li><li><span class="t">validate: <code>promtool check rules rules.yml</code></span> <a class="lk" href="../labs/recording-rules-testing/">🧪 recording-rules-testing</a></li></ul></details></li><li><details ><summary><span class="t">Alertmanager</span> <a class="lk" href="../labs/alertmanager/">🧪 alertmanager</a> <a class="lk" href="../gamedays/05-ninguem-foi-paginado/">🔥 ninguem-foi-paginado</a></summary><ul class="d3"><li><span class="t">routing tree: <code>route.receiver</code>, <code>route.match</code>, <code>route.group_by</code>, <code>route.routes</code></span> </li><li><span class="t"><code>group_wait</code>, <code>group_interval</code>, <code>repeat_interval</code></span> </li><li><span class="t">inhibition (inhibit_rules: source_match, target_match, equal)</span> </li><li><span class="t">silences (via UI/amtool, matchers + duration)</span> </li><li><span class="t">receivers: email_configs, slack_configs, pagerduty_configs, webhook_configs</span> </li><li><span class="t">deduplication across HA Alertmanager peers</span> </li><li><span class="t">HA via <code>--cluster.peer</code> gossip</span> </li></ul></details></li><li><details ><summary><span class="t">Dashboarding</span> <a class="lk" href="../labs/slo-end-to-end/">🧪 slo-end-to-end</a></summary><ul class="d3"><li><span class="t">Prometheus expression browser (:9090/graph)</span> </li><li><span class="t">console templates (Go templating under consoles/)</span> </li><li><details ><summary><span class="t">Grafana integration</span> </summary><ul class="d4"><li><span class="t">add Prometheus data source (URL :9090)</span> </li><li><span class="t">panels with PromQL queries + <code>$__rate_interval</code></span> </li></ul></details></li><li><span class="t">visualization: rate over counters, not raw counter values</span> </li></ul></details></li></ul></details></li><li><details open><summary><span class="t">Instrumentation and Exporters (16%)</span> <a class="lk" href="../flashcards/flashcards.html#d=instrumentation">🃏 cards</a></summary><ul class="d2"><li><details ><summary><span class="t">Instrumentation</span> <a class="lk" href="../labs/instrumentation/">🧪 instrumentation</a></summary><ul class="d3"><li><span class="t">client libraries: client_golang, client_python, client_java, client_ruby</span> </li><li><span class="t">direct instrumentation: prometheus.NewCounterVec(...).WithLabelValues().Inc()</span> </li><li><span class="t">exposition format / OpenMetrics (text format, <code># HELP</code>, <code># TYPE</code>)</span> </li><li><span class="t">best practices: snake_case, base units, low-cardinality labels</span> <a class="lk" href="../gamedays/03-explosao-de-cardinalidade/">🔥 explosao-de-cardinalidade</a></li></ul></details></li><li><details ><summary><span class="t">Exporters</span> <a class="lk" href="../labs/exporters-pushgateway/">🧪 exporters-pushgateway</a></summary><ul class="d3"><li><span class="t">node_exporter (host: node_cpu_seconds_total, node_memory_*)</span> </li><li><span class="t">blackbox_exporter (probe modules: http_2xx, icmp, tcp_connect)</span> </li><li><span class="t">cAdvisor (container_cpu_usage_seconds_total)</span> </li><li><span class="t">mysqld_exporter, postgres_exporter, snmp_exporter</span> </li><li><span class="t">custom exporter when no library + scrape /metrics</span> </li></ul></details></li><li><details ><summary><span class="t">Pushgateway</span> <a class="lk" href="../labs/exporters-pushgateway/">🧪 exporters-pushgateway</a> <a class="lk" href="../gamedays/06-backup-congelado/">🔥 backup-congelado</a></summary><ul class="d3"><li><span class="t">use case: cron/batch job pushes before exit</span> </li><li><span class="t">push via <code>echo &quot;metric 1&quot; | curl --data-binary @- :9091/metrics/job/&lt;job&gt;</code></span> </li><li><span class="t">caveats: metrics persist until deleted (stale), not for service-level, single point</span> </li></ul></details></li></ul></details></li></ul></details></li></ul>
+</section>
+<script>
+window.markmap = { autoLoader: { manual: false, toolbar: true } };
+setTimeout(function(){
+  if (!document.querySelector("#map svg g")) document.getElementById("offline").style.display = "flex";
+}, 6000);
+document.getElementById("expand").onclick = function(){
+  document.querySelectorAll("#outline details").forEach(function(d){ d.open = true; });
+  location.hash = "outline";
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18.12"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+id: '224'
+title: '`and on(...)`: filtrar por condição de outra série'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#9-operadores-lógicos-and-or-unless
+prompt: |
+  Retorne **todas** as séries (200 e 500) de `sort_desc_http_requests_total{service, code}` dos
+  serviços cuja taxa de **500** (`rate` 5m) é **maior que 3 req/s**.
+hints:
+- and mantém as séries da esquerda que têm par à direita
+- 'O par deve ser só pelo service: and on(service)'
+- x and on(service) rate(x{code="500"}[5m]) > 3
+solution: sort_desc_http_requests_total and on(service) rate(sort_desc_http_requests_total{code="500"}[5m]) > 3
+accepted_answers:
+- sort_desc_http_requests_total and ignoring(code) (rate(sort_desc_http_requests_total{code="500"}[5m]) > 3)
+- sort_desc_http_requests_total{service=~"checkout|payments"}
+wrong_answers:
+- sort_desc_http_requests_total and rate(sort_desc_http_requests_total{code="500"}[5m]) > 3
+- rate(sort_desc_http_requests_total{code="500"}[5m]) > 3
+tolerance: 1.0e-05
+explanation: |
+  `and` é interseção por **labels** (não por valor): mantém séries da esquerda (com seus valores) que
+  têm par à direita. `>` tem precedência maior que `and`, então não precisa de parênteses.
+  Sem `on(service)`, o par exigiria também `code` igual e só as séries 500 sobrariam.
+  Resultado: 4 séries (checkout e payments, 200 e 500).

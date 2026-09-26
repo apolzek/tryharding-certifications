@@ -1,0 +1,10 @@
+groups:
+  - name: ex03
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} fora do ar"

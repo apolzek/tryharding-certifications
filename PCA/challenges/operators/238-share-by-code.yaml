@@ -1,0 +1,23 @@
+id: '238'
+title: Share global por código (`ignoring` + `group_left`)
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  Qual fração de **todas** as requisições (`rate` 5m de `sort_desc_http_requests_total`) é de cada `code`?
+  Resultado: uma série por `code`.
+hints:
+- 'Numerador: sum by(code). Denominador: sum() sem labels'
+- 'Os lados não compartilham labels: ignoring(code) group_left, ou scalar()'
+solution: sum by(code)(rate(sort_desc_http_requests_total[5m])) / ignoring(code) group_left sum(rate(sort_desc_http_requests_total[5m]))
+accepted_answers:
+- sum by(code)(rate(sort_desc_http_requests_total[5m])) / scalar(sum(rate(sort_desc_http_requests_total[5m])))
+- sum by(code)(rate(sort_desc_http_requests_total[5m])) / on() group_left sum(rate(sort_desc_http_requests_total[5m]))
+wrong_answers:
+- sum by(code)(rate(sort_desc_http_requests_total[5m])) / sum(rate(sort_desc_http_requests_total[5m]))
+- sum by(code)(rate(sort_desc_http_requests_total[5m]))
+explanation: |
+  `sum by(code)(...) / sum(...)` retorna **vazio**: a esquerda tem `{code}` e a direita `{}`.
+  `ignoring(code) group_left` casa as 2 séries da esquerda com a única da direita. Alternativa:
+  dividir por `scalar(sum(...))` (ou usar `on() group_left`). Resultado: 200 → **0.94**, 500 → **0.06**.

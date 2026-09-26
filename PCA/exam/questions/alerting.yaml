@@ -1,0 +1,571 @@
+# Questões originais — domínio Alerting and Dashboarding (enunciado EN, explicação pt-BR)
+- id: alert-001
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    An alerting rule has `for: 10m`. The expression starts returning a result. What is the alert state during the first 10 minutes?
+  options:
+  - 'firing'
+  - 'pending'
+  - 'inactive'
+  - 'silenced'
+  answer: B
+  explanation_pt: |
+    Estados: inactive → pending (condição verdadeira, aguardando o `for`) → firing (verdadeira em todas as avaliações durante o `for`). Se a condição falhar no meio, volta a inactive. "silenced" é estado do Alertmanager, não da regra.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  lang: en
+- id: alert-002
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    What happens with an alerting rule that has no for clause when its expression returns a result?
+  options:
+  - 'The alert fires on the first evaluation where the expression returns a result'
+  - 'The alert waits for the default of 5 minutes'
+  - 'The alert stays pending forever'
+  - 'The rule is invalid'
+  answer: A
+  explanation_pt: |
+    Sem `for`, o alerta vai direto para firing na primeira avaliação com resultado. `for` serve para exigir que a condição persista e reduzir alarmes falsos por picos curtos.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  lang: en
+- id: alert-003
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    What does the keep_firing_for clause of an alerting rule do?
+  options:
+  - 'It delays the first notification'
+  - 'It sets how long Alertmanager repeats notifications'
+  - 'It keeps the alert firing for the given duration after the condition was last met, avoiding flapping or false resolutions'
+  - 'It keeps the alert pending for the given duration'
+  answer: C
+  explanation_pt: |
+    `keep_firing_for` evita que o alerta "resolva" por uma lacuna momentânea (ex.: falta de dados) e volte a disparar em seguida. `for` atua na entrada; `keep_firing_for` na saída.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  lang: en
+- id: alert-004
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    What is the difference between labels and annotations in an alerting rule?
+  options:
+  - 'There is no difference'
+  - 'Annotations are used for routing; labels are only displayed'
+  - 'Labels are free text; annotations must be numbers'
+  - 'Labels identify the alert and are used for routing, grouping and inhibition; annotations hold descriptive information such as summary, description or runbook links'
+  answer: D
+  explanation_pt: |
+    Labels fazem parte da identidade do alerta (mudá-los cria outro alerta) e são usados pelo Alertmanager para rotear/agrupar/inibir. Annotations são informativas e podem conter templates com valores que mudam (ex.: `$value`).
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  lang: en
+- id: alert-005
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    Inside an alerting rule annotation, which template prints the value of the instance label of the alerting series?
+  options:
+  - '`{{ $labels.instance }}`'
+  - '`{{ .instance }}`'
+  - '`${instance}`'
+  - '`{{ label "instance" }}`'
+  answer: A
+  explanation_pt: |
+    Em regras do Prometheus: `{{ $labels.<nome> }}` para labels e `{{ $value }}` para o valor da expressão. Ex.: `"{{ $labels.instance }} está com {{ $value | humanizePercentage }} de erro"`.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#templating
+  lang: en
+- id: alert-006
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    Prometheus stores a synthetic time series for pending and firing alerts. Which query lists all currently firing alerts?
+  options:
+  - 'alerts{state="firing"}'
+  - 'up{alertstate="firing"}'
+  - 'ALERTS{alertstate="firing"}'
+  - 'prometheus_alerts_firing'
+  answer: C
+  explanation_pt: |
+    Para cada alerta pending/firing existe `ALERTS{alertname="...", alertstate="pending|firing", <labels do alerta>} 1`. Também existe `ALERTS_FOR_STATE`, usado para restaurar o `for` após restart.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#inspecting-alerts-during-runtime
+  lang: en
+- id: alert-007
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    Where are alerting rules evaluated?
+  options:
+  - 'In Alertmanager'
+  - 'In the Prometheus server, which then sends active alerts to Alertmanager'
+  - 'In Grafana only'
+  - 'In the exporters'
+  answer: B
+  explanation_pt: |
+    O Prometheus avalia regras a cada `evaluation_interval` e envia os alertas ativos para os Alertmanagers configurados em `alerting.alertmanagers`. O Alertmanager nunca consulta métricas.
+  source: https://prometheus.io/docs/alerting/latest/overview/
+  lang: en
+- id: alert-008
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    How are rule files loaded by Prometheus?
+  options:
+  - 'They are uploaded through the Alertmanager UI'
+  - 'They are pushed to /api/v1/rules'
+  - 'They are auto-detected in the data directory'
+  - 'They are listed (paths or globs) under rule_files in prometheus.yml'
+  answer: D
+  explanation_pt: |
+    `rule_files: ["rules/*.yml"]` no prometheus.yml. Alterações passam a valer após reload (SIGHUP ou `/-/reload`). `/api/v1/rules` é só leitura.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file
+  lang: en
+- id: alert-009
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    Which command validates the syntax of a Prometheus rule file before deploying it?
+  options:
+  - '`promtool check rules rules.yml`'
+  - '`amtool check-config rules.yml`'
+  - '`prometheus --validate rules.yml`'
+  - '`promtool query instant rules.yml`'
+  answer: A
+  explanation_pt: |
+    `promtool check rules` valida sintaxe e PromQL das regras; `promtool check config` valida o prometheus.yml (e os rule files referenciados). `amtool check-config` valida o alertmanager.yml.
+  source: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+  lang: en
+- id: alert-010
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    How can you unit test alerting rules, checking that an alert fires with the expected labels given synthetic input series?
+  options:
+  - 'With amtool silence query'
+  - 'By running Prometheus with --test-mode'
+  - 'With promtool test rules and a test file containing input_series and alert_rule_test'
+  - 'It is not possible; rules can only be tested in production'
+  answer: C
+  explanation_pt: |
+    `promtool test rules teste.yml`: o arquivo define `rule_files`, `input_series` (notação como `0+10x10`), `alert_rule_test` (com `eval_time` e `exp_alerts`) e `promql_expr_test`.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/
+  lang: en
+- id: alert-011
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    Which recording rule name follows the recommended level:metric:operations convention?
+  options:
+  - '`http_requests_rate_5m_by_job`'
+  - '`job:http_requests:rate5m`'
+  - '`rate5m:http_requests:job`'
+  - '`recording_http_requests_total`'
+  answer: B
+  explanation_pt: |
+    Convenção: `nível:métrica:operações`. `job` é o nível de agregação (labels restantes), `http_requests` a métrica (sem `_total` após o rate) e `rate5m` a operação. Os dois-pontos são reservados para recording rules.
+  source: https://prometheus.io/docs/practices/rules/
+  lang: en
+- id: alert-012
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    What is the main purpose of recording rules?
+  options:
+  - 'To route alerts to receivers'
+  - 'To record logs'
+  - 'To store raw samples from targets'
+  - 'To precompute frequently needed or expensive expressions and save the results as new time series'
+  answer: D
+  explanation_pt: |
+    Recording rules avaliam uma expressão periodicamente e gravam o resultado como série nova. Dashboards e alertas passam a consultar algo barato e pré-agregado; também é a base de federação hierárquica.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+  lang: en
+- id: alert-013
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    How are the rules inside one rule group evaluated?
+  options:
+  - 'Sequentially, in order, at the group''s evaluation interval; different groups run concurrently'
+  - 'All rules of all groups in random order'
+  - 'Only when a query hits the rule''s name'
+  - 'In parallel within the group, sequentially across groups'
+  answer: A
+  explanation_pt: |
+    Dentro de um grupo as regras rodam em sequência (uma regra pode usar o resultado de outra anterior no mesmo grupo). Grupos diferentes rodam em paralelo, cada um com seu `interval` (default: `evaluation_interval`).
+  source: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+  lang: en
+- id: alert-014
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    In Alertmanager, what does `group_by: ['alertname', 'cluster']` do?
+  options:
+  - 'Drops alerts without these labels'
+  - 'Sorts alerts in the UI'
+  - 'Batches alerts that share the same values for these labels into a single notification'
+  - 'Requires these labels for silences'
+  answer: C
+  explanation_pt: |
+    Agrupamento junta alertas parecidos numa única notificação: ex.: 100 instâncias caindo no mesmo cluster geram uma mensagem, não 100.
+  source: https://prometheus.io/docs/alerting/latest/alertmanager/#grouping
+  lang: en
+- id: alert-015
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    What does group_wait control, and what is its default value?
+  options:
+  - 'How long to wait before re-sending a notification that was already sent; 4h'
+  - 'How long to buffer alerts of a new group before sending its first notification; 30s'
+  - 'How long to wait before sending notifications about new alerts added to an existing group; 5m'
+  - 'How long an alert must be active before firing; 1m'
+  answer: B
+  explanation_pt: |
+    `group_wait` (30s) = espera inicial de um grupo NOVO, para juntar alertas que chegam quase juntos. `group_interval` (5m) = novidades num grupo já notificado. `repeat_interval` (4h) = reenvio do mesmo conteúdo.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+  lang: en
+- id: alert-016
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    A group was already notified. A new alert joins that group. Which setting determines how long Alertmanager waits before sending a notification about it?
+  options:
+  - 'group_wait'
+  - 'repeat_interval'
+  - 'evaluation_interval'
+  - 'group_interval'
+  answer: D
+  explanation_pt: |
+    `group_interval` (default 5m) é o timer recorrente de um grupo: a cada intervalo, se houve alerta novo ou resolvido, envia notificação. `repeat_interval` é para reenviar quando nada mudou.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+  lang: en
+- id: alert-017
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    What is the default repeat_interval in Alertmanager?
+  options:
+  - '4h'
+  - '5m'
+  - '30s'
+  - '24h'
+  answer: A
+  explanation_pt: |
+    Defaults da rota: `group_wait: 30s`, `group_interval: 5m`, `repeat_interval: 4h`. O `repeat_interval` é arredondado para um múltiplo do `group_interval`.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+  lang: en
+- id: alert-018
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    An alert matches two sibling child routes of the root route. Neither has continue set. Where is it sent?
+  options:
+  - 'To both routes'
+  - 'To the root route''s receiver only'
+  - 'Only to the first matching child route'
+  - 'To the last matching child route'
+  answer: C
+  explanation_pt: |
+    A árvore é percorrida em profundidade e, por padrão (`continue: false`), para no PRIMEIRO filho que casar. Com `continue: true` no filho, o alerta continua sendo comparado com os irmãos seguintes.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+  lang: en
+- id: alert-019
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    A child route only defines matchers and a receiver. Which values does it use for group_by, group_wait and repeat_interval?
+  options:
+  - 'Alertmanager''s hard-coded defaults, ignoring the parent'
+  - 'The values inherited from its parent route'
+  - 'No grouping and no repetition'
+  - 'The values of the last route in the file'
+  answer: B
+  explanation_pt: |
+    Rotas filhas herdam do pai tudo que não sobrescrevem (receiver, group_by, timers). A rota raiz precisa ter receiver e casa com todos os alertas.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+  lang: en
+- id: alert-020
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    You want to suppress severity="warning" alerts while a severity="critical" alert with the same alertname and cluster is firing. Which Alertmanager configuration achieves this?
+  options:
+  - 'A silence with matcher severity="warning"'
+  - 'A route with continue: true'
+  - 'group_by: [severity]'
+  - 'An inhibit_rule with source_matchers severity="critical", target_matchers severity="warning" and equal [alertname, cluster]'
+  answer: D
+  explanation_pt: |
+    Inibição silencia automaticamente os alertas TARGET enquanto existe um alerta SOURCE firing com os mesmos valores nos labels de `equal`. Um silence seria manual e mudo o tempo todo, não só quando o crítico existe.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#inhibit_rule
+  lang: en
+- id: alert-021
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    How is an Alertmanager silence created?
+  options:
+  - 'Through the Alertmanager web UI, amtool or the API, with matchers, a start/end time, an author and a comment'
+  - 'By adding a silences: section to alertmanager.yml and reloading'
+  - 'By deleting the alerting rule in Prometheus'
+  - 'By setting for: 0 in the rule'
+  answer: A
+  explanation_pt: |
+    Silences são objetos em tempo de execução (não ficam no arquivo de config): criados pela UI, `amtool silence add` ou API, com matchers e validade. São compartilhados no cluster via gossip.
+  source: https://prometheus.io/docs/alerting/latest/alertmanager/#silences
+  lang: en
+- id: alert-022
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    What is the key difference between a silence and an inhibition in Alertmanager?
+  options:
+  - 'Silences only work for critical alerts'
+  - 'Inhibitions are created in the UI; silences in the config file'
+  - 'A silence is created manually and is time-bound; an inhibition is a configured rule that mutes alerts automatically based on other firing alerts'
+  - 'There is no difference'
+  answer: C
+  explanation_pt: |
+    Silence: manual, com início e fim (ex.: janela de manutenção). Inhibition: regra permanente em `inhibit_rules`, condicionada à existência de outro alerta.
+  source: https://prometheus.io/docs/alerting/latest/alertmanager/#inhibition
+  lang: en
+- id: alert-023
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    A team wants non-critical notifications to be muted automatically every weekend. What is the best Alertmanager feature for this?
+  options:
+  - 'A silence recreated manually every Friday'
+  - 'A time interval referenced by mute_time_intervals on the route'
+  - 'An inhibit rule'
+  - 'A higher repeat_interval'
+  answer: B
+  explanation_pt: |
+    Defina um `time_intervals` (ex.: `weekdays: ['saturday','sunday']`) e referencie em `mute_time_intervals` da rota (ou use `active_time_intervals` para o oposto). A rota raiz não pode ter mute time.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#time_interval
+  lang: en
+- id: alert-024
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    How do multiple Alertmanager instances form a highly available cluster?
+  options:
+  - 'They share a database'
+  - 'They are placed behind a load balancer only'
+  - 'They elect a leader with Raft and only the leader sends notifications'
+  - 'They are started with --cluster.peer flags and use a gossip protocol to share silences and notification state'
+  answer: D
+  explanation_pt: |
+    O cluster usa gossip (memberlist; porta 9094, TCP e UDP) para replicar silences e o log de notificações, evitando envio duplicado. Os Prometheus devem enviar alertas para TODAS as instâncias.
+  source: https://github.com/prometheus/alertmanager#high-availability
+  lang: en
+- id: alert-025
+  domain: Alerting and Dashboarding
+  difficulty: hard
+  question: |
+    Two HA Prometheus replicas have external_labels replica="a" and replica="b" and send the same alerts to Alertmanager. Users receive duplicate notifications. What is the usual fix?
+  options:
+  - 'Drop the replica label from outgoing alerts with alert_relabel_configs'
+  - 'Increase group_wait'
+  - 'Stop one of the replicas'
+  - 'Add replica to group_by'
+  answer: A
+  explanation_pt: |
+    O Alertmanager deduplica alertas com labels IDÊNTICOS. Se `replica` difere, são alertas diferentes. Remover esse label com `alert_relabel_configs` (action `labeldrop`) faz os alertas das duas réplicas coincidirem.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#alert_relabel_configs
+  lang: en
+- id: alert-026
+  domain: Alerting and Dashboarding
+  difficulty: hard
+  question: |
+    What is the effect of `group_by: ['...']` in an Alertmanager route?
+  options:
+  - 'It groups all alerts into a single notification'
+  - 'It groups by all labels, effectively disabling aggregation so each unique label set gets its own notification'
+  - 'It is invalid syntax'
+  - 'It groups only by alertname'
+  answer: B
+  explanation_pt: |
+    O valor especial `...` agrupa por TODOS os labels, então cada alerta distinto vira seu próprio grupo. Útil quando o receptor já faz agregação própria. Uma lista vazia (`group_by: []`) faz o oposto: tudo num grupo só.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+  lang: en
+- id: alert-027
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    Which Alertmanager receiver integration lets you forward notifications to any custom HTTP service?
+  options:
+  - 'email_configs'
+  - 'pagerduty_configs'
+  - 'webhook_configs'
+  - 'inhibit_rules'
+  answer: C
+  explanation_pt: |
+    `webhook_configs` faz POST de um JSON com o grupo de alertas para uma URL qualquer. É o caminho genérico para integrações sem receiver nativo.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
+  lang: en
+- id: alert-028
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    What is amtool?
+  options:
+  - 'A Grafana plugin'
+  - 'The PromQL linter'
+  - 'A tool to benchmark Alertmanager'
+  - 'A command-line tool to interact with Alertmanager: validate its config, query alerts, and manage silences'
+  answer: D
+  explanation_pt: |
+    Exemplos: `amtool check-config alertmanager.yml`, `amtool alert query`, `amtool silence add alertname=X --duration=2h`, `amtool config routes test severity=critical`.
+  source: https://github.com/prometheus/alertmanager#amtool
+  lang: en
+- id: alert-029
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    Where in prometheus.yml do you tell Prometheus which Alertmanagers to send alerts to?
+  options:
+  - 'Under alerting.alertmanagers, e.g. with static_configs targets'
+  - 'Under scrape_configs with job_name: alertmanager'
+  - 'Under remote_write'
+  - 'Under rule_files'
+  answer: A
+  explanation_pt: |
+    `alerting: { alertmanagers: [ { static_configs: [ { targets: ["am:9093"] } ] } ] }`. Também aceita service discovery. Raspar o Alertmanager em `scrape_configs` só coleta as métricas dele.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#alertmanager_config
+  lang: en
+- id: alert-030
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    Which setting controls whether a receiver is notified when an alert resolves?
+  options:
+  - 'resolve_timeout in the rule'
+  - 'send_resolved in the receiver''s integration config'
+  - 'keep_firing_for'
+  - 'repeat_interval'
+  answer: B
+  explanation_pt: |
+    Cada integração tem `send_resolved`. O default varia por integração: é `true` para webhook, PagerDuty e a maioria, mas `false` para e-mail e Slack, por exemplo.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#receiver-integration-settings
+  lang: en
+- id: alert-031
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    In Grafana, what must be configured before you can build panels that query Prometheus?
+  options:
+  - 'A Prometheus recording rule for every panel'
+  - 'An Alertmanager receiver'
+  - 'A Prometheus data source pointing to the Prometheus server URL'
+  - 'A Pushgateway'
+  answer: C
+  explanation_pt: |
+    O Grafana não armazena métricas; ele consulta fontes de dados. Adicione um data source do tipo Prometheus (URL como `http://prometheus:9090`) manualmente ou via provisioning.
+  source: https://grafana.com/docs/grafana/latest/datasources/prometheus/
+  lang: en
+- id: alert-032
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    A Grafana dashboard needs a dropdown listing all values of the job label. Which variable query does this with the Prometheus data source?
+  options:
+  - '`SELECT DISTINCT job FROM up`'
+  - '`count by (job) (up)`'
+  - '`$job`'
+  - '`label_values(up, job)`'
+  answer: D
+  explanation_pt: |
+    Variáveis de query do Prometheus no Grafana aceitam `label_values(<métrica>, <label>)`, `label_names()`, `metrics(regex)` e `query_result(expr)`. Depois use `$job` nas queries.
+  source: https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/
+  lang: en
+- id: alert-033
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    Why is $__rate_interval recommended in Grafana as the range for rate() on Prometheus data?
+  options:
+  - 'It guarantees a window large enough (based on the scrape interval and query step) so rate() always has enough samples'
+  - 'It makes the query return per-minute instead of per-second values'
+  - 'It disables extrapolation'
+  - 'It is required by Prometheus 3.x'
+  answer: A
+  explanation_pt: |
+    `$__rate_interval` = max(`$__interval` + scrape interval, 4 × scrape interval), usando o scrape interval configurado no data source. Evita janelas pequenas demais (buracos) ao dar zoom.
+  source: https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/#use-__rate_interval
+  lang: en
+- id: alert-034
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    Which Grafana visualization is best suited to show how the distribution of request latencies (from histogram buckets) changes over time?
+  options:
+  - 'Pie chart'
+  - 'Heatmap'
+  - 'Stat'
+  - 'Text'
+  answer: B
+  explanation_pt: |
+    O heatmap mostra, para cada intervalo de tempo, quantas observações caíram em cada bucket. Com Prometheus, use `sum by (le) (rate(x_bucket[$__rate_interval]))` e o formato "Heatmap".
+  source: https://grafana.com/docs/grafana/latest/panels-visualizations/visualizations/heatmap/
+  lang: en
+- id: alert-035
+  domain: Alerting and Dashboarding
+  difficulty: easy
+  question: |
+    Which Grafana visualization is designed to display a single current value (such as the current error rate) with color thresholds?
+  options:
+  - 'Heatmap'
+  - 'Logs'
+  - 'Stat'
+  - 'Node graph'
+  answer: C
+  explanation_pt: |
+    O painel Stat mostra um número grande (com sparkline opcional) e muda de cor conforme thresholds. Gauge e Bar gauge são alternativas parecidas.
+  source: https://grafana.com/docs/grafana/latest/panels-visualizations/visualizations/stat/
+  lang: en
+- id: alert-036
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    The alert expression `up{job="api"} == 0` did not fire when every api target disappeared from service discovery. Why, and what is a common complementary alert?
+  options:
+  - 'The for clause was too short; use for: 1h'
+  - 'Alertmanager dropped it; add continue: true'
+  - 'up never becomes 0; use rate(up[5m])'
+  - 'With no targets there is no up series at all, so the comparison returns nothing; add an alert on absent(up{job="api"})'
+  answer: D
+  explanation_pt: |
+    `up == 0` só pega alvos que existem e falham. Se o SD não encontra nenhum alvo, não há série, e a expressão retorna vazio. `absent(up{job="api"})` retorna 1 justamente quando não há nenhuma série.
+  source: promql-functions-lab/functions/absent/README.md
+  lang: en
+- id: alert-037
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    Where does an alert's severity label typically come from, so that Alertmanager can route critical alerts to PagerDuty and warnings to Slack?
+  options:
+  - 'It is added in the labels section of the alerting rule'
+  - 'Alertmanager infers it from the alert value'
+  - 'It must be exposed by the target'
+  - 'It is an annotation'
+  answer: A
+  explanation_pt: |
+    Labels declarados em `labels:` da regra são anexados ao alerta. As rotas do Alertmanager então usam `matchers: [severity="critical"]` para escolher o receiver.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  lang: en
+- id: alert-038
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: |
+    What is the recommended way to write matchers in current Alertmanager route and inhibition configuration?
+  options:
+  - 'match and match_re maps'
+  - 'The matchers list, e.g. matchers: [ severity="critical", team=~"db|infra" ]'
+  - 'PromQL selectors like {severity="critical"}'
+  - 'Regex strings in the receiver name'
+  answer: B
+  explanation_pt: |
+    `match`/`match_re` (e `source_match`/`target_match`) estão depreciados. Use `matchers` em rotas e `source_matchers`/`target_matchers` em inhibit_rules, com os operadores `=`, `!=`, `=~`, `!~`.
+  source: https://prometheus.io/docs/alerting/latest/configuration/#matcher
+  lang: en

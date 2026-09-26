@@ -1,0 +1,30 @@
+id: '234'
+title: '`group_left(label)`: enriquecer com target_info'
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  `target_info{version, k8s_cluster_name, ...}` (valor 1) tem metadados do alvo — padrão do OpenTelemetry.
+  `info_http_server_requests_total{route}` é um counter do **mesmo alvo** (mesmos `job` e `instance`).
+
+  Retorne `info_http_server_requests_total` (valor cru) com o label **`version`** copiado de `target_info`
+  (e nenhum outro label novo).
+hints:
+- O 'join' é por job e instance
+- Multiplicar por 1 não muda o valor
+- x * on(job, instance) group_left(version) target_info
+solution: info_http_server_requests_total * on(job, instance) group_left(version) target_info
+accepted_answers:
+- target_info * on(job, instance) group_right(version) info_http_server_requests_total
+- info_http_server_requests_total * on(instance, job) group_left(version) target_info
+wrong_answers:
+- info_http_server_requests_total * on(job, instance) group_left target_info
+- info_http_server_requests_total * on(job, instance) group_left(version, k8s_cluster_name) target_info
+- info_http_server_requests_total * target_info
+tolerance: 1.0e-05
+explanation: |
+  Padrão "info metric": `* on(job, instance) group_left(version) target_info`. O `on` define a
+  chave do JOIN, `group_left` diz que a esquerda é o lado "many" e a lista `(version)` diz quais
+  labels **copiar** do lado "one". Como `target_info` vale 1, o valor não muda.
+  No Prometheus 3 existe também a função experimental `info()` que faz isso por você.

@@ -1,0 +1,26 @@
+id: "167"
+title: "Projeção de custo do mês"
+topic: time
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/days_in_month/
+prompt: |
+  Com o custo acumulado no mês `days_in_month_cloud_cost_month_to_date_dollars{team}`, projete o
+  **custo no fim do mês** de cada time: (custo até agora ÷ dia do mês atual) × dias no mês atual.
+hints:
+  - "day_of_month() e days_in_month() sem argumento usam a data de agora."
+  - "Eles devolvem vetores SEM labels: use scalar() para combinar com o vetor do time."
+  - "x / scalar(day_of_month()) * scalar(days_in_month())"
+solution: 'days_in_month_cloud_cost_month_to_date_dollars / scalar(day_of_month()) * scalar(days_in_month())'
+accepted_answers:
+  - 'days_in_month_cloud_cost_month_to_date_dollars * scalar(days_in_month() / day_of_month())'
+wrong_answers:
+  - 'days_in_month_cloud_cost_month_to_date_dollars / day_of_month() * days_in_month()'
+  - 'days_in_month_cloud_cost_month_to_date_dollars / scalar(day_of_month())'
+  - 'days_in_month_cloud_budget_monthly_dollars / scalar(day_of_month()) * scalar(days_in_month())'
+explanation: |
+  platform gasta ~40 USD/dia → ~1200 num mês de 30 dias (estoura o orçamento de 1000);
+  data ~25 USD/dia → ~750.
+
+  Pegadinha: `vetor / day_of_month()` é uma operação vetor-vetor e não casa nenhum label → resultado vazio.
+  E 'todo mês tem 30 dias' erra em fevereiro e nos meses de 31.

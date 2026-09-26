@@ -1,0 +1,25 @@
+id: "012"
+title: "Encontre as séries com valor NaN"
+topic: selectors-and-types
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort/
+prompt: |
+  A métrica `sort_cronjob_last_duration_seconds{cronjob}` tem um cronjob que nunca rodou e
+  reporta **NaN**. Escreva uma query que retorne **somente as séries cujo valor é NaN**.
+hints:
+  - "NaN tem uma propriedade única: ele não é igual a nada, nem a si mesmo."
+  - "Compare a série com ela mesma usando `!=`."
+  - "sort_cronjob_last_duration_seconds != sort_cronjob_last_duration_seconds"
+solution: 'sort_cronjob_last_duration_seconds != sort_cronjob_last_duration_seconds'
+accepted_answers:
+  - 'sort_cronjob_last_duration_seconds unless sort_cronjob_last_duration_seconds == sort_cronjob_last_duration_seconds'
+wrong_answers:
+  - 'sort_cronjob_last_duration_seconds == NaN'
+  - 'sort_cronjob_last_duration_seconds'
+  - 'sort_cronjob_last_duration_seconds{cronjob="sync"} == 0'
+explanation: |
+  Em ponto flutuante `NaN != NaN` é verdadeiro. `x != x` é o truque padrão para achar NaN
+  (e `x == x` para removê-los).
+
+  Pegadinha: `x == NaN` nunca casa nada, porque nenhuma comparação com NaN é verdadeira.

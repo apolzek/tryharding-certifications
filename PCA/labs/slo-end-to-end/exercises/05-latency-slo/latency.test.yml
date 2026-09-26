@@ -1,0 +1,42 @@
+# docker run --rm -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.15.0 test rules latency.test.yml
+rule_files: [latency.yml]
+evaluation_interval: 1m
+tests:
+  # 600 req/min: 480 <= 0.1s, 540 <= 0.3s (10% lentas), 594 <= 0.5s, 600 no total
+  - interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="checkout",le="0.1"}'
+        values: '0+480x60'
+      - series: 'http_request_duration_seconds_bucket{job="checkout",le="0.3"}'
+        values: '0+540x60'
+      - series: 'http_request_duration_seconds_bucket{job="checkout",le="0.5"}'
+        values: '0+594x60'
+      - series: 'http_request_duration_seconds_bucket{job="checkout",le="+Inf"}'
+        values: '0+600x60'
+      - series: 'http_request_duration_seconds_count{job="checkout"}'
+        values: '0+600x60'
+    promql_expr_test:
+      - expr: round(job:slo_latency_slow_per_request:ratio_rate5m, 0.0001)
+        eval_time: 30m
+        exp_samples: [{ labels: '{job="checkout"}', value: 0.1 }]
+      - expr: round(job:slo_latency_slow_per_request:ratio_rate1h, 0.0001)
+        eval_time: 1h
+        exp_samples: [{ labels: '{job="checkout"}', value: 0.1 }]
+      - expr: round(job:slo_latency_good_per_request:fraction_rate5m, 0.0001)
+        eval_time: 30m
+        exp_samples: [{ labels: '{job="checkout"}', value: 0.9 }]
+    alert_rule_test:   # 10% lentas = burn 10x do budget de 1%: NÃO passa de 14.4
+      - { eval_time: 30m, alertname: SLOLatencyBudgetBurnFast, exp_alerts: [] }
+  # metade das requisições lentas: burn 50x -> alerta
+  - interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="checkout",le="0.3"}'
+        values: '0+300x60'
+      - series: 'http_request_duration_seconds_bucket{job="checkout",le="+Inf"}'
+        values: '0+600x60'
+      - series: 'http_request_duration_seconds_count{job="checkout"}'
+        values: '0+600x60'
+    promql_expr_test:
+      - expr: count by (alertname, severity) (ALERTS{alertname="SLOLatencyBudgetBurnFast", alertstate="firing"})
+        eval_time: 10m
+        exp_samples: [{ labels: '{alertname="SLOLatencyBudgetBurnFast", severity="page"}', value: 1 }]

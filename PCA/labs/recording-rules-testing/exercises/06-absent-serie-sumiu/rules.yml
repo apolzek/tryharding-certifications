@@ -1,0 +1,12 @@
+# EXERCÍCIO 06: o job "batch" sumiu (o exporter morreu e o alvo saiu do service discovery).
+# Queremos um alerta quando NÃO houver nenhuma série up{job="batch"} por 2 minutos.
+groups:
+  - name: ex06
+    rules:
+      - alert: BatchJobMissing
+        expr: up{job="batch"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "nenhuma série up{job=\"batch\"}"

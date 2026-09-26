@@ -1,0 +1,26 @@
+id: "160"
+title: "Idade do último backup"
+topic: time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/time/
+prompt: |
+  `time_backup_last_success_timestamp_seconds{backup}` guarda o **timestamp Unix** do último backup OK.
+  Retorne **há quantos segundos** foi o último backup de cada job.
+hints:
+  - "time() devolve o 'agora' da consulta, em segundos Unix."
+  - "idade = agora − timestamp."
+  - "time() - time_backup_last_success_timestamp_seconds"
+solution: 'time() - time_backup_last_success_timestamp_seconds'
+accepted_answers:
+  - '-(time_backup_last_success_timestamp_seconds - time())'
+wrong_answers:
+  - 'time_backup_last_success_timestamp_seconds - time()'
+  - 'time() - timestamp(time_backup_last_success_timestamp_seconds)'
+  - 'time_backup_last_success_timestamp_seconds'
+explanation: |
+  db-backup: 0–180 s, files-backup: 0–600 s, legacy-backup: > 1 dia (quebrado).
+  Métricas cujo VALOR é um timestamp (`*_timestamp_seconds`, `process_start_time_seconds`,
+  `probe_ssl_earliest_cert_expiry`) sempre combinam com `time()`.
+
+  Pegadinha: `timestamp(x)` é QUANDO a amostra foi raspada (≈ agora), não o valor dela.

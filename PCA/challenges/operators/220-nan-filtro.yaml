@@ -1,0 +1,24 @@
+id: '220'
+title: Tirando os NaN
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#7-operadores-de-comparação
+prompt: |
+  Um dos CronJobs de `sort_cronjob_last_duration_seconds` está com valor `NaN`.
+
+  Retorne só as séries com valor **numérico** (sem o NaN), usando apenas operadores.
+hints:
+- NaN é o único valor que é diferente de si mesmo
+- x == x
+solution: sort_cronjob_last_duration_seconds == sort_cronjob_last_duration_seconds
+accepted_answers:
+- sort_cronjob_last_duration_seconds >= 0
+- sort_cronjob_last_duration_seconds > -Inf
+wrong_answers:
+- sort_cronjob_last_duration_seconds != NaN
+- sort_cronjob_last_duration_seconds
+explanation: |
+  Pela IEEE 754, `NaN == NaN` é **falso** e `NaN != NaN` é **verdadeiro**. Então `x == x` filtra fora
+  o NaN. `x != NaN` **não** funciona (é verdadeiro para todo mundo, inclusive o NaN) e `x == NaN`
+  nunca retorna nada. `x >= 0` também serve quando os valores são positivos.

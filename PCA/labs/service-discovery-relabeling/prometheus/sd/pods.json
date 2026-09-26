@@ -1,0 +1,39 @@
+[
+  {
+    "targets": ["10.244.1.17:9999"],
+    "labels": {
+      "__meta_kubernetes_namespace": "shop",
+      "__meta_kubernetes_pod_name": "checkout-api-7d9f8b6c4-x2klp",
+      "__meta_kubernetes_pod_ip": "checkout-api",
+      "__meta_kubernetes_pod_label_app": "checkout",
+      "__meta_kubernetes_pod_label_tier": "backend",
+      "__meta_kubernetes_pod_annotation_prometheus_io_scrape": "true",
+      "__meta_kubernetes_pod_annotation_prometheus_io_port": "8000"
+    }
+  },
+  {
+    "targets": ["10.244.2.31:9999"],
+    "labels": {
+      "__meta_kubernetes_namespace": "data",
+      "__meta_kubernetes_pod_name": "legacy-batch-5c7d9-qq8wz",
+      "__meta_kubernetes_pod_ip": "legacy-batch",
+      "__meta_kubernetes_pod_label_app": "legacy-batch",
+      "__meta_kubernetes_pod_label_tier": "batch",
+      "__meta_kubernetes_pod_annotation_prometheus_io_scrape": "true",
+      "__meta_kubernetes_pod_annotation_prometheus_io_port": "8000",
+      "__meta_kubernetes_pod_annotation_prometheus_io_path": "/admin/metrics"
+    }
+  },
+  {
+    "targets": ["10.244.3.8:9999"],
+    "labels": {
+      "__meta_kubernetes_namespace": "search",
+      "__meta_kubernetes_pod_name": "search-api-6b5f7-m9tqr",
+      "__meta_kubernetes_pod_ip": "search-api",
+      "__meta_kubernetes_pod_label_app": "search",
+      "__meta_kubernetes_pod_label_tier": "backend",
+      "__meta_kubernetes_pod_annotation_prometheus_io_scrape": "false",
+      "__meta_kubernetes_pod_annotation_prometheus_io_port": "8000"
+    }
+  }
+]

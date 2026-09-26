@@ -1,0 +1,16 @@
+groups:
+  - name: orders
+    rules:
+      - alert: OrdersDown
+        expr: up{job="orders"} == 0
+        for: 30s
+        labels:
+          severity: page
+
+  - name: inventory
+    rules:
+      - alert: InventoryDown
+        expr: up{job="inventory"} == 0 or absent(up{job="inventory"})
+        for: 30s
+        labels:
+          severity: page

@@ -1,0 +1,23 @@
+id: "163"
+title: "A que horas roda o backup noturno"
+topic: time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/hour/
+prompt: |
+  `hour_kube_cronjob_status_last_successful_time{cronjob="nightly-backup"}` é o timestamp da última
+  execução. **Em que hora do dia (UTC, 0–23)** ele rodou?
+hints:
+  - "hour() recebe um vetor de timestamps."
+  - "Sem argumento, hour() usa o time() atual."
+  - "hour(hour_kube_cronjob_status_last_successful_time)"
+solution: 'hour(hour_kube_cronjob_status_last_successful_time)'
+wrong_answers:
+  - 'hour()'
+  - 'hour(hour_kube_cronjob_status_last_successful_time) - 3'
+  - 'minute(hour_kube_cronjob_status_last_successful_time)'
+explanation: |
+  Resultado: 3 (03:00 UTC = meia-noite em Brasília). As funções de data (`hour`, `minute`, `day_of_week`,
+  `day_of_month`, `month`, `year`...) interpretam o VALOR como timestamp Unix e respondem **em UTC**.
+
+  Pegadinha: `hour()` sem argumento é a hora de AGORA, não a do backup.

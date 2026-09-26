@@ -1,0 +1,25 @@
+id: "060"
+title: "Req/s por serviço"
+topic: aggregation
+level: basic
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+prompt: |
+  O painel "tráfego por serviço" precisa das **req/s (rate de 5m) somadas por `service`**,
+  juntando todos os códigos de status. Use `sort_desc_http_requests_total` (labels `service`, `code`).
+hints:
+  - "rate primeiro, depois agregue."
+  - "`sum by (label) (...)` mantém só os labels listados."
+  - "sum by (service) (rate(sort_desc_http_requests_total[5m]))"
+solution: 'sum by (service) (rate(sort_desc_http_requests_total[5m]))'
+accepted_answers:
+  - 'sum(rate(sort_desc_http_requests_total[5m])) by (service)'
+wrong_answers:
+  - 'sum(rate(sort_desc_http_requests_total[5m]))'
+  - 'sum by (code) (rate(sort_desc_http_requests_total[5m]))'
+  - 'sum by (service) (sort_desc_http_requests_total)'
+explanation: |
+  `by (service)` agrupa e descarta todos os outros labels (code, job, instance, env).
+  A cláusula pode vir antes ou depois: `sum by (x) (...)` = `sum(...) by (x)`.
+
+  Pegadinha: somar o counter bruto dá o total acumulado, não o tráfego atual.

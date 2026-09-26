@@ -1,0 +1,26 @@
+id: "151"
+title: "Copie deployment para service"
+topic: labels
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_replace/
+prompt: |
+  Para casar com métricas que usam `service`, copie o valor do label `deployment` de
+  `label_replace_kube_deployment_status_replicas_available` para um novo label **`service`**
+  (mantendo `deployment`).
+hints:
+  - "label_replace com a regex que casa tudo."
+  - "\"$1\" e \"(.*)\"."
+  - "label_replace(v, \"service\", \"$1\", \"deployment\", \"(.*)\")"
+solution: 'label_replace(label_replace_kube_deployment_status_replicas_available, "service", "$1", "deployment", "(.*)")'
+accepted_answers:
+  - 'label_replace(label_replace_kube_deployment_status_replicas_available, "service", "$0", "deployment", ".*")'
+  - 'label_join(label_replace_kube_deployment_status_replicas_available, "service", "", "deployment")'
+wrong_answers:
+  - 'label_replace(label_replace_kube_deployment_status_replicas_available, "deployment", "$1", "service", "(.*)")'
+  - 'label_replace_kube_deployment_status_replicas_available'
+  - 'label_replace(label_replace_kube_deployment_status_replicas_available, "service", "deployment", "deployment", "(.*)")'
+explanation: |
+  Copiar label: regex `(.*)` + `$1`. `label_join` com um único label de origem também copia.
+
+  Pegadinha: a substituição `"deployment"` (sem `$`) grava o TEXTO literal "deployment" em todas as séries.

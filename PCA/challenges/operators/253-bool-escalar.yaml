@@ -1,0 +1,23 @@
+id: '253'
+title: Escalar vs escalar exige `bool`
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#7-operadores-de-comparação
+prompt: |
+  Compare dois escalares: retorne `1` se o limite de CPU (`scalar(scalar_cpu_alert_threshold_percent)`)
+  for **maior que 50**, e `0` caso contrário. O resultado deve ser um **escalar**.
+hints:
+- Entre dois escalares, comparação SEM bool é erro de parse
+- scalar(...) > bool 50
+solution: scalar(scalar_cpu_alert_threshold_percent) > bool 50
+accepted_answers:
+- 50 < bool scalar(scalar_cpu_alert_threshold_percent)
+wrong_answers:
+- scalar(scalar_cpu_alert_threshold_percent) > 50
+- scalar_cpu_alert_threshold_percent > bool 50
+- scalar(scalar_cpu_alert_threshold_percent) < bool 50
+compare: scalar
+explanation: |
+  Comparação **entre dois escalares** só existe com `bool` (sem ele: `comparisons between scalars must
+  use BOOL modifier`). O resultado é o escalar 0 ou 1.

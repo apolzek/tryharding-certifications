@@ -1,0 +1,26 @@
+id: '201'
+title: 'Regex é ancorada: pods que começam com `api-`'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#2-seletores-e-matchers
+prompt: |
+  Na métrica `sort_desc_container_cpu_usage_seconds_total{namespace, pod}`,
+  retorne as séries dos pods cujo nome **começa com** `api-`.
+hints:
+- Use o matcher de regex =~
+- 'Regex no PromQL é ANCORADA: =~"api-" só casa com o texto exato ''api-'''
+- pod=~"api-.*"
+solution: sort_desc_container_cpu_usage_seconds_total{pod=~"api-.*"}
+accepted_answers:
+- sort_desc_container_cpu_usage_seconds_total{pod=~"api-.+"}
+- sort_desc_container_cpu_usage_seconds_total{pod=~"api-7f9c-.*"}
+wrong_answers:
+- sort_desc_container_cpu_usage_seconds_total{pod=~"api-"}
+- sort_desc_container_cpu_usage_seconds_total{pod="api-.*"}
+- sort_desc_container_cpu_usage_seconds_total{pod=~".*api.*"} unless sort_desc_container_cpu_usage_seconds_total
+tolerance: 0.001
+explanation: |
+  Toda regex do PromQL (RE2) é **totalmente ancorada**: `=~"api-"` vira `^api-$` e não casa com nada.
+  Para "começa com" você precisa do `.*` no fim: `=~"api-.*"` → `api-7f9c-a` e `api-7f9c-b`.
+  É a pegadinha nº 1 de seletores na prova.

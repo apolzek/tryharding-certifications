@@ -1,0 +1,26 @@
+id: '252'
+title: 'Precedência: `^` é associativo à direita'
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#11-precedência-de-operadores
+prompt: |
+  Um colega escreveu `sort_node_filesystem_size_bytes / 2 ^ 10 ^ 3` achando que ia converter para
+  ... alguma coisa. Na verdade ele queria **dividir por 1024 três vezes** (bytes → GiB).
+
+  Escreva a query **correta** usando **só** o operador `^` no divisor (sem `1073741824` literal).
+hints:
+- 2 ^ 10 ^ 3 = 2 ^ (10 ^ 3) = 2^1000 (associativo à DIREITA)
+- (2 ^ 10) ^ 3 = 1024^3
+solution: sort_node_filesystem_size_bytes / (2 ^ 10) ^ 3
+accepted_answers:
+- sort_node_filesystem_size_bytes / 2 ^ 30
+- sort_node_filesystem_size_bytes / 1024 ^ 3
+wrong_answers:
+- sort_node_filesystem_size_bytes / 2 ^ 10 ^ 3
+- sort_node_filesystem_size_bytes / 2 ^ 10 * 3
+tolerance: 0.001
+explanation: |
+  `^` é o único operador binário **associativo à direita**: `2 ^ 10 ^ 3` = `2 ^ (10^3)` = 2¹⁰⁰⁰ ≈ 1e301,
+  o resultado ficaria ~0. Com parênteses `(2^10)^3` = 1024³. Todos os outros operadores são
+  associativos à esquerda (`2 * 3 % 2` = `(2*3) % 2`).

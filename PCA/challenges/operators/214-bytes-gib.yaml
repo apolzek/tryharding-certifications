@@ -1,0 +1,28 @@
+id: '214'
+title: 'Aritmética com escalar: bytes → GiB'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#6-operadores-aritméticos
+prompt: |
+  `sort_node_filesystem_size_bytes{node, mountpoint}` é o tamanho de cada filesystem em bytes.
+
+  Retorne o tamanho em **GiB** (1 GiB = 1024³ bytes).
+hints:
+- vetor / escalar aplica a divisão em cada série
+- 'Cuidado com a precedência: ^ é avaliado antes de /'
+- x / 1024^3
+solution: sort_node_filesystem_size_bytes / 1024^3
+accepted_answers:
+- sort_node_filesystem_size_bytes / 1073741824
+- sort_node_filesystem_size_bytes / (1024*1024*1024)
+- sort_node_filesystem_size_bytes / 1024 / 1024 / 1024
+wrong_answers:
+- sort_node_filesystem_size_bytes / 1024*1024*1024
+- sort_node_filesystem_size_bytes / 1e9
+tolerance: 0.001
+explanation: |
+  Operação vetor-escalar aplica o operador em **cada** amostra. `^` tem precedência maior que `/`,
+  então `x / 1024^3` = `x / (1024^3)`. Resultado: 100, 50, 200, 500 e 1024 GiB.
+  Cuidado: `x / 1024*1024*1024` é avaliado da esquerda pra direita = `((x/1024)*1024)*1024` = x·1024.
+  E `1e9` é GB, não GiB (erro de ~7%).

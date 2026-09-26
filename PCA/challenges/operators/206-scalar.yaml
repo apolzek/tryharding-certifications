@@ -1,0 +1,24 @@
+id: '206'
+title: Tipo escalar
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#1-tipos-de-dados
+prompt: |
+  `scalar_cpu_alert_threshold_percent` é um gauge com **uma única série** (o limite de CPU configurado).
+
+  Retorne esse valor como **escalar** (tipo `scalar`, sem labels), não como instant vector.
+hints:
+- Existe uma função que converte um vetor de 1 elemento em escalar
+- scalar(...)
+solution: scalar(scalar_cpu_alert_threshold_percent)
+accepted_answers:
+- scalar(max(scalar_cpu_alert_threshold_percent))
+wrong_answers:
+- scalar_cpu_alert_threshold_percent
+- sum(scalar_cpu_alert_threshold_percent)
+compare: scalar
+explanation: |
+  PromQL tem 4 tipos: instant vector, range vector, **scalar** e string. `scalar(v)` converte um
+  vetor de **exatamente 1** elemento em escalar (se tiver 0 ou 2+, retorna `NaN`).
+  Escalar não tem labels, então casa com qualquer vetor em operações binárias.

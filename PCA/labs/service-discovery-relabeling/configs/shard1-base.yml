@@ -1,0 +1,10 @@
+# Config do 2º Prometheus (porta 9129), usado só no exercício 06 (hashmod).
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+  external_labels:
+    shard: "1"
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]

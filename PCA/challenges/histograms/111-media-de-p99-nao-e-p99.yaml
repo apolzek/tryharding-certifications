@@ -1,0 +1,27 @@
+id: "111"
+title: "Média de p99 não é p99"
+topic: histograms
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_quantile/
+prompt: |
+  Um dashboard calcula o p99 da rota `/api/users` fazendo a MÉDIA do p99 de cada pod.
+  Escreva a forma correta: o **p99 da rota inteira** (todos os pods), buckets clássicos, janela 5 min.
+hints:
+  - "Quantis não são somáveis nem 'mediáveis'."
+  - "Agregue os BUCKETS primeiro e calcule o quantil uma vez só."
+  - "histogram_quantile(0.99, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route=\"/api/users\"}[5m])))"
+solution: 'histogram_quantile(0.99, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[5m])))'
+accepted_answers:
+  - 'histogram_quantile(0.99, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[5m])))'
+wrong_answers:
+  - 'avg(histogram_quantile(0.99, rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[5m])))'
+  - 'max(histogram_quantile(0.99, rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users"}[5m])))'
+  - 'histogram_quantile(0.99, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket{route="/api/users", pod="pod-a"}[5m])))'
+ignore_labels: [route]
+explanation: |
+  Somar buckets de vários pods é matematicamente válido (são contagens); o quantil do histograma somado é
+  o quantil real da rota. A média dos p99 não corresponde a nenhuma requisição real.
+
+  Pegadinha: o 'max dos p99' é uma aproximação comum, mas também não é o p99 da rota.
+  (O corretor ignora o label `route`, então manter ou não `route` no `by` é aceito.)

@@ -1,0 +1,28 @@
+# Usado pelo check.sh. O promtool começa o "relógio" em 1970-01-01 00:00 UTC,
+# então eval_time: 13h = 13:00 UTC = 10:00 em Brasília.
+rule_files:
+  - /work/rules.yml
+evaluation_interval: 1m
+tests:
+  - interval: 15s
+    input_series:
+      # 20% de erro o dia inteiro
+      - series: 'http_requests_total{job="backoffice", code="200"}'
+        values: '0+120x6000'
+      - series: 'http_requests_total{job="backoffice", code="500"}'
+        values: '0+30x6000'
+    promql_expr_test:
+      - expr: count(ALERTS{alertname="BackofficeErrosHorarioComercial", alertstate="firing"})
+        eval_time: 11h30m    # 08:30 em Brasília -> ainda NÃO é horário comercial
+        exp_samples: []
+      - expr: count(ALERTS{alertname="BackofficeErrosHorarioComercial", alertstate="firing"})
+        eval_time: 13h       # 10:00 em Brasília
+        exp_samples:
+          - value: 1
+      - expr: count(ALERTS{alertname="BackofficeErrosHorarioComercial", alertstate="firing"})
+        eval_time: 20h30m    # 17:30 em Brasília -> ainda é horário comercial
+        exp_samples:
+          - value: 1
+      - expr: count(ALERTS{alertname="BackofficeErrosHorarioComercial", alertstate="firing"})
+        eval_time: 22h       # 19:00 em Brasília
+        exp_samples: []

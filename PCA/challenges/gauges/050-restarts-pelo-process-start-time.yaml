@@ -1,0 +1,24 @@
+id: "050"
+title: "Restarts pelo process_start_time"
+topic: gauges
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/changes/
+prompt: |
+  Sem kube-state-metrics, você só tem `changes_process_start_time_seconds{pod}` (o timestamp de
+  quando o processo subiu — toda client library expõe). Conte **quantos restarts cada pod teve
+  nos últimos 15 minutos**.
+hints:
+  - "A cada restart o VALOR (timestamp de start) muda."
+  - "Conte as mudanças."
+  - "changes(changes_process_start_time_seconds[15m])"
+solution: 'changes(changes_process_start_time_seconds[15m])'
+wrong_answers:
+  - 'resets(changes_process_start_time_seconds[15m])'
+  - 'delta(changes_process_start_time_seconds[15m])'
+  - 'changes(changes_process_start_time_seconds[5m])'
+explanation: |
+  api-1 reinicia a cada 3 min → 5 mudanças em 15 min; api-2 → 0.
+  É o jeito clássico de detectar restart só com métricas da própria aplicação.
+
+  Pegadinha: `resets()` dá 0, porque o start time só aumenta.

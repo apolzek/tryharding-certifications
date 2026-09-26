@@ -1,0 +1,27 @@
+id: "024"
+title: "rate() compensa o reset; delta() não"
+topic: counters
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/rate/
+prompt: |
+  O `rate_worker_jobs_processed_total{pod="worker-a"}` zera a cada 3 min (o pod reinicia),
+  mas o worker processa ~2 jobs/s o tempo todo. Calcule a **velocidade em jobs/s nos últimos
+  5 minutos** de forma que os resets **não** atrapalhem.
+hints:
+  - "Uma das funções de counter trata resets automaticamente."
+  - "Janela de 5 minutos."
+  - "rate(rate_worker_jobs_processed_total[5m])"
+solution: 'rate(rate_worker_jobs_processed_total[5m])'
+accepted_answers:
+  - 'increase(rate_worker_jobs_processed_total[5m]) / 300'
+wrong_answers:
+  - 'delta(rate_worker_jobs_processed_total[5m]) / 300'
+  - '(rate_worker_jobs_processed_total - rate_worker_jobs_processed_total offset 5m) / 300'
+  - 'deriv(rate_worker_jobs_processed_total[5m])'
+explanation: |
+  Quando o valor cai, `rate()` assume reset e soma o valor novo como se o counter tivesse
+  continuado. Resultado: ~2 jobs/s mesmo com restarts.
+
+  Pegadinha: `delta()`, `deriv()` e a subtração com `offset` tratam a queda como valor real
+  e dão números sem sentido (até negativos). Eles são para GAUGES.

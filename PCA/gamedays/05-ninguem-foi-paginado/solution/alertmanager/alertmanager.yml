@@ -1,0 +1,29 @@
+route:
+  # o default nunca deve ser um buraco negro: quem não casa com nenhuma rota
+  # cai num receiver que ALGUÉM lê
+  receiver: oncall-geral
+  group_by: [alertname]
+  group_wait: 2s
+  group_interval: 5s
+  repeat_interval: 1m
+  routes:
+    - matchers: ['team="payments"']     # era "payment" (sem o s)
+      receiver: pager-payments
+    - matchers: ['team="data"']
+      receiver: slack-data
+
+inhibit_rules:
+  # manutenção do datalake só silencia alertas do MESMO time (equal: [team])
+  - source_matchers: ['alertname="DatalakeEmManutencao"']
+    target_matchers: ['severity=~"critical|warning"']
+    equal: [team]
+
+receivers:
+  - name: oncall-geral
+    webhook_configs:
+      - url: http://app:9182/webhook
+  - name: slack-data          # (fake) canal do time data
+  - name: pager-payments
+    webhook_configs:
+      - url: http://app:9182/webhook
+        send_resolved: true

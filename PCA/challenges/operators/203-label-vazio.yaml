@@ -1,0 +1,27 @@
+id: '203'
+title: Label vazio = label ausente
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#2-seletores-e-matchers
+prompt: |
+  A métrica `label_join_http_requests_total{service, environment, region}` tem séries de produção
+  com `region="sa-east-1"` e séries de staging **sem** o label `region`.
+
+  Retorne só as séries que **não têm** o label `region`.
+hints:
+- No Prometheus, label com valor vazio e label ausente são a MESMA coisa
+- Um matcher que casa com a string vazia também seleciona quem não tem o label
+solution: label_join_http_requests_total{region=""}
+accepted_answers:
+- label_join_http_requests_total unless label_join_http_requests_total{region!=""}
+- label_join_http_requests_total{region!~".+"}
+- label_join_http_requests_total{environment="staging"}
+wrong_answers:
+- label_join_http_requests_total{region!=""}
+- label_join_http_requests_total{region=~".+"}
+tolerance: 0.001
+explanation: |
+  Para o Prometheus, "label ausente" e "label com valor vazio" são idênticos. Por isso
+  `{region=""}` seleciona as séries que **não têm** `region` (as 2 de staging).
+  O contrário (`{region!=""}` ou `{region=~".+"}`) seleciona quem tem o label.

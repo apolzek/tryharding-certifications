@@ -1,0 +1,48 @@
+# Exemplo de pipeline de CI (GitHub Actions) para regras do Prometheus e config do Alertmanager.
+# Copie para .github/workflows/prometheus-rules.yml no seu repositório e ajuste os caminhos.
+# Estrutura assumida:
+#   rules/*.rules.yml         regras (recording + alerting)
+#   rules/tests/*.test.yml    testes unitários do promtool
+#   alertmanager/alertmanager.yml
+name: prometheus-rules
+
+on:
+  pull_request:
+    paths: ["rules/**", "alertmanager/**", ".github/workflows/prometheus-rules.yml"]
+  push:
+    branches: [main]
+
+env:
+  PROMTOOL: docker run --rm -u 1001 -v ${{ github.workspace }}:/w -w /w --entrypoint promtool prom/prometheus:v3.15.0
+  AMTOOL: docker run --rm -v ${{ github.workspace }}:/w -w /w --entrypoint amtool prom/alertmanager:v0.34.1
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sintaxe e lint das regras
+        # --lint-fatal: regra duplicada vira erro (sem ele o promtool imprime FAILED mas sai 0!)
+        run: $PROMTOOL check rules --lint-fatal rules/*.rules.yml
+
+      - name: Convenção de nomes (copie labs/recording-rules-testing/lint-names.sh para o repo)
+        run: ./lint-names.sh rules/*.rules.yml
+
+      - name: Testes unitários das regras
+        run: $PROMTOOL test rules --junit=promtool-junit.xml rules/tests/*.test.yml
+
+      - name: Config do Alertmanager
+        run: $AMTOOL check-config alertmanager/alertmanager.yml
+
+      - name: Árvore de rotas (quem recebe o quê)
+        run: |
+          $AMTOOL config routes test --config.file=alertmanager/alertmanager.yml --verify.receivers=pager severity=critical
+          $AMTOOL config routes test --config.file=alertmanager/alertmanager.yml --verify.receivers=slack severity=warning
+
+      - name: Publicar resultado dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promtool-junit
+          path: promtool-junit.xml

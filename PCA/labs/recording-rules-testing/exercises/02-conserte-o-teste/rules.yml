@@ -1,0 +1,6 @@
+# EXERCÍCIO 02: as REGRAS estão certas. Quem está errado é o TESTE (rules.test.yml).
+groups:
+  - name: ex02
+    rules:
+      - record: job:http_requests:rate5m
+        expr: sum by (job) (rate(http_requests_total[5m]))

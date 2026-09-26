@@ -1,0 +1,12 @@
+# Sobe o lab com o GABARITO (solutions/app-*) no lugar do código do enunciado:
+#   docker compose -f docker-compose.yml -f solutions/docker-compose.solutions.yml up -d --build --wait
+# (caminhos relativos à raiz do lab, que é o diretório do primeiro -f)
+services:
+  app-go:
+    build: { args: { SRC: solutions/app-go } }
+    image: pca-instrumentation-app-go-solution
+  app-go-b:
+    image: pca-instrumentation-app-go-solution
+  app-python:
+    build: { args: { SRC: solutions/app-python } }
+    image: pca-instrumentation-app-python-solution

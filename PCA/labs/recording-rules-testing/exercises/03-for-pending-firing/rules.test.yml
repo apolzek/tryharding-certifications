@@ -1,0 +1,17 @@
+# EXERCÍCIO 03: a instância cai (up=0) a partir de 2m. O teste abaixo está errado:
+# conserte-o e complete-o para provar que:
+#   - em 3m o alerta está PENDING (não aparece em exp_alerts, mas aparece em ALERTS{alertstate="pending"})
+#   - em 4m ele já está FIRING
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="api", instance="a"}'
+        values: '1 1 0 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: InstanceDown
+        exp_alerts:
+          - exp_labels: { severity: critical, job: api, instance: a }
+            exp_annotations: { summary: "a fora do ar" }

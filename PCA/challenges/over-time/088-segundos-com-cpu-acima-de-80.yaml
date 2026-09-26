@@ -1,0 +1,26 @@
+id: "088"
+title: "Segundos com CPU acima de 80%"
+topic: over-time
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sum_over_time/
+prompt: |
+  A CPU (`sum_over_time_cpu_usage_percent`) oscila entre 30 e 90%. Calcule **quantos segundos,
+  nos últimos 8 minutos, ela passou acima de 80%**, amostrando a cada 5 s.
+hints:
+  - "Transforme em 0/1 com `> bool 80`."
+  - "Some os 1s numa subquery com passo de 5 s e multiplique pelo passo."
+  - "sum_over_time((sum_over_time_cpu_usage_percent > bool 80)[8m:5s]) * 5"
+solution: 'sum_over_time((sum_over_time_cpu_usage_percent > bool 80)[8m:5s]) * 5'
+accepted_answers:
+  - 'count_over_time((sum_over_time_cpu_usage_percent > 80)[8m:5s]) * 5'
+  - 'avg_over_time((sum_over_time_cpu_usage_percent > bool 80)[8m:5s]) * 480'
+wrong_answers:
+  - 'sum_over_time(sum_over_time_cpu_usage_percent[8m])'
+  - 'sum_over_time((sum_over_time_cpu_usage_percent > bool 80)[8m:5s])'
+  - 'count_over_time(sum_over_time_cpu_usage_percent[8m]) * 5'
+explanation: |
+  `> bool` transforma cada ponto em 1 (acima) ou 0 (abaixo); somar dá o nº de pontos acima;
+  × 5 s dá segundos. `avg_over_time(...) × 480` (fração × duração) é equivalente.
+
+  Pegadinha: sem `bool`, `>` FILTRA (os pontos abaixo somem) e `sum_over_time` somaria as porcentagens.

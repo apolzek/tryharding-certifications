@@ -1,0 +1,11 @@
+groups:
+  - name: ex06
+    interval: 5s
+    rules:
+      - alert: QueueBacklog
+        expr: lab_queue_depth > 100
+        for: 1m          # fica "pending" por 1m; só vira "firing" (e é enviado) se continuar verdadeiro
+        labels:
+          severity: warning
+        annotations:
+          summary: "fila {{ $labels.queue }} com {{ $value }} mensagens"

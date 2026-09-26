@@ -1,0 +1,25 @@
+id: '216'
+title: 'One-to-one: réplicas faltando'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  `ceil_kube_deployment_spec_replicas{deployment}` = réplicas desejadas.
+  `label_replace_kube_deployment_status_replicas_available{deployment}` = réplicas disponíveis.
+
+  Quantas réplicas estão **faltando** em cada deployment que existe nas duas métricas?
+hints:
+- desejadas − disponíveis
+- 'Os labels (fora o nome) são iguais: casa sozinho'
+solution: ceil_kube_deployment_spec_replicas - label_replace_kube_deployment_status_replicas_available
+accepted_answers:
+- ceil_kube_deployment_spec_replicas - on(deployment, job, instance, env) label_replace_kube_deployment_status_replicas_available
+wrong_answers:
+- ceil_kube_deployment_spec_replicas - sum(label_replace_kube_deployment_status_replicas_available)
+- ceil_kube_deployment_spec_replicas
+- label_replace_kube_deployment_status_replicas_available - ceil_kube_deployment_spec_replicas
+explanation: |
+  One-to-one: cada série da esquerda casa com a série da direita que tem **exatamente os mesmos labels**
+  (o `__name__` não conta). Só `checkout` existe nos dois lados → 5 − 3 = **2**. `cart` e
+  `payments` não têm par à esquerda e **somem** do resultado (é o comportamento de um INNER JOIN).

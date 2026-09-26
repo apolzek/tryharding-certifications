@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  # Objetivo: imitar o job "kubernetes-pods" clássico usando file_sd com __meta_kubernetes_*.
+  # Só pods com a annotation prometheus.io/scrape=true; endereço = pod_ip:porta da annotation;
+  # caminho da annotation prometheus.io/path; labels namespace, pod e app.
+  - job_name: kubernetes-pods
+    file_sd_configs:
+      - files: [/etc/prometheus/sd/pods.json]
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        regex: "true"
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod

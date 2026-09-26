@@ -1,0 +1,28 @@
+id: "105"
+title: "SLI: fração abaixo de 200 ms"
+topic: histograms
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_fraction/
+prompt: |
+  O SLO é "requisições em menos de 200 ms". Calcule, para cada serviço, a **fração (0..1) de
+  requisições abaixo de 0,2 s** nos últimos 5 min, usando o native histogram
+  `histogram_fraction_http_request_duration_seconds`.
+hints:
+  - "Existe uma função que dá a fração de observações entre dois limites."
+  - "histogram_fraction(lower, upper, h) — limites na unidade do histograma (segundos)."
+  - "histogram_fraction(0, 0.2, rate(h[5m]))"
+solution: 'histogram_fraction(0, 0.2, rate(histogram_fraction_http_request_duration_seconds[5m]))'
+accepted_answers:
+  - 'rate(histogram_fraction_http_request_duration_seconds_bucket{le="0.2"}[5m]) / ignoring (le) rate(histogram_fraction_http_request_duration_seconds_count[5m])'
+  - 'histogram_fraction(-Inf, 0.2, rate(histogram_fraction_http_request_duration_seconds[5m]))'
+wrong_answers:
+  - 'histogram_fraction(0, 200, rate(histogram_fraction_http_request_duration_seconds[5m]))'
+  - 'histogram_quantile(0.2, rate(histogram_fraction_http_request_duration_seconds[5m]))'
+  - 'histogram_fraction(0.2, +Inf, rate(histogram_fraction_http_request_duration_seconds[5m]))'
+explanation: |
+  stable ≈ 0,99, degrading ≈ 0,77. Na forma clássica: bucket `le="0.2"` ÷ `_count`
+  (`ignoring(le)` porque o `_count` não tem `le`) — por isso o SLO deve coincidir com um bucket.
+
+  Pegadinha: `histogram_quantile(0.2, ...)` responde 'qual latência 20% ficam abaixo' — é o inverso.
+  E a unidade é segundos: `200` pega tudo.

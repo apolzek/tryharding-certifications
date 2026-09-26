@@ -1,0 +1,12 @@
+# EXERCÍCIO 07 (parte 2): o summary deve ficar exatamente "checkout com 25% de erros"
+# quando lab_checkout_error_ratio{service="checkout"} = 0.25.
+groups:
+  - name: ex07
+    interval: 5s
+    rules:
+      - alert: CheckoutErrors
+        expr: lab_checkout_error_ratio > 0.1
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.servico }} com {{ $value }} de erros"

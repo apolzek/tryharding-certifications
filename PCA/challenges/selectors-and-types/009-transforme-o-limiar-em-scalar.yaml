@@ -1,0 +1,27 @@
+id: "009"
+title: "Transforme o limiar em scalar"
+topic: selectors-and-types
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/scalar/
+prompt: |
+  O limiar de CPU do alerta vem de uma métrica de configuração com uma única série:
+  `scalar_cpu_alert_threshold_percent`. Retorne esse valor como um **scalar**
+  (o tipo sem labels), não como instant vector.
+hints:
+  - "Há uma função que converte um vetor de 1 elemento em scalar."
+  - "scalar(v) devolve NaN se v não tiver exatamente 1 série."
+  - "scalar(scalar_cpu_alert_threshold_percent)"
+solution: 'scalar(scalar_cpu_alert_threshold_percent)'
+accepted_answers:
+  - 'scalar(max(scalar_cpu_alert_threshold_percent))'
+wrong_answers:
+  - 'scalar_cpu_alert_threshold_percent'
+  - 'vector(70)'
+  - 'scalar(scalar_config_threshold_percent)'
+explanation: |
+  `scalar()` é útil para comparar/combinar com vetores que têm labels diferentes
+  (`cpu > scalar(limite)` funciona sem precisar de `on()`/`group_left`).
+
+  Pegadinha: se o vetor tiver 0 ou 2+ séries, `scalar()` devolve **NaN**
+  (ex.: `scalar(scalar_config_threshold_percent)`, que tem 2 réplicas).

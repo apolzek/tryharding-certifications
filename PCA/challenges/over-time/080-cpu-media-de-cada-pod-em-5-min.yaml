@@ -1,0 +1,25 @@
+id: "080"
+title: "CPU média de cada pod em 5 min"
+topic: over-time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/avg_over_time/
+prompt: |
+  `avg_over_time_cpu_usage_percent{pod}` é muito ruidoso. Mostre a **média de CADA pod ao longo dos
+  últimos 5 minutos** (uma linha suave por pod).
+hints:
+  - "Média no TEMPO, por série."
+  - "Funções *_over_time recebem range vector."
+  - "avg_over_time(avg_over_time_cpu_usage_percent[5m])"
+solution: 'avg_over_time(avg_over_time_cpu_usage_percent[5m])'
+accepted_answers:
+  - 'sum_over_time(avg_over_time_cpu_usage_percent[5m]) / count_over_time(avg_over_time_cpu_usage_percent[5m])'
+wrong_answers:
+  - 'avg(avg_over_time_cpu_usage_percent)'
+  - 'rate(avg_over_time_cpu_usage_percent[5m])'
+  - 'avg_over_time(avg_over_time_cpu_usage_percent[5m]) * 5'
+explanation: |
+  `avg_over_time` = média das amostras de cada série na janela (pod-a ≈ 20, pod-b ≈ 50, pod-c ≈ 80).
+  É exatamente `sum_over_time / count_over_time`.
+
+  Pegadinha: `avg(...)` é média ENTRE pods (vira uma linha só) — outra pergunta.

@@ -1,0 +1,26 @@
+id: "120"
+title: "Alerta de métrica que nunca apareceu"
+topic: absence-and-staleness
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/absent/
+prompt: |
+  O job de faturamento deveria expor `absent_nonexistent_metric{job="billing-batch"}`, mas por um bug
+  ele nunca publicou nada. Escreva a expressão que **retorna 1 (com o label `job="billing-batch"`)
+  quando essa série não existe**.
+hints:
+  - "Comparar com 0 não funciona: não existe série para comparar."
+  - "Existe uma função que devolve 1 quando o vetor está VAZIO."
+  - "absent(absent_nonexistent_metric{job=\"billing-batch\"})"
+solution: 'absent(absent_nonexistent_metric{job="billing-batch"})'
+accepted_answers:
+  - 'absent_over_time(absent_nonexistent_metric{job="billing-batch"}[1m])'
+wrong_answers:
+  - 'absent_nonexistent_metric{job="billing-batch"} == 0'
+  - 'absent(absent_nonexistent_metric)'
+  - 'absent(absent_batch_heartbeat{batch="reports"})'
+explanation: |
+  `absent(v)` devolve `{labels dos matchers de igualdade} 1` quando v está vazio, e nada quando v tem séries.
+  Os labels vêm dos matchers `=` do seletor — por isso o alerta sai com `job="billing-batch"`.
+
+  Pegadinha: `x == 0` nunca dispara para uma série inexistente (não há o que comparar).

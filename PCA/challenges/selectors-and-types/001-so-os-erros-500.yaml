@@ -1,0 +1,29 @@
+id: "001"
+title: "Só os erros 500"
+topic: selectors-and-types
+level: basic
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/basics/
+prompt: |
+  O time de SRE está investigando uma onda de erros. O counter `increase_http_requests_total`
+  tem o label `code` ("200" e "500").
+
+  Retorne **apenas a série dos erros 500** (o valor bruto do counter, sem nenhuma função).
+hints:
+  - "Um seletor de série filtra por label dentro de `{}`."
+  - "Matcher de igualdade: `{label=\"valor\"}` (valores de label são sempre strings)."
+  - "increase_http_requests_total{code=\"...\"}"
+solution: 'increase_http_requests_total{code="500"}'
+accepted_answers:
+  - 'increase_http_requests_total{code=~"500"}'
+  - 'increase_http_requests_total{code!="200"}'
+  - 'increase_http_requests_total{code=~"5.."}'
+wrong_answers:
+  - 'increase_http_requests_total'
+  - 'increase_http_requests_total{code=500}'
+  - 'increase_http_requests_total{code="200"}'
+explanation: |
+  `{code="500"}` é o matcher de **igualdade**. Os 4 tipos de matcher são `=`, `!=`, `=~` e `!~`.
+  `{code=~"5.."}` também funciona aqui e é o jeito "de produção" de pegar TODOS os 5xx.
+
+  Pegadinha: o valor do label vai **entre aspas**; `{code=500}` é erro de sintaxe.

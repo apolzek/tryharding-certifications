@@ -1,0 +1,47 @@
+name: pca-instrumentation
+
+x-healthcheck: &hc
+  test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+  interval: 3s
+  timeout: 2s
+  retries: 20
+
+services:
+  app-go:
+    build: { context: ., dockerfile: app-go/Dockerfile, args: { SRC: app-go } }
+    image: pca-instrumentation-app-go
+    ports: ["9131:8080"]
+    healthcheck: *hc
+
+  # segunda réplica do app Go, 5x mais lenta no backend (exercício 03)
+  app-go-b:
+    image: pca-instrumentation-app-go
+    depends_on: { app-go: { condition: service_started } }
+    environment: { BACKEND_LATENCY_FACTOR: "5" }
+    healthcheck: *hc
+
+  app-python:
+    build: { context: ., dockerfile: app-python/Dockerfile, args: { SRC: app-python } }
+    image: pca-instrumentation-app-python
+    ports: ["9132:8080"]
+    healthcheck: *hc
+
+  loadgen:
+    image: python:3.14-alpine
+    volumes: ["./loadgen/loadgen.py:/loadgen.py:ro"]
+    command: ["python", "-u", "/loadgen.py"]
+    depends_on: [app-go, app-go-b, app-python]
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --enable-feature=exemplar-storage
+      - --web.enable-lifecycle
+    volumes: ["./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9130:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 3s
+      timeout: 2s
+      retries: 20

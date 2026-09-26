@@ -1,0 +1,41 @@
+# Config BASE do lab (é a que sobe com o docker compose).
+# Restaure a qualquer momento com: ./load.sh configs/base.yml
+global:
+  scrape_interval: 5s      # lab: rápido. Produção costuma usar 15s-60s
+  scrape_timeout: 4s       # precisa ser <= scrape_interval
+  external_labels:
+    lab: sd-relabel
+
+scrape_configs:
+  # 1) o próprio Prometheus
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  # 2) static_configs: lista fixa, escrita à mão
+  - job_name: static-apps
+    static_configs:
+      - targets: [payments-api:8000, payments-worker:8000]
+        labels:
+          team: payments
+
+  # 3) file_sd_configs: lista em arquivos JSON/YAML, relida sozinha quando muda
+  - job_name: file-sd-apps
+    file_sd_configs:
+      - files: [/etc/prometheus/sd/apps*.json]
+        refresh_interval: 30s   # além do inotify, relê a cada 30s
+
+  # 4) http_sd_configs: lista servida por um endpoint HTTP (JSON)
+  - job_name: http-sd-apps
+    http_sd_configs:
+      - url: http://sd-server:8000/targets.json
+        refresh_interval: 15s
+
+  # 5) caminho não padrão + parâmetros de URL
+  - job_name: legacy-batch
+    metrics_path: /admin/metrics
+    scheme: http
+    params:
+      format: [prometheus]
+    static_configs:
+      - targets: [legacy-batch:8000]

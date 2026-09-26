@@ -1,0 +1,22 @@
+id: "191"
+title: "Temperatura alta nos últimos 5 min"
+topic: alerting-expressions
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/max_over_time/
+prompt: |
+  Alerta de temperatura: **hosts que passaram de 65 °C em algum momento dos últimos 5 minutos**
+  (`delta_node_hwmon_temp_celsius{host}`), com o pico como valor.
+hints:
+  - "'Em algum momento' = máximo da janela."
+  - "max_over_time(v[5m]) > 65"
+  - "max_over_time(delta_node_hwmon_temp_celsius[5m]) > 65"
+solution: 'max_over_time(delta_node_hwmon_temp_celsius[5m]) > 65'
+wrong_answers:
+  - 'avg_over_time(delta_node_hwmon_temp_celsius[5m]) > 65'
+  - 'max(delta_node_hwmon_temp_celsius) > 65'
+explanation: |
+  zeus oscila entre 40 e 70 °C (ciclo de 5 min), então o pico da janela sempre passa de 65.
+  `max_over_time` + `for` curto é o padrão para 'aconteceu recentemente'.
+
+  Pegadinha: o valor instantâneo só dispara no pedaço do ciclo em que está quente.

@@ -1,0 +1,30 @@
+id: "007"
+title: "Top 3 decidido no fim do gráfico (@ end())"
+topic: selectors-and-types
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_desc/
+prompt: |
+  No Grafana, `topk(3, rate(...))` num gráfico de range recalcula o top 3 **em cada ponto**,
+  e a legenda acaba com 5 ou 6 pods. O time quer que o ranking seja decidido **no fim do gráfico**.
+
+  Escreva a query que retorna o top 3 de pods por CPU (`rate(sort_desc_container_cpu_usage_seconds_total[5m])`),
+  com o ranking fixado no instante `end()` usando o modificador `@`.
+hints:
+  - "O modificador `@` fixa o instante de avaliação de um seletor ou subquery."
+  - "`@ end()` e `@ start()` usam o fim/início do range da consulta."
+  - "topk(3, rate(sort_desc_container_cpu_usage_seconds_total[5m] @ end()))"
+solution: 'topk(3, rate(sort_desc_container_cpu_usage_seconds_total[5m] @ end()))'
+accepted_answers:
+  - 'topk(3, rate(sort_desc_container_cpu_usage_seconds_total[5m]))'
+wrong_answers:
+  - 'topk(3, sort_desc_container_cpu_usage_seconds_total @ end())'
+  - 'topk(1, rate(sort_desc_container_cpu_usage_seconds_total[5m] @ end()))'
+  - 'rate(sort_desc_container_cpu_usage_seconds_total[5m] @ end())'
+explanation: |
+  O `@` só pode vir depois de um seletor ou subquery (`topk(...) @ end()` é erro de sintaxe).
+  Numa consulta **instantânea** (como a do corretor) `@ end()` é o próprio instante, então a
+  versão sem `@` dá o mesmo resultado; a diferença aparece em gráficos (range query), onde o
+  padrão é `x and topk(3, y @ end())` para fixar QUAIS séries aparecem.
+
+  Pegadinha: `topk` sobre o counter bruto ranqueia pela **idade** do pod, não pelo uso atual.

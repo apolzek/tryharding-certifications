@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  - job_name: payments-limited
+    sample_limit: 100
+    static_configs:
+      - targets: [payments-api:8000]
+    # o limite é conferido DEPOIS do metric_relabel_configs:
+    # descartar a métrica cara traz o scrape para baixo do limite
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: app_requests_by_user_total
+        action: drop

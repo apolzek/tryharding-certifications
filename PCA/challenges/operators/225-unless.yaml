@@ -1,0 +1,22 @@
+id: '225'
+title: '`unless`: tudo menos uma versão'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#9-operadores-lógicos-and-or-unless
+prompt: |
+  `sort_by_label_app_build_info{pod, version}` vale 1 para cada pod.
+
+  Usando o operador **`unless`**, retorne os pods que **não** estão na versão `1.10.0`.
+hints:
+- a unless b = séries de a que NÃO têm par em b
+- x unless x{version="1.10.0"}
+solution: sort_by_label_app_build_info unless sort_by_label_app_build_info{version="1.10.0"}
+accepted_answers:
+- sort_by_label_app_build_info{version!="1.10.0"}
+wrong_answers:
+- sort_by_label_app_build_info and sort_by_label_app_build_info{version="1.10.0"}
+- sort_by_label_app_build_info
+explanation: |
+  `unless` é o complemento (LEFT ANTI JOIN): séries da esquerda sem par de labels à direita.
+  Aqui dá o mesmo que `{version!="1.10.0"}` → 6 pods (1.10.12 ×3, 1.9.2 ×2, 1.2.0 ×1).

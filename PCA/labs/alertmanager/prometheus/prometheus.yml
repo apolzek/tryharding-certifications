@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 5s        # curto de propósito: tudo acontece em segundos
+  evaluation_interval: 5s    # regras (recording e alerting) avaliadas a cada 5s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml        # regras base do lab
+  - /etc/prometheus/ex/*.rules.yml     # regras extras do exercício em uso (EX=...)
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: app
+    honor_labels: true       # mantém instance/cluster/... que o app expõe (sem virar exported_*)
+    static_configs:
+      - targets: ["app:8000"]

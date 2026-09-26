@@ -1,0 +1,23 @@
+id: "165"
+title: "Dia de vencimento das faturas"
+topic: time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/day_of_month/
+prompt: |
+  `day_of_month_invoice_due_timestamp_seconds{customer}` é o timestamp do vencimento de cada fatura.
+  Retorne **o dia do mês (1–31, UTC)** em que cada fatura vence.
+hints:
+  - "Existe uma função para o dia do mês."
+  - "Ela recebe o vetor de timestamps."
+  - "day_of_month(day_of_month_invoice_due_timestamp_seconds)"
+solution: 'day_of_month(day_of_month_invoice_due_timestamp_seconds)'
+wrong_answers:
+  - 'day_of_month()'
+  - 'day_of_week(day_of_month_invoice_due_timestamp_seconds)'
+  - 'day_of_year(day_of_month_invoice_due_timestamp_seconds)'
+explanation: |
+  `day_of_month(v)` → 1..31; `day_of_week(v)` → 0 (domingo)..6; `day_of_year(v)` → 1..366.
+  Todas em UTC e todas com `vector(time())` como padrão quando chamadas sem argumento.
+
+  Pegadinha: sem argumento você recebe o dia de HOJE, sem os labels de cliente.

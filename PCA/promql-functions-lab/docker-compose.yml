@@ -28,6 +28,8 @@ services:
       - prometheus-data:/prometheus
     ports:
       - "${PROMETHEUS_PORT:-9095}:9090"
+    # permite raspar o exporter de progresso dos desafios, que roda no host (:9199)
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on: [generator]
 
   grafana:

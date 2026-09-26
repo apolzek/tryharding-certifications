@@ -1,0 +1,28 @@
+id: "029"
+title: "A subtração ingênua fica negativa"
+topic: counters
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/increase/
+prompt: |
+  Um colega escreveu `increase_worker_jobs_processed_total - increase_worker_jobs_processed_total offset 5m`
+  para contar jobs dos últimos 5 minutos e às vezes o gráfico fica **negativo**
+  (o pod reinicia a cada 3 min e o counter zera).
+
+  Escreva a query correta: **quantos jobs foram processados nos últimos 5 minutos**.
+hints:
+  - "A queda do counter é um reset; a subtração não sabe disso."
+  - "Existe uma função que calcula o crescimento compensando resets."
+  - "increase(increase_worker_jobs_processed_total[5m])"
+solution: 'increase(increase_worker_jobs_processed_total[5m])'
+accepted_answers:
+  - 'rate(increase_worker_jobs_processed_total[5m]) * 300'
+wrong_answers:
+  - 'increase_worker_jobs_processed_total - increase_worker_jobs_processed_total offset 5m'
+  - 'delta(increase_worker_jobs_processed_total[5m])'
+  - 'rate(increase_worker_jobs_processed_total[5m])'
+explanation: |
+  Resultado ≈ 600 (2 jobs/s × 300 s). `increase()` detecta a queda, trata como reset e soma
+  corretamente os pedaços antes e depois.
+
+  Pegadinha: `delta()` e `x - x offset` são para gauges; num counter com reset dão lixo.

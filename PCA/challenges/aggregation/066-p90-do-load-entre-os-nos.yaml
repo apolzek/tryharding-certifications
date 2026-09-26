@@ -1,0 +1,23 @@
+id: "066"
+title: "p90 do load entre os nós"
+topic: aggregation
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/quantile_over_time/
+prompt: |
+  Qual o **percentil 90 do load entre os 12 nós**, agora? Use `sort_by_label_node_load1`.
+  (é um percentil ENTRE séries, não ao longo do tempo)
+hints:
+  - "Existe um operador de agregação `quantile`."
+  - "quantile(φ, v) com φ entre 0 e 1."
+  - "quantile(0.9, sort_by_label_node_load1)"
+solution: 'quantile(0.9, sort_by_label_node_load1)'
+wrong_answers:
+  - 'quantile(90, sort_by_label_node_load1)'
+  - 'quantile_over_time(0.9, sort_by_label_node_load1[5m])'
+  - 'histogram_quantile(0.9, sort_by_label_node_load1)'
+explanation: |
+  `quantile(φ, v)` calcula o φ-quantil entre as séries naquele instante (com interpolação).
+
+  Pegadinha: φ vai de 0 a 1 (`90` devolve +Inf). `quantile_over_time` é por série ao longo do tempo;
+  `histogram_quantile` é só para histogramas (buckets `le`).

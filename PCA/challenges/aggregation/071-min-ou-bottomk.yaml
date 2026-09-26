@@ -1,0 +1,25 @@
+id: "071"
+title: "min() ou bottomk()?"
+topic: aggregation
+level: basic
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+prompt: |
+  Qual é o **menor uso de CPU entre os nós** agora (`scalar_node_cpu_usage_percent{node}`)?
+  O time só quer **o número**, sem labels.
+hints:
+  - "Mínimo entre séries."
+  - "min(v) descarta os labels; bottomk os mantém."
+  - "min(scalar_node_cpu_usage_percent)"
+solution: 'min(scalar_node_cpu_usage_percent)'
+accepted_answers:
+  - '-max(-scalar_node_cpu_usage_percent)'
+wrong_answers:
+  - 'bottomk(1, scalar_node_cpu_usage_percent)'
+  - 'min_over_time(scalar_node_cpu_usage_percent[5m])'
+  - 'max(scalar_node_cpu_usage_percent)'
+explanation: |
+  `min` sem `by` devolve uma série sem labels com o menor valor.
+
+  Pegadinha: `bottomk(1, ...)` dá o mesmo valor mas **com** os labels do nó — útil quando você
+  quer saber QUAL é, mas não é o que foi pedido aqui.

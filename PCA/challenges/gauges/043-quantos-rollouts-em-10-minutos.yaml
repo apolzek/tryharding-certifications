@@ -1,0 +1,23 @@
+id: "043"
+title: "Quantos rollouts em 10 minutos"
+topic: gauges
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/changes/
+prompt: |
+  `changes_kube_deployment_status_observed_generation{deployment}` (gauge) sobe 1 a cada rollout.
+  Quantos **rollouts cada Deployment teve nos últimos 10 minutos**?
+hints:
+  - "Conte quantas vezes o valor MUDOU."
+  - "Existe uma função exatamente para isso."
+  - "changes(changes_kube_deployment_status_observed_generation[10m])"
+solution: 'changes(changes_kube_deployment_status_observed_generation[10m])'
+wrong_answers:
+  - 'resets(changes_kube_deployment_status_observed_generation[10m])'
+  - 'changes(changes_kube_deployment_status_observed_generation[5m])'
+  - 'count_over_time(changes_kube_deployment_status_observed_generation[10m])'
+explanation: |
+  `changes()` conta quantas vezes o valor diferiu da amostra anterior: api ≈ 5, worker ≈ 2, legacy = 0.
+  Funciona com qualquer gauge 'em degraus' (generation, config hash, versão...).
+
+  Pegadinha: `count_over_time` conta AMOSTRAS (≈ 120 em 10 min), não mudanças.

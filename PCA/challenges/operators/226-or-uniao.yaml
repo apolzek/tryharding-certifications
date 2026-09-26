@@ -1,0 +1,21 @@
+id: '226'
+title: '`or`: união de dois filtros'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#9-operadores-lógicos-and-or-unless
+prompt: |
+  Retorne os CronJobs de `sort_cronjob_last_duration_seconds` que estão **acima de 100 s ou abaixo de 10 s**
+  (os "anormais"), com o valor da duração.
+hints:
+- 'União de dois filtros: or'
+- x > 100 or x < 10
+solution: sort_cronjob_last_duration_seconds > 100 or sort_cronjob_last_duration_seconds < 10
+accepted_answers:
+- sort_cronjob_last_duration_seconds < 10 or sort_cronjob_last_duration_seconds > 100
+wrong_answers:
+- sort_cronjob_last_duration_seconds > 100 and sort_cronjob_last_duration_seconds < 10
+- sort_cronjob_last_duration_seconds > 100
+explanation: |
+  `or` devolve tudo da esquerda **mais** as séries da direita cujos labels ainda não apareceram.
+  Resultado: `backup` (120) e `cleanup` (8). Com `and` o resultado seria vazio (nenhum é > 100 **e** < 10).

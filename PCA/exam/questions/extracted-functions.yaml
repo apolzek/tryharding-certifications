@@ -1,0 +1,4421 @@
+# GERADO por tools/extract.py (não edite à mão; edite o README de origem e rode de novo)
+- id: fn-abs-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão alerta quando o relógio de um nó está mais de 50 ms fora do NTP, **para qualquer lado**?
+  options:
+  - '`node_timex_offset_seconds > 0.05`'
+  - '`abs(node_timex_offset_seconds) > 0.05`'
+  - '`abs(rate(node_timex_offset_seconds[5m])) > 0.05`'
+  - '`sgn(node_timex_offset_seconds) > 0.05`'
+  answer: B
+  explanation_pt: 'A) só pega relógios adiantados. C) usa `rate()` num **gauge** (errado) e mede velocidade, não desvio. D) `sgn()` vale 1 para **qualquer** offset positivo (até 1 ns) e -1 para os negativos: ignora o tamanho e ainda perde os atrasados.'
+  source: promql-functions-lab/functions/abs/README.md
+  lang: pt
+- id: fn-abs-2
+  domain: PromQL
+  difficulty: medium
+  question: O que acontece ao executar `abs(-5)`?
+  options:
+  - Retorna o escalar `5`
+  - Retorna um instant vector com um elemento de valor `5`
+  - 'Erro: `abs` espera um instant vector e recebeu um escalar'
+  - Retorna vazio
+  answer: C
+  explanation_pt: A assinatura é `abs(v instant-vector)`. Para testar com números literais, use `abs(vector(-5))`, que retorna um instant vector sem labels com valor 5.
+  source: promql-functions-lab/functions/abs/README.md
+  lang: pt
+- id: fn-abs-3
+  domain: PromQL
+  difficulty: medium
+  question: Dado `erro{sala="a"} = -2` e `erro{sala="b"} = 2`, quanto valem `avg(abs(erro))` e `abs(avg(erro))`?
+  options:
+  - 2 e 2
+  - 2 e 0
+  - 0 e 2
+  - 0 e 0
+  answer: B
+  explanation_pt: '`avg(abs(erro)) = avg(2, 2) = 2` (erro médio absoluto). `abs(avg(erro)) = abs(0) = 0`: a média com sinal cancela os desvios.'
+  source: promql-functions-lab/functions/abs/README.md
+  lang: pt
+- id: fn-abs-4
+  domain: PromQL
+  difficulty: medium
+  question: A query `abs(http_request_duration_seconds_bucket)` retorna séries com qual nome de métrica?
+  options:
+  - '`http_request_duration_seconds_bucket`'
+  - '`abs_http_request_duration_seconds_bucket`'
+  - 'nenhum: o `__name__` é removido, os demais labels (inclusive `le`) ficam'
+  - nenhum, e todos os labels são removidos
+  answer: C
+  explanation_pt: Funções que transformam valores (abs, ceil, sqrt, ln...) descartam o nome da métrica, porque o valor não tem mais o mesmo significado. Os outros labels são preservados.
+  source: promql-functions-lab/functions/abs/README.md
+  lang: pt
+- id: fn-absent-1
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `absent(http_requests_total{job="api", instance=~"10.*"})` quando **nenhuma** série corresponde?
+  options:
+  - '`{job="api", instance=~"10.*"} 1`'
+  - '`{job="api"} 1`'
+  - '`{} 1`'
+  - Vetor vazio
+  answer: B
+  explanation_pt: Só matchers de igualdade viram labels do resultado. O regex é descartado.
+  source: promql-functions-lab/functions/absent/README.md
+  lang: pt
+- id: fn-absent-2
+  domain: PromQL
+  difficulty: medium
+  question: 'Existem 3 séries `up{job="node"}`: duas com valor 1 e uma com valor 0. O que retorna `absent(up{job="node"})`?'
+  options:
+  - '`{job="node"} 1`'
+  - Vetor vazio
+  - 1 série para a instância com valor 0
+  - '`0`'
+  answer: B
+  explanation_pt: As séries **existem** (o valor 0 não importa). Para "nenhum target saudável", use `absent(up{job="node"} == 1)`.
+  source: promql-functions-lab/functions/absent/README.md
+  lang: pt
+- id: fn-absent-3
+  domain: PromQL
+  difficulty: medium
+  question: Um deployment foi deletado e seus pods sumiram do service discovery. Qual alerta dispara?
+  options:
+  - '`up{job="myapp"} == 0`'
+  - '`absent(up{job="myapp"})`'
+  - '`rate(up{job="myapp"}[5m]) == 0`'
+  - '`count(up{job="myapp"}) == 0`'
+  answer: B
+  explanation_pt: 'Sem targets, não existe série `up{job="myapp"}`: A e C ficam vazias (sem alerta) e D também (count de vetor vazio é vazio, não 0).'
+  source: promql-functions-lab/functions/absent/README.md
+  lang: pt
+- id: fn-absent-4
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `absent(sum(nonexistent{job="myjob"}))`?
+  options:
+  - '`{job="myjob"} 1`'
+  - '`{} 1`'
+  - Vetor vazio
+  - Erro de sintaxe
+  answer: B
+  explanation_pt: 'Exemplo literal da documentação: agregações não preservam labels para a dedução.'
+  source: promql-functions-lab/functions/absent/README.md
+  lang: pt
+- id: fn-absent-5
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `absent(x)` e `absent_over_time(x[10m])`?
+  options:
+  - Nenhuma.
+  - '`absent` olha só o instante atual; `absent_over_time` dispara só se não houver **nenhuma** amostra nos últimos 10 min.'
+  - '`absent_over_time` retorna a contagem de amostras ausentes.'
+  - '`absent` aceita range vector.'
+  answer: B
+  explanation_pt: '`absent_over_time` é a versão com "tolerância" (range vector). Ambas devolvem vazio ou `1`.'
+  source: promql-functions-lab/functions/absent/README.md
+  lang: pt
+- id: fn-absent_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Um job roda a cada 30 min e só é raspado enquanto executa (~2 min). Qual expressão alerta se ele perder **uma** execução, sem falsos positivos entre execuções?
+  options:
+  - '`absent(job_metric{job="etl"})`'
+  - '`absent_over_time(job_metric{job="etl"}[5m])`'
+  - '`absent_over_time(job_metric{job="etl"}[45m])`'
+  - '`absent_over_time(job_metric{job="etl"}[24h])`'
+  answer: C
+  explanation_pt: Entre execuções há ~28 min de silêncio normal; a janela precisa ser maior que isso e menor que 2 intervalos (60 min). A e B disparariam entre toda execução; D só dispararia depois de um dia sem dados.
+  source: promql-functions-lab/functions/absent_over_time/README.md
+  lang: pt
+- id: fn-absent_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **válida**?
+  options:
+  - '`absent_over_time(sum(up{job="api"}))`'
+  - '`absent_over_time(sum(up{job="api"})[10m:])`'
+  - '`absent_over_time(up{job="api"})`'
+  - '`absent(up{job="api"}[10m])`'
+  answer: B
+  explanation_pt: '`absent_over_time` exige range vector; com agregação, isso se obtém via subquery. A e C passam instant vector; D passa range vector para `absent`, que exige instant vector.'
+  source: promql-functions-lab/functions/absent_over_time/README.md
+  lang: pt
+- id: fn-absent_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `absent_over_time(nonexistent{job="myjob",instance=~".*"}[1h])`?
+  options:
+  - '`{job="myjob", instance=~".*"} 1`'
+  - '`{job="myjob"} 1`'
+  - '`{} 1`'
+  - Vetor vazio
+  answer: B
+  explanation_pt: 'Mesma dedução do `absent`: só matchers de igualdade viram labels.'
+  source: promql-functions-lab/functions/absent_over_time/README.md
+  lang: pt
+- id: fn-absent_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `absent_over_time(x[10m])` e `present_over_time(x[10m])`?
+  options:
+  - São opostos exatos e retornam as mesmas séries.
+  - '`present_over_time` retorna **1 por série** que teve amostras; `absent_over_time` retorna **no máximo 1** elemento, só se **nenhuma** série teve amostras.'
+  - '`present_over_time` é experimental.'
+  - '`absent_over_time` retorna 0 quando há dados.'
+  answer: B
+  explanation_pt: 'Não são simétricos: `present_over_time` preserva as séries (e seus labels); `absent_over_time` é "tudo ou nada". Nenhum dos dois retorna 0.'
+  source: promql-functions-lab/functions/absent_over_time/README.md
+  lang: pt
+- id: fn-acos-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `acos(vector(-1))`?
+  options:
+  - '`0`'
+  - '`-π`'
+  - '`π` (3.14159...)'
+  - '`NaN`'
+  answer: C
+  explanation_pt: A faixa do `acos` é [0, π]; `cos(π) = -1`.
+  source: promql-functions-lab/functions/acos/README.md
+  lang: pt
+- id: fn-acos-2
+  domain: PromQL
+  difficulty: medium
+  question: '`acos(x)` com `x = 1.5` resulta em:'
+  options:
+  - Erro de avaliação da query
+  - '`NaN` para aquela série'
+  - '`0`'
+  - A série é descartada do resultado
+  answer: B
+  explanation_pt: Fora do domínio a amostra vira NaN; a série continua no resultado (só "some" do gráfico e de comparações).
+  source: promql-functions-lab/functions/acos/README.md
+  lang: pt
+- id: fn-acos-3
+  domain: PromQL
+  difficulty: medium
+  question: '`a_ratio` tem label `{ladder="x"}` e `a_len` não tem label nenhuma. Qual expressão funciona?'
+  options:
+  - '`acos(a_ratio / a_len)`'
+  - '`acos(a_ratio / scalar(a_len))`'
+  - '`acos(a_ratio) / a_len`'
+  - '`acos(a_ratio[5m] / a_len)`'
+  answer: B
+  explanation_pt: 'Sem labels em comum, a divisão vetor/vetor não encontra pares (A e C retornam vazio). `scalar()` resolve. D passa range vector: inválido.'
+  source: promql-functions-lab/functions/acos/README.md
+  lang: pt
+- id: fn-acosh-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `acosh(vector(0.5))`?
+  options:
+  - '`0`'
+  - '`-0.69`'
+  - '`NaN`'
+  - erro de domínio
+  answer: C
+  explanation_pt: Fora do domínio [1, ∞) o resultado é NaN; PromQL não lança erro por valor.
+  source: promql-functions-lab/functions/acosh/README.md
+  lang: pt
+- id: fn-acosh-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual valor faz `acosh(vector(x))` retornar exatamente `0`?
+  options:
+  - '`0`'
+  - '`1`'
+  - '`-1`'
+  - '`π`'
+  answer: B
+  explanation_pt: '`cosh(0) = 1`, então `acosh(1) = 0`.'
+  source: promql-functions-lab/functions/acosh/README.md
+  lang: pt
+- id: fn-acosh-3
+  domain: PromQL
+  difficulty: medium
+  question: '`acosh(cosh(vector(-3)))` retorna:'
+  options:
+  - '`-3`'
+  - '`3`'
+  - '`NaN`'
+  - '`+Inf`'
+  answer: B
+  explanation_pt: '`cosh` é par (perde o sinal) e `acosh` devolve sempre o valor ≥ 0.'
+  source: promql-functions-lab/functions/acosh/README.md
+  lang: pt
+- id: fn-asin-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `asin(vector(2))`?
+  options:
+  - 'Erro: domain error'
+  - '`NaN`'
+  - '`1.5708`'
+  - Resultado vazio
+  answer: B
+  explanation_pt: Funções PromQL não abortam a query por valor inválido; o resultado da amostra vira **NaN**.
+  source: promql-functions-lab/functions/asin/README.md
+  lang: pt
+- id: fn-asin-2
+  domain: PromQL
+  difficulty: medium
+  question: Um alerta `deg(asin(x / 9.81)) > 45` está configurado. O sensor começa a enviar `x = 12`. O que acontece?
+  options:
+  - O alerta dispara, pois 12/9.81 > 1
+  - 'O alerta **não** dispara: o valor é NaN e a comparação é falsa'
+  - A regra falha com erro
+  - O Prometheus descarta a amostra na ingestão
+  answer: B
+  explanation_pt: '`asin(1.22)` = NaN, e comparações com NaN são sempre falsas: a série é filtrada. Por isso crie um alerta separado para `abs(x/9.81) > 1`.'
+  source: promql-functions-lab/functions/asin/README.md
+  lang: pt
+- id: fn-asin-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual query retorna `30` (aprox.)?
+  options:
+  - '`asin(vector(0.5))`'
+  - '`rad(asin(vector(0.5)))`'
+  - '`deg(asin(vector(0.5)))`'
+  - '`asin(deg(vector(0.5)))`'
+  answer: C
+  explanation_pt: '`asin(0.5)` = π/6 rad ≈ 0.5236; `deg()` converte para 30°.'
+  source: promql-functions-lab/functions/asin/README.md
+  lang: pt
+- id: fn-asinh-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual função retorna um valor finito para **todas** as entradas -5, 0 e 5?
+  options:
+  - '`ln()`'
+  - '`log2()`'
+  - '`asinh()`'
+  - '`acosh()`'
+  answer: C
+  explanation_pt: '`ln`/`log2` dão NaN para -5 e -Inf para 0; `acosh` dá NaN para x < 1.'
+  source: promql-functions-lab/functions/asinh/README.md
+  lang: pt
+- id: fn-asinh-2
+  domain: PromQL
+  difficulty: medium
+  question: '`asinh(vector(-1))` retorna aproximadamente:'
+  options:
+  - '`NaN`'
+  - '`-0.8814`'
+  - '`0.8814`'
+  - '`-1.5708`'
+  answer: B
+  explanation_pt: '`asinh` é ímpar: asinh(-1) = -asinh(1).'
+  source: promql-functions-lab/functions/asinh/README.md
+  lang: pt
+- id: fn-asinh-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual a inversa de `asinh`?
+  options:
+  - '`asin`'
+  - '`sinh`'
+  - '`acosh`'
+  - '`exp`'
+  answer: B
+  explanation_pt: '`sinh(asinh(x)) = x`.'
+  source: promql-functions-lab/functions/asinh/README.md
+  lang: pt
+- id: fn-atan-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **válida** em PromQL?
+  options:
+  - '`atan2(a, b)`'
+  - '`a atan2 b`'
+  - '`atan(a, b)`'
+  - '`atan(a[5m])`'
+  answer: B
+  explanation_pt: '`atan2` é operador binário. `atan()` recebe um único instant vector; D passa range vector.'
+  source: promql-functions-lab/functions/atan/README.md
+  lang: pt
+- id: fn-atan-2
+  domain: PromQL
+  difficulty: medium
+  question: '`atan(vector(+Inf))` retorna:'
+  options:
+  - '`+Inf`'
+  - '`NaN`'
+  - '`1.5708` (π/2)'
+  - erro
+  answer: C
+  explanation_pt: O limite do arco-tangente no infinito é π/2.
+  source: promql-functions-lab/functions/atan/README.md
+  lang: pt
+- id: fn-atan-3
+  domain: PromQL
+  difficulty: medium
+  question: 'Direções de vento 350° e 10° são registradas. `avg_over_time()` delas dá:'
+  options:
+  - 0°
+  - 180°
+  - 360°
+  - NaN
+  answer: B
+  explanation_pt: 'Média aritmética: (350 + 10) / 2 = 180, o oposto da realidade. Use média de `sin`/`cos` + `atan2`.'
+  source: promql-functions-lab/functions/atan/README.md
+  lang: pt
+- id: fn-atanh-1
+  domain: PromQL
+  difficulty: medium
+  question: '`atanh(vector(1))` retorna:'
+  options:
+  - '`NaN`'
+  - '`+Inf`'
+  - '`1`'
+  - '`π/4`'
+  answer: B
+  explanation_pt: Na borda do domínio o limite é +Inf.
+  source: promql-functions-lab/functions/atanh/README.md
+  lang: pt
+- id: fn-atanh-2
+  domain: PromQL
+  difficulty: medium
+  question: 'Uma métrica de uso de CPU em **percentual** (0..100) vale 45. `atanh(cpu_percent)` retorna:'
+  options:
+  - '`0.48`'
+  - '`NaN`'
+  - '`+Inf`'
+  - erro
+  answer: B
+  explanation_pt: 45 está fora do domínio; divida por 100 antes (`atanh(cpu_percent / 100)` ≈ 0.48).
+  source: promql-functions-lab/functions/atanh/README.md
+  lang: pt
+- id: fn-atanh-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão calcula a média de correlações pela transformação de Fisher?
+  options:
+  - '`avg(atanh(r))`'
+  - '`atanh(avg(r))`'
+  - '`tanh(avg(atanh(r)))`'
+  - '`atanh(avg(tanh(r)))`'
+  answer: C
+  explanation_pt: Vai para a escala de Fisher (`atanh`), faz a média e volta (`tanh`).
+  source: promql-functions-lab/functions/atanh/README.md
+  lang: pt
+- id: fn-avg_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Você tem 3 pods com a métrica `cpu_usage`. O que `avg_over_time(cpu_usage[5m])` retorna?
+  options:
+  - Uma série com a média dos 3 pods nos últimos 5 min
+  - Três séries, cada uma com a média do seu pod nos últimos 5 min
+  - Três séries com o último valor de cada pod
+  - 'Erro: falta `by (pod)`'
+  answer: B
+  explanation_pt: Funções `*_over_time` trabalham **por série**, ao longo do tempo. Para juntar os pods seria `avg(avg_over_time(cpu_usage[5m]))`. `by` só existe em operadores de agregação.
+  source: promql-functions-lab/functions/avg_over_time/README.md
+  lang: pt
+- id: fn-avg_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **inválida**?
+  options:
+  - '`avg_over_time(up[1h])`'
+  - '`avg(up)`'
+  - '`avg_over_time(up)`'
+  - '`avg_over_time(rate(http_requests_total[5m])[1h:])`'
+  answer: C
+  explanation_pt: '`avg_over_time` exige range vector. D é válida graças à subquery `[1h:]`.'
+  source: promql-functions-lab/functions/avg_over_time/README.md
+  lang: pt
+- id: fn-avg_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: '`probe_success` (0/1) de um site teve 1080 amostras 1 e 120 amostras 0 na última hora. Quanto vale `avg_over_time(probe_success[1h])`?'
+  options:
+  - '0.1'
+  - '0.9'
+  - '1080'
+  - '1'
+  answer: B
+  explanation_pt: '1080 / 1200 = 0.9: a média de um 0/1 é a fração do tempo em 1 (90% de disponibilidade).'
+  source: promql-functions-lab/functions/avg_over_time/README.md
+  lang: pt
+- id: fn-avg_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Por que `avg_over_time(http_requests_total[5m])` não é útil?
+  options:
+  - Porque counters não podem ser lidos com range vector
+  - Porque a média de um counter acumulado não representa taxa nem quantidade; use `rate()`
+  - Porque retorna sempre 0
+  - Porque só funciona com histogramas
+  answer: B
+  explanation_pt: 'O counter só cresce (e reseta): a média dos valores acumulados não tem significado operacional.'
+  source: promql-functions-lab/functions/avg_over_time/README.md
+  lang: pt
+- id: fn-ceil-1
+  domain: PromQL
+  difficulty: medium
+  question: Uma API recebe 250 req/s e cada pod aguenta 100 req/s. Qual query retorna o número mínimo de pods **sem subdimensionar**?
+  options:
+  - '`round(sum(rate(http_requests_total[5m])) / 100)`'
+  - '`floor(sum(rate(http_requests_total[5m])) / 100)`'
+  - '`ceil(sum(rate(http_requests_total[5m])) / 100)`'
+  - '`ceil(sum(http_requests_total) / 100)`'
+  answer: C
+  explanation_pt: '`ceil(2.5) = 3`. A) `round(2.5) = 3` aqui por sorte (empate sobe), mas com 240 req/s daria 2 (falta pod). B) dá 2. D) usa o counter cru (total acumulado desde o start), não a taxa.'
+  source: promql-functions-lab/functions/ceil/README.md
+  lang: pt
+- id: fn-ceil-2
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `ceil(vector(-2.7))`?
+  options:
+  - '-3'
+  - '-2'
+  - '3'
+  - '-2.7'
+  answer: B
+  explanation_pt: '`ceil` arredonda em direção ao **+∞**: o menor inteiro ≥ -2.7 é -2.'
+  source: promql-functions-lab/functions/ceil/README.md
+  lang: pt
+- id: fn-ceil-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual das expressões abaixo é **inválida**?
+  options:
+  - '`ceil(node_load1)`'
+  - '`ceil(rate(node_cpu_seconds_total[5m]))`'
+  - '`ceil(node_memory_MemAvailable_bytes[5m])`'
+  - '`ceil(vector(3.2))`'
+  answer: C
+  explanation_pt: '`node_memory_MemAvailable_bytes[5m]` é um **range vector** e `ceil` só aceita instant vector. Para usar uma janela, aplique antes uma função `_over_time` (ex.: `ceil(max_over_time(x[5m]))`).'
+  source: promql-functions-lab/functions/ceil/README.md
+  lang: pt
+- id: fn-ceil-4
+  domain: PromQL
+  difficulty: medium
+  question: '`ceil((vector(0.1) + 0.2) * 10)` retorna 4. Por quê?'
+  options:
+  - Bug do Prometheus
+  - Em ponto flutuante IEEE 754, `0.1 + 0.2 = 0.30000000000000004`, e `ceil` sobe qualquer excesso
+  - '`ceil` sempre soma 1'
+  - '`vector()` arredonda os valores'
+  answer: B
+  explanation_pt: O PromQL usa float64. O valor resultante é `3.0000000000000004`, e o menor inteiro ≥ a ele é 4.
+  source: promql-functions-lab/functions/ceil/README.md
+  lang: pt
+- id: fn-changes-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão detecta um target que ficou alternando entre up e down nos últimos 10 minutos?
+  options:
+  - '`resets(up[10m]) > 4`'
+  - '`changes(up[10m]) > 4`'
+  - '`delta(up[10m]) > 4`'
+  - '`rate(up[10m]) > 4`'
+  answer: B
+  explanation_pt: '`changes` conta toda mudança 0↔1. A só contaria quedas (e `up` não é counter); C daria no máximo ±1; D é para counters.'
+  source: promql-functions-lab/functions/changes/README.md
+  lang: pt
+- id: fn-changes-2
+  domain: PromQL
+  difficulty: medium
+  question: 'Amostras de um gauge na janela: `3, 3, 5, 5, 3, 3`. Qual é o valor de `changes()`?'
+  options:
+  - '0'
+  - '1'
+  - '2'
+  - '5'
+  answer: C
+  explanation_pt: 3→5 e 5→3. Os pares repetidos (3,3 e 5,5) não contam.
+  source: promql-functions-lab/functions/changes/README.md
+  lang: pt
+- id: fn-changes-3
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Qual métrica, exposta por padrão pelas client libraries, permite contar restarts de um processo com `changes()`?
+  options:
+  - '`process_resident_memory_bytes`'
+  - '`process_start_time_seconds`'
+  - '`process_open_fds`'
+  - '`go_goroutines`'
+  answer: B
+  explanation_pt: O timestamp de start só muda quando o processo reinicia. As outras mudam o tempo todo.
+  source: promql-functions-lab/functions/changes/README.md
+  lang: pt
+- id: fn-changes-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o tipo de retorno de `changes(x[5m])`?
+  options:
+  - Range vector
+  - Instant vector
+  - Scalar
+  - String
+  answer: B
+  explanation_pt: Como todas as funções que recebem range vector e "resumem" a janela (`rate`, `resets`, `*_over_time`...), devolve um instant vector com uma amostra por série.
+  source: promql-functions-lab/functions/changes/README.md
+  lang: pt
+- id: fn-clamp-1
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `clamp(node_load1, 10, 1)`?
+  options:
+  - Todos os valores iguais a 1
+  - Todos os valores iguais a 10
+  - Um vetor vazio
+  - Erro de parse
+  answer: C
+  explanation_pt: Pela documentação, se `min > max` o resultado é um vetor vazio (sem erro).
+  source: promql-functions-lab/functions/clamp/README.md
+  lang: pt
+- id: fn-clamp-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **equivalente** a `clamp(x, 0, 1)`?
+  options:
+  - '`clamp_min(clamp_max(x, 0), 1)`'
+  - '`clamp_max(clamp_min(x, 0), 1)`'
+  - '`min(max(x, 0), 1)` (agregadores)'
+  - '`x > 0 and x < 1`'
+  answer: B
+  explanation_pt: Primeiro garante o piso 0, depois o teto 1. A) inverte os limites (daria 1 sempre). C) `min`/`max` são **agregadores** de séries, não funções de dois argumentos. D) **filtra** em vez de limitar.
+  source: promql-functions-lab/functions/clamp/README.md
+  lang: pt
+- id: fn-clamp-3
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `clamp(vector(42), -Inf, +Inf)`?
+  options:
+  - -Inf
+  - +Inf
+  - '42'
+  - NaN
+  answer: C
+  explanation_pt: Com limites infinitos, os valores ficam inalterados.
+  source: promql-functions-lab/functions/clamp/README.md
+  lang: pt
+- id: fn-clamp-4
+  domain: PromQL
+  difficulty: medium
+  question: Um sensor de umidade às vezes reporta 110%. Qual é a melhor prática?
+  options:
+  - Usar `clamp(x, 0, 100)` no alerta de "umidade alta"
+  - Usar `clamp` nos dashboards e alertar separadamente no valor cru quando `x > 100`
+  - Apagar a série
+  - Usar `abs(x)`
+  answer: B
+  explanation_pt: '`clamp` é bom para exibição, mas esconde que o sensor está reportando valores impossíveis. O alerta deve olhar o dado cru.'
+  source: promql-functions-lab/functions/clamp/README.md
+  lang: pt
+- id: fn-clamp_max-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `clamp_max(x, 100)` e `max(x)`?
+  options:
+  - Nenhuma
+  - '`clamp_max` limita **cada série** a 100; `max` retorna o **maior valor entre as séries**'
+  - '`max` limita cada série a 100; `clamp_max` retorna o maior valor'
+  - '`clamp_max` só funciona com counters'
+  answer: B
+  explanation_pt: '`clamp_max` é função elemento a elemento (mantém todas as séries e labels, exceto o nome); `max` é agregador (reduz a uma série por grupo).'
+  source: promql-functions-lab/functions/clamp_max/README.md
+  lang: pt
+- id: fn-clamp_max-2
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `clamp_max(vector(7), -Inf)`?
+  options:
+  - '7'
+  - -Inf
+  - NaN
+  - vazio
+  answer: B
+  explanation_pt: Pela documentação, se `max` é `-Inf`, todos os valores viram `-Inf`.
+  source: promql-functions-lab/functions/clamp_max/README.md
+  lang: pt
+- id: fn-clamp_max-3
+  domain: PromQL
+  difficulty: medium
+  question: Um p99 tem picos de 30 s e você quer um SLO de "p99 médio < 1 s na última hora". Qual expressão é adequada?
+  options:
+  - '`avg_over_time(clamp_max(p99, 1)[1h:1m]) < 1`'
+  - '`avg_over_time(p99[1h]) < 1`'
+  - '`avg_over_time(clamp_max(p99, 5)[1h:1m]) < 1`'
+  - '`max(clamp_max(p99, 1)) < 1`'
+  answer: B
+  explanation_pt: 'A) e D) cortam tudo em 1, então a média nunca passa de 1: o SLO só falharia se **todas** as amostras estivessem no teto. C) subestima a média (um pico de 30 s conta como 5 s) e pode aprovar uma hora que violou o SLO. SLOs usam o valor cru.'
+  source: promql-functions-lab/functions/clamp_max/README.md
+  lang: pt
+- id: fn-clamp_max-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **inválida**?
+  options:
+  - '`clamp_max(node_load1, 4)`'
+  - '`clamp_max(rate(http_requests_total[5m]), 1000)`'
+  - '`clamp_max(node_load1, node_cpu_count)`'
+  - '`clamp_max(node_load1, scalar(count(node_cpu_seconds_total{mode="idle"})))`'
+  answer: C
+  explanation_pt: O segundo argumento precisa ser **escalar**; `node_cpu_count` é um instant vector. D) converte com `scalar()` e é válida (se houver exatamente uma série).
+  source: promql-functions-lab/functions/clamp_max/README.md
+  lang: pt
+- id: fn-clamp_min-1
+  domain: PromQL
+  difficulty: medium
+  question: O que acontece com `sum(queue_messages) / sum(consumers)` quando `consumers = 0` e há mensagens?
+  options:
+  - Erro de divisão por zero
+  - O resultado é `+Inf`
+  - O resultado é `0`
+  - A série é removida
+  answer: B
+  explanation_pt: 'O PromQL segue IEEE 754: número positivo / 0 = `+Inf`. `0/0` seria `NaN`. Para evitar, `clamp_min(sum(consumers), 1)` no divisor.'
+  source: promql-functions-lab/functions/clamp_min/README.md
+  lang: pt
+- id: fn-clamp_min-2
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `clamp_min(vector(3), +Inf)`?
+  options:
+  - '3'
+  - +Inf
+  - NaN
+  - vazio
+  answer: B
+  explanation_pt: Pela documentação, se `min` é `+Inf`, todos os valores viram `+Inf`.
+  source: promql-functions-lab/functions/clamp_min/README.md
+  lang: pt
+- id: fn-clamp_min-3
+  domain: PromQL
+  difficulty: medium
+  question: '`kube_resourcequota` tem os labels `type="hard"` e `type="used"`. Qual expressão dá a quota restante **sem valores negativos**?'
+  options:
+  - '`clamp_min(kube_resourcequota{type="hard"} - kube_resourcequota{type="used"}, 0)`'
+  - '`clamp_min(kube_resourcequota{type="hard"} - ignoring(type) kube_resourcequota{type="used"}, 0)`'
+  - '`clamp_max(kube_resourcequota{type="hard"} - ignoring(type) kube_resourcequota{type="used"}, 0)`'
+  - '`abs(kube_resourcequota{type="hard"} - ignoring(type) kube_resourcequota{type="used"})`'
+  answer: B
+  explanation_pt: Sem `ignoring(type)` (A), os conjuntos de labels não casam e o resultado é **vazio**. C) limitaria o máximo em 0 (tudo ≤ 0). D) transformaria "-6" em "6 sobrando", o que é falso.
+  source: promql-functions-lab/functions/clamp_min/README.md
+  lang: pt
+- id: fn-clamp_min-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o resultado de `clamp_min(vector(-2), -Inf)`?
+  options:
+  - -Inf
+  - '-2'
+  - '0'
+  - NaN
+  answer: B
+  explanation_pt: Com `min = -Inf`, os valores ficam inalterados.
+  source: promql-functions-lab/functions/clamp_min/README.md
+  lang: pt
+- id: fn-cos-1
+  domain: PromQL
+  difficulty: medium
+  question: Uma métrica `panel_angle_degrees` vale `60`. Qual query retorna `0.5` (aprox.)?
+  options:
+  - '`cos(panel_angle_degrees)`'
+  - '`cos(deg(panel_angle_degrees))`'
+  - '`cos(rad(panel_angle_degrees))`'
+  - '`acos(panel_angle_degrees)`'
+  answer: C
+  explanation_pt: '`rad()` converte graus para radianos antes do cosseno. A daria cos(60 rad) ≈ -0.95; B converte na direção errada; D daria NaN (60 está fora de [-1, 1]).'
+  source: promql-functions-lab/functions/cos/README.md
+  lang: pt
+- id: fn-cos-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual destas chamadas é **inválida**?
+  options:
+  - '`cos(vector(0))`'
+  - '`cos(up)`'
+  - '`cos(rate(http_requests_total[5m]))`'
+  - '`cos(http_requests_total[5m])`'
+  answer: D
+  explanation_pt: '`cos()` exige **instant vector**; `x[5m]` é range vector. As outras três passam um instant vector (válido, ainda que sem sentido físico em B e C).'
+  source: promql-functions-lab/functions/cos/README.md
+  lang: pt
+- id: fn-cos-3
+  domain: PromQL
+  difficulty: medium
+  question: '`cos(vector(-Inf))` retorna:'
+  options:
+  - '`-1`'
+  - '`0`'
+  - '`NaN`'
+  - erro
+  answer: C
+  explanation_pt: 'Seguindo o `math.Cos` do Go, cosseno de ±Inf é NaN. Funções PromQL não "dão erro" por valor: devolvem NaN.'
+  source: promql-functions-lab/functions/cos/README.md
+  lang: pt
+- id: fn-cosh-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `cosh(vector(0))`?
+  options:
+  - '`0`'
+  - '`1`'
+  - '`NaN`'
+  - '`π/2`'
+  answer: B
+  explanation_pt: '(e⁰ + e⁰)/2 = 1: o ponto mínimo da curva.'
+  source: promql-functions-lab/functions/cosh/README.md
+  lang: pt
+- id: fn-cosh-2
+  domain: PromQL
+  difficulty: medium
+  question: '`cosh(vector(-Inf))` retorna:'
+  options:
+  - '`-Inf`'
+  - '`NaN`'
+  - '`+Inf`'
+  - '`1`'
+  answer: C
+  explanation_pt: '`cosh` é par e sempre positiva: os dois lados vão a +Inf.'
+  source: promql-functions-lab/functions/cosh/README.md
+  lang: pt
+- id: fn-cosh-3
+  domain: PromQL
+  difficulty: medium
+  question: '`cosh(my_metric)` e `cosh(-my_metric)` retornam:'
+  options:
+  - Valores opostos
+  - O mesmo valor
+  - O segundo é NaN
+  - Erro, pois `-` não pode ser aplicado a vetor
+  answer: B
+  explanation_pt: Função par. (E o menos unário em vetor é válido em PromQL.)
+  source: promql-functions-lab/functions/cosh/README.md
+  lang: pt
+- id: fn-count_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Scrape interval de 15s. Quanto vale, em condições normais, `count_over_time(up[1m])` no Prometheus 3?
+  options:
+  - '1'
+  - '4'
+  - '5'
+  - '60'
+  answer: B
+  explanation_pt: 60s / 15s = 4. No Prometheus 3 o range é aberto à esquerda `(t−1m, t]`, então a amostra exatamente em `t−1m` não entra (nas versões 2.x podia dar 5 dependendo do alinhamento).
+  source: promql-functions-lab/functions/count_over_time/README.md
+  lang: pt
+- id: fn-count_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `count(x)` e `count_over_time(x[5m])`?
+  options:
+  - Nenhuma
+  - '`count` conta séries num instante; `count_over_time` conta amostras de cada série na janela'
+  - '`count` conta amostras; `count_over_time` conta séries'
+  - '`count_over_time` soma os valores'
+  answer: B
+  explanation_pt: 'Eixos diferentes: ↓ entre séries vs → no tempo.'
+  source: promql-functions-lab/functions/count_over_time/README.md
+  lang: pt
+- id: fn-count_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: 'Para saber quantos **erros** (`http_errors_total`, counter) ocorreram em 1 hora, use:'
+  options:
+  - '`count_over_time(http_errors_total[1h])`'
+  - '`increase(http_errors_total[1h])`'
+  - '`count(http_errors_total)`'
+  - '`sum_over_time(http_errors_total[1h])`'
+  answer: B
+  explanation_pt: '`count_over_time` contaria **scrapes** (ex.: 240), não erros.'
+  source: promql-functions-lab/functions/count_over_time/README.md
+  lang: pt
+- id: fn-count_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Uma série sumiu há 20 min. O que `count_over_time(x[10m]) < 5` retorna para ela?
+  options:
+  - 0, e o alerta dispara
+  - 'Nada: a série não está no resultado e o alerta **não** dispara'
+  - NaN
+  - '1'
+  answer: B
+  explanation_pt: Sem amostras na janela, a série não existe no resultado. Combine com `absent_over_time(x[10m])`.
+  source: promql-functions-lab/functions/count_over_time/README.md
+  lang: pt
+- id: fn-day_of_month-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna o dia do mês atual?
+  options:
+  - '`day_of_month(time())`'
+  - '`day_of_month()`'
+  - '`day_of_month(now())`'
+  - '`day_of_month[1d]`'
+  answer: B
+  explanation_pt: Sem argumento, o padrão é `vector(time())`. A falha porque `time()` é escalar e a função exige instant vector; C não existe; D é sintaxe inválida.
+  source: promql-functions-lab/functions/day_of_month/README.md
+  lang: pt
+- id: fn-day_of_month-2
+  domain: PromQL
+  difficulty: medium
+  question: São 22h30 de 31/março em São Paulo (UTC-3). Quanto vale `day_of_month()`?
+  options:
+  - '31'
+  - '1'
+  - '30'
+  - depende do fuso configurado no Prometheus
+  answer: B
+  explanation_pt: '22h30 BRT = 01h30 UTC de 1º de abril. Não existe configuração de fuso no PromQL: é sempre UTC.'
+  source: promql-functions-lab/functions/day_of_month/README.md
+  lang: pt
+- id: fn-day_of_month-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão mantém `billing_pending_invoices` apenas nos dias 1 a 5?
+  options:
+  - '`billing_pending_invoices and day_of_month() <= 5`'
+  - '`billing_pending_invoices and on() day_of_month() <= 5`'
+  - '`billing_pending_invoices * (day_of_month() <= 5)`'
+  - '`billing_pending_invoices if day_of_month() <= 5`'
+  answer: B
+  explanation_pt: Sem `on()`, o `and` tenta casar todos os labels e o lado direito (sem labels) nunca casa. C também não casa labels (e sem `bool` o valor seria multiplicado pelo dia). D não existe em PromQL.
+  source: promql-functions-lab/functions/day_of_month/README.md
+  lang: pt
+- id: fn-day_of_month-4
+  domain: PromQL
+  difficulty: medium
+  question: Uma métrica guarda `Date.now()` do JavaScript. Como extrair o dia do mês?
+  options:
+  - '`day_of_month(x)`'
+  - '`day_of_month(x / 1000)`'
+  - '`day_of_month(x * 1000)`'
+  - '`day_of_month(timestamp(x))`'
+  answer: B
+  explanation_pt: '`Date.now()` está em milissegundos; o PromQL espera segundos. D daria o dia do **scrape**, não o do evento.'
+  source: promql-functions-lab/functions/day_of_month/README.md
+  lang: pt
+- id: fn-day_of_week-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual valor `day_of_week()` retorna num sábado (UTC)?
+  options:
+  - '0'
+  - '5'
+  - '6'
+  - '7'
+  answer: C
+  explanation_pt: 0 = domingo, 6 = sábado.
+  source: promql-functions-lab/functions/day_of_week/README.md
+  lang: pt
+- id: fn-day_of_week-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna um resultado somente de segunda a sexta (UTC)?
+  options:
+  - '`day_of_week() > 0 < 6`'
+  - '`day_of_week() >= 1 <= 7`'
+  - '`day_of_week() between 1 and 5`'
+  - '`day_of_week(1, 5)`'
+  answer: A
+  explanation_pt: 1..5 = segunda..sexta. B incluiria sábado (6); C e D não existem.
+  source: promql-functions-lab/functions/day_of_week/README.md
+  lang: pt
+- id: fn-day_of_week-3
+  domain: PromQL
+  difficulty: medium
+  question: O time quer receber alertas `warning` só em horário comercial de São Paulo. Qual a abordagem mais robusta?
+  options:
+  - '`and on() hour() >= 9 < 18` em cada regra'
+  - '`active_time_intervals` com `location: America/Sao_Paulo` no Alertmanager'
+  - mudar o fuso do servidor do Prometheus para America/Sao_Paulo
+  - '`--query.timezone=America/Sao_Paulo`'
+  answer: B
+  explanation_pt: O Alertmanager entende fusos (e horário de verão). A usa horas em UTC (seria 12-21); C não muda nada no PromQL (sempre UTC); D não existe.
+  source: promql-functions-lab/functions/day_of_week/README.md
+  lang: pt
+- id: fn-day_of_week-4
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `http_requests_total and day_of_week() == 1` numa segunda-feira?
+  options:
+  - as séries de `http_requests_total`
+  - vazio
+  - '1'
+  - erro de sintaxe
+  answer: B
+  explanation_pt: Sem `on()`, o `and` compara todos os labels; o lado direito não tem labels, então nada casa.
+  source: promql-functions-lab/functions/day_of_week/README.md
+  lang: pt
+- id: fn-day_of_year-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o valor de `day_of_year()` em 31 de dezembro de 2028?
+  options:
+  - '364'
+  - '365'
+  - '366'
+  - '0'
+  answer: C
+  explanation_pt: '2028 é bissexto: 366 dias.'
+  source: promql-functions-lab/functions/day_of_year/README.md
+  lang: pt
+- id: fn-day_of_year-2
+  domain: PromQL
+  difficulty: medium
+  question: '`spent_dollars{team="a"} / day_of_year()` retorna vazio. Por quê?'
+  options:
+  - '`day_of_year()` retorna escalar'
+  - os labels dos dois lados não casam (um tem `team`, o outro não tem labels)
+  - divisão por inteiro não é permitida
+  - '`day_of_year()` precisa de argumento'
+  answer: B
+  explanation_pt: 'É vetor ÷ vetor com matching por labels. Correções: `/ scalar(day_of_year())` ou `/ on() group_left day_of_year()`.'
+  source: promql-functions-lab/functions/day_of_year/README.md
+  lang: pt
+- id: fn-day_of_year-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o valor de `scalar(v)` quando `v` tem 3 elementos?
+  options:
+  - a soma deles
+  - o primeiro
+  - NaN
+  - erro
+  answer: C
+  explanation_pt: '`scalar()` só converte vetores de exatamente 1 elemento; caso contrário devolve `NaN`.'
+  source: promql-functions-lab/functions/day_of_year/README.md
+  lang: pt
+- id: fn-days_in_month-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `days_in_month(vector(1709164800))` (29/fev/2024 00:00 UTC)?
+  options:
+  - '28'
+  - '29'
+  - '30'
+  - '31'
+  answer: B
+  explanation_pt: 2024 é bissexto; fevereiro tem 29 dias.
+  source: promql-functions-lab/functions/days_in_month/README.md
+  lang: pt
+- id: fn-days_in_month-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão projeta corretamente o custo mensal por time a partir de `cost_mtd{team}`?
+  options:
+  - '`cost_mtd / day_of_month() * days_in_month()`'
+  - '`cost_mtd / scalar(day_of_month()) * scalar(days_in_month())`'
+  - '`rate(cost_mtd[30d]) * days_in_month()`'
+  - '`sum(cost_mtd) by (team) * days_in_month`'
+  answer: B
+  explanation_pt: 'A retorna vazio (labels não casam). C aplica `rate()` (feito para counters) num gauge que zera todo mês; D é uma armadilha: `days_in_month` **sem parênteses** é lido como um **seletor de métrica** chamada `days_in_month` (que não existe) → vazio, sem erro.'
+  source: promql-functions-lab/functions/days_in_month/README.md
+  lang: pt
+- id: fn-days_in_month-3
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `days_in_month() - day_of_month()` no dia 31 de janeiro?
+  options:
+  - '0'
+  - '1'
+  - '30'
+  - '-1'
+  answer: A
+  explanation_pt: '31 − 31 = 0: é o último dia (em UTC).'
+  source: promql-functions-lab/functions/days_in_month/README.md
+  lang: pt
+- id: fn-deg-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `deg(vector(pi()))`?
+  options:
+  - '`3.14159`'
+  - '`57.2958`'
+  - '`180`'
+  - '`360`'
+  answer: C
+  explanation_pt: π rad = 180°.
+  source: promql-functions-lab/functions/deg/README.md
+  lang: pt
+- id: fn-deg-2
+  domain: PromQL
+  difficulty: medium
+  question: Uma métrica `joint_rad` vale `7`. O que `deg(joint_rad)` retorna?
+  options:
+  - '`41.07` (normalizado)'
+  - '`401.07`'
+  - '`NaN` (fora de 0..2π)'
+  - '`0.122`'
+  answer: B
+  explanation_pt: '`deg` apenas multiplica por 180/π; não há normalização nem domínio restrito.'
+  source: promql-functions-lab/functions/deg/README.md
+  lang: pt
+- id: fn-deg-3
+  domain: PromQL
+  difficulty: medium
+  question: Você quer a inclinação em graus a partir de `ratio` (entre -1 e 1). Qual query?
+  options:
+  - '`asin(deg(ratio))`'
+  - '`deg(asin(ratio))`'
+  - '`rad(asin(ratio))`'
+  - '`asin(ratio) * 180`'
+  answer: B
+  explanation_pt: '`asin` devolve radianos; `deg` converte. A aplica a conversão antes (e sai do domínio); D esquece o π.'
+  source: promql-functions-lab/functions/deg/README.md
+  lang: pt
+- id: fn-delta-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual função é adequada para "quanto a temperatura mudou nas últimas 2 horas"?
+  options:
+  - '`increase(cpu_temp_celsius[2h])`'
+  - '`delta(cpu_temp_celsius[2h])`'
+  - '`rate(cpu_temp_celsius[2h])`'
+  - '`resets(cpu_temp_celsius[2h])`'
+  answer: B
+  explanation_pt: 'Temperatura é gauge. É inclusive o exemplo da documentação: `delta(cpu_temp_celsius{host="zeus"}[2h])`. A e C tratariam as quedas como resets.'
+  source: promql-functions-lab/functions/delta/README.md
+  lang: pt
+- id: fn-delta-2
+  domain: PromQL
+  difficulty: medium
+  question: Um gauge vale `10` no início da janela, sobe até `90` e volta para `10` no fim. Qual o `delta` aproximado?
+  options:
+  - '80'
+  - '160'
+  - '0'
+  - −80
+  answer: C
+  explanation_pt: '`delta` compara só o primeiro e o último valor (com extrapolação). O caminho no meio não conta.'
+  source: promql-functions-lab/functions/delta/README.md
+  lang: pt
+- id: fn-delta-3
+  domain: PromQL
+  difficulty: medium
+  question: Por que `delta(http_requests_total[5m])` é uma má ideia?
+  options:
+  - Porque `delta` só aceita instant vectors
+  - Porque `delta` não compensa resets de counter e pode dar valores negativos sem sentido
+  - Porque `delta` sempre retorna por segundo
+  - Porque `delta` não extrapola
+  answer: B
+  explanation_pt: Para counters use `increase`, que detecta e compensa resets.
+  source: promql-functions-lab/functions/delta/README.md
+  lang: pt
+- id: fn-delta-4
+  domain: PromQL
+  difficulty: medium
+  question: '`delta(x[10m])` pode retornar `3.27` mesmo quando `x` só assume valores inteiros. Por quê?'
+  options:
+  - Arredondamento do TSDB
+  - Extrapolação para cobrir a janela inteira
+  - '`delta` calcula a média da janela'
+  - É um bug conhecido
+  answer: B
+  explanation_pt: A documentação diz explicitamente que o delta é extrapolado e pode ser não inteiro.
+  source: promql-functions-lab/functions/delta/README.md
+  lang: pt
+- id: fn-deriv-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual função calcula a derivada por segundo de um gauge usando regressão linear?
+  options:
+  - '`rate()`'
+  - '`delta()`'
+  - '`deriv()`'
+  - '`idelta()`'
+  answer: C
+  explanation_pt: '`rate` é para counters; `delta`/`idelta` não usam regressão e não são por segundo.'
+  source: promql-functions-lab/functions/deriv/README.md
+  lang: pt
+- id: fn-deriv-2
+  domain: PromQL
+  difficulty: medium
+  question: Para detectar um vazamento de memória em `process_resident_memory_bytes`, qual expressão é a mais adequada?
+  options:
+  - '`rate(process_resident_memory_bytes[1h]) > 0`'
+  - '`deriv(process_resident_memory_bytes[1h]) > 0`'
+  - '`increase(process_resident_memory_bytes[1h]) > 0`'
+  - '`irate(process_resident_memory_bytes[1h]) > 0`'
+  answer: B
+  explanation_pt: Memória residente é gauge. A, C e D são funções de counter e tratariam cada queda (GC) como reset.
+  source: promql-functions-lab/functions/deriv/README.md
+  lang: pt
+- id: fn-deriv-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual o requisito mínimo para `deriv()` produzir resultado para uma série?
+  options:
+  - Pelo menos 1 amostra na janela
+  - Pelo menos 2 amostras float na janela
+  - Pelo menos 4 amostras na janela
+  - A série precisa ser um counter
+  answer: B
+  explanation_pt: Com uma amostra só não há reta. A documentação diz "at least two float samples".
+  source: promql-functions-lab/functions/deriv/README.md
+  lang: pt
+- id: fn-deriv-4
+  domain: PromQL
+  difficulty: medium
+  question: Por que `deriv(x[10m])` costuma ser mais estável que `delta(x[10m]) / 600` em um gauge ruidoso?
+  options:
+  - Porque `deriv` descarta os valores extremos
+  - Porque `deriv` usa todas as amostras (mínimos quadrados), enquanto `delta` depende só do primeiro e do último ponto
+  - Porque `deriv` usa uma janela maior internamente
+  - Porque `delta` não extrapola
+  answer: B
+  explanation_pt: A regressão dilui o efeito de um ponto isolado; o `delta` é sensível a ruído nas pontas.
+  source: promql-functions-lab/functions/deriv/README.md
+  lang: pt
+- id: fn-double_exponential_smoothing-1
+  domain: PromQL
+  difficulty: medium
+  question: Como se chamava `double_exponential_smoothing` no Prometheus 2?
+  options:
+  - '`smooth_over_time`'
+  - '`holt_winters`'
+  - '`exp_smoothing`'
+  - '`predict_holt`'
+  answer: B
+  explanation_pt: Foi renomeada porque Holt-Winters normalmente se refere à suavização **tripla** (com sazonalidade).
+  source: promql-functions-lab/functions/double_exponential_smoothing/README.md
+  lang: pt
+- id: fn-double_exponential_smoothing-2
+  domain: PromQL
+  difficulty: medium
+  question: O que acontece ao **diminuir** o smoothing factor (`sf`)?
+  options:
+  - Os dados recentes ganham mais importância
+  - Os dados antigos ganham mais importância e a curva fica mais lisa
+  - A tendência é ignorada
+  - A query passa a retornar por segundo
+  answer: B
+  explanation_pt: 'Documentação: "The lower the smoothing factor sf, the more importance is given to old data."'
+  source: promql-functions-lab/functions/double_exponential_smoothing/README.md
+  lang: pt
+- id: fn-double_exponential_smoothing-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual chamada é **inválida**?
+  options:
+  - '`double_exponential_smoothing(x[10m], 0.5, 0.5)`'
+  - '`double_exponential_smoothing(x[10m], 0.1, 0.9)`'
+  - '`double_exponential_smoothing(x[10m], 1.5, 0.3)`'
+  - '`double_exponential_smoothing(x[10m], 0.9, 0.1)`'
+  answer: C
+  explanation_pt: '`sf` e `tf` precisam estar entre 0 e 1.'
+  source: promql-functions-lab/functions/double_exponential_smoothing/README.md
+  lang: pt
+- id: fn-double_exponential_smoothing-4
+  domain: PromQL
+  difficulty: medium
+  question: O que é necessário para usar `double_exponential_smoothing` no Prometheus 3?
+  options:
+  - Nada, é uma função estável
+  - Habilitar `--enable-feature=promql-experimental-functions`
+  - Instalar um plugin
+  - Usar apenas em recording rules
+  answer: B
+  explanation_pt: A função é experimental.
+  source: promql-functions-lab/functions/double_exponential_smoothing/README.md
+  lang: pt
+- id: fn-end-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **válida**?
+  options:
+  - '`rate(http_requests_total[5m]) @ 1700000000`'
+  - '`rate(http_requests_total[5m] @ 1700000000)`'
+  - '`rate(@ 1700000000 http_requests_total[5m])`'
+  - '`@1700000000 rate(http_requests_total[5m])`'
+  answer: B
+  explanation_pt: O `@` vem logo após o seletor (range selector aqui).
+  source: promql-functions-lab/functions/end/README.md
+  lang: pt
+- id: fn-end-2
+  domain: PromQL
+  difficulty: medium
+  question: 'Para calcular `max_over_time` sobre `sum(rate(x[5m]))` na última hora, você precisa de:'
+  options:
+  - '`max_over_time(sum(rate(x[5m]))[1h])`'
+  - '`max_over_time(sum(rate(x[5m]))[1h:])`'
+  - '`max(sum(rate(x[5m])))[1h]`'
+  - '`max_over_time(x[1h])`'
+  answer: B
+  explanation_pt: Uma expressão (não seletor) precisa de **subquery** `[1h:]` (resolução padrão = intervalo de avaliação global) para virar range vector.
+  source: promql-functions-lab/functions/end/README.md
+  lang: pt
+- id: fn-end-3
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Num painel *stat* (consulta instantânea), quanto vale `end() - time()`?
+  options:
+  - a duração do painel
+  - '0'
+  - vazio
+  - o step
+  answer: B
+  explanation_pt: 'Instant query: `end()` = instante avaliado = `time()`.'
+  source: promql-functions-lab/functions/end/README.md
+  lang: pt
+- id: fn-exp-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna o valor original `x` (a menos de erro de ponto flutuante)?
+  options:
+  - '`ln(exp(x) - 1)`'
+  - '`exp(ln(x))`'
+  - '`exp(x) / e`'
+  - '`log10(exp(x))`'
+  answer: B
+  explanation_pt: '`exp` e `ln` são funções inversas (para x > 0). D) daria `x / ln(10) ≈ 0.434 x`.'
+  source: promql-functions-lab/functions/exp/README.md
+  lang: pt
+- id: fn-exp-2
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `exp(vector(0))`?
+  options:
+  - '0'
+  - '1'
+  - '2.718'
+  - NaN
+  answer: B
+  explanation_pt: 'Qualquer número elevado a zero é 1: e⁰ = 1.'
+  source: promql-functions-lab/functions/exp/README.md
+  lang: pt
+- id: fn-exp-3
+  domain: PromQL
+  difficulty: medium
+  question: Uma métrica cresce **10% a cada hora** (crescimento composto). Qual abordagem prevê melhor o valor daqui a 6 horas?
+  options:
+  - '`predict_linear(x[1h], 6 * 3600)`'
+  - '`x * exp(deriv(ln(x)[1h:1m]) * 6 * 3600)`'
+  - '`x + rate(x[1h]) * 6`'
+  - '`exp(x) * 6`'
+  answer: B
+  explanation_pt: No espaço log o crescimento composto vira uma reta; `deriv(ln(x))` estima a taxa contínua e `exp(r·t)` volta para fator multiplicativo. A) extrapola uma reta e subestima. C) usa `rate` num gauge. D) não faz sentido.
+  source: promql-functions-lab/functions/exp/README.md
+  lang: pt
+- id: fn-exp-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o resultado de `exp(vector(1000))`?
+  options:
+  - Erro de overflow
+  - '`+Inf`'
+  - '`NaN`'
+  - '`1.8e308`'
+  answer: B
+  explanation_pt: O float64 não representa e¹⁰⁰⁰, então o resultado é `+Inf`, sem erro.
+  source: promql-functions-lab/functions/exp/README.md
+  lang: pt
+- id: fn-first_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Um pod subiu há 10 min. O que retorna `container_memory_working_set_bytes{pod="p"} offset 30m`?
+  options:
+  - O valor de 10 min atrás
+  - Nenhum resultado
+  - Zero
+  - Erro
+  answer: B
+  explanation_pt: Não havia amostra em (ou até 5 min antes de) `t−30m`. `first_over_time(...[30m])` retornaria a primeira amostra do pod.
+  source: promql-functions-lab/functions/first_over_time/README.md
+  lang: pt
+- id: fn-first_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual a principal diferença entre `first_over_time(x[1h])` e `x offset 1h`?
+  options:
+  - Nenhuma
+  - '`first_over_time` pega a primeira amostra **dentro** da janela; `offset` pega a última amostra **até** `t−1h`'
+  - '`offset` só funciona com counters'
+  - '`first_over_time` extrapola o valor'
+  answer: B
+  explanation_pt: É exatamente o que diz a documentação oficial. Nenhuma das duas extrapola.
+  source: promql-functions-lab/functions/first_over_time/README.md
+  lang: pt
+- id: fn-first_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é válida?
+  options:
+  - '`first_over_time(rate(x[5m]))`'
+  - '`first_over_time(x)`'
+  - '`first_over_time(rate(x[5m])[1h:])`'
+  - '`first_over_time(x[1h], 5m)`'
+  answer: C
+  explanation_pt: '`first_over_time` exige um **range vector**; `rate(...)` é instant vector, então precisa de **subquery** `[1h:]`. A e B passam instant vector; D tem argumento a mais.'
+  source: promql-functions-lab/functions/first_over_time/README.md
+  lang: pt
+- id: fn-first_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: '`x - first_over_time(x[1h])` em um **counter** que reiniciou há 10 min dá:'
+  options:
+  - O aumento correto
+  - Um número negativo ou menor que o real
+  - Sempre zero
+  - Erro de tipo
+  answer: B
+  explanation_pt: Não há tratamento de reset. Para counters use `increase(x[1h])`.
+  source: promql-functions-lab/functions/first_over_time/README.md
+  lang: pt
+- id: fn-floor-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `floor(vector(-3.2))`?
+  options:
+  - '-3'
+  - '-4'
+  - '3'
+  - '-3.2'
+  answer: B
+  explanation_pt: O maior inteiro **menor ou igual** a -3.2 é -4. `floor` não "corta as casas decimais" em negativos.
+  source: promql-functions-lab/functions/floor/README.md
+  lang: pt
+- id: fn-floor-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão mostra quantos **dias completos** o processo está no ar?
+  options:
+  - '`floor(process_start_time_seconds / 86400)`'
+  - '`floor((time() - process_start_time_seconds) / 86400)`'
+  - '`ceil((time() - process_start_time_seconds) / 86400)`'
+  - '`floor(rate(process_start_time_seconds[1d]))`'
+  answer: B
+  explanation_pt: A) dá dias desde 1970. C) arredonda pra cima (6.1 dias viraria 7). D) `rate()` num gauge de timestamp não faz sentido (daria ~0).
+  source: promql-functions-lab/functions/floor/README.md
+  lang: pt
+- id: fn-floor-3
+  domain: PromQL
+  difficulty: medium
+  question: Uma fila tem 250 mensagens e o consumidor processa lotes de 100. Quais valores retornam `floor(x / 100)` e `x % 100`?
+  options:
+  - 3 e 50
+  - 2 e 50
+  - 2.5 e 0
+  - 2 e 0.5
+  answer: B
+  explanation_pt: 2 lotes cheios e 50 mensagens de sobra. `%` é o operador de módulo do PromQL e devolve o resto na mesma unidade da entrada.
+  source: promql-functions-lab/functions/floor/README.md
+  lang: pt
+- id: fn-floor-4
+  domain: PromQL
+  difficulty: medium
+  question: Como **truncar** `x` (remover casas decimais em direção ao zero) em PromQL, funcionando para positivos e negativos?
+  options:
+  - '`floor(x)`'
+  - '`round(x)`'
+  - '`sgn(x) * floor(abs(x))`'
+  - '`ceil(x) - 1`'
+  answer: C
+  explanation_pt: Tira o sinal, arredonda o módulo pra baixo e devolve o sinal. `floor(-1.5)` daria -2; a opção C dá -1.
+  source: promql-functions-lab/functions/floor/README.md
+  lang: pt
+- id: fn-histogram_avg-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual query dá a latência média dos últimos 5 min de um histograma classic?
+  options:
+  - '`avg(http_request_duration_seconds_bucket)`'
+  - '`rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])`'
+  - '`avg_over_time(http_request_duration_seconds_sum[5m])`'
+  - '`histogram_avg(http_request_duration_seconds_bucket[5m])`'
+  answer: B
+  explanation_pt: '`_sum` e `_count` são counters; a razão dos `rate` é a média das observações da janela. D é inválido (range vector) e, mesmo com `rate`, daria vazio em floats.'
+  source: promql-functions-lab/functions/histogram_avg/README.md
+  lang: pt
+- id: fn-histogram_avg-2
+  domain: PromQL
+  difficulty: medium
+  question: '`histogram_avg(rate(x_bucket[5m]))` retorna...'
+  options:
+  - A média correta
+  - Erro de tipo
+  - Um resultado vazio
+  - NaN
+  answer: C
+  explanation_pt: '`histogram_avg` ignora amostras float silenciosamente. `x_bucket` é float, então nada volta.'
+  source: promql-functions-lab/functions/histogram_avg/README.md
+  lang: pt
+- id: fn-histogram_avg-3
+  domain: PromQL
+  difficulty: medium
+  question: 'Serviço A: 100 req/s com média 10ms. Serviço B: 1 req/s com média 1s. Qual é a latência média de todas as requisições?'
+  options:
+  - ≈ 505ms
+  - ≈ 20ms
+  - ≈ 10ms
+  - ≈ 1s
+  answer: B
+  explanation_pt: (100×0.01 + 1×1) / 101 = 2/101 ≈ 0.0198s. A resposta A é a "média das médias", o erro do painel 3.
+  source: promql-functions-lab/functions/histogram_avg/README.md
+  lang: pt
+- id: fn-histogram_avg-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual afirmação sobre `histogram_avg` está correta?
+  options:
+  - É uma estimativa baseada nos buckets
+  - Usa sum e count, que são exatos, então não depende da resolução dos buckets
+  - Funciona igualmente em summaries
+  - Precisa de feature flag
+  answer: B
+  explanation_pt: Diferente de quantis e desvio padrão, a média usa os totais exatos. Summaries são floats (`_sum`/`_count`) → use a divisão manual.
+  source: promql-functions-lab/functions/histogram_avg/README.md
+  lang: pt
+- id: fn-histogram_count-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual query dá requisições por segundo a partir de um histograma classic `http_request_duration_seconds`?
+  options:
+  - '`count(http_request_duration_seconds_bucket)`'
+  - '`rate(http_request_duration_seconds_count[5m])`'
+  - '`rate(http_request_duration_seconds_sum[5m])`'
+  - '`count_over_time(http_request_duration_seconds_count[5m])`'
+  answer: B
+  explanation_pt: '`_count` é o counter de observações. A conta séries (buckets × labels). C é a soma das durações por segundo. D conta **amostras raspadas** (≈ janela ÷ scrape interval), não requisições.'
+  source: promql-functions-lab/functions/histogram_count/README.md
+  lang: pt
+- id: fn-histogram_count-2
+  domain: PromQL
+  difficulty: medium
+  question: Num histograma classic, qual série é sempre igual a `x_count`?
+  options:
+  - '`x_sum`'
+  - '`x_bucket{le="1"}`'
+  - '`x_bucket{le="+Inf"}`'
+  - Nenhuma
+  answer: C
+  explanation_pt: Os buckets são cumulativos; o último (`+Inf`) contém todas as observações.
+  source: promql-functions-lab/functions/histogram_count/README.md
+  lang: pt
+- id: fn-histogram_count-3
+  domain: PromQL
+  difficulty: medium
+  question: '`histogram_count(rate(x_count[5m]))` retorna...'
+  options:
+  - req/s
+  - vazio
+  - o número de buckets
+  - erro de parse
+  answer: B
+  explanation_pt: '`x_count` é float; `histogram_count` ignora floats. Use `rate(x_count[5m])` direto, ou `histogram_count(rate(x[5m]))` no native.'
+  source: promql-functions-lab/functions/histogram_count/README.md
+  lang: pt
+- id: fn-histogram_count-4
+  domain: PromQL
+  difficulty: medium
+  question: Com scrape a cada 15s, `count_over_time(x_count[5m])` retorna aproximadamente...
+  options:
+  - O número de requisições em 5 min
+  - '20'
+  - '300'
+  - req/s
+  answer: B
+  explanation_pt: 300s ÷ 15s = 20 amostras. `count_over_time` conta amostras, não observações. Pegadinha clássica.
+  source: promql-functions-lab/functions/histogram_count/README.md
+  lang: pt
+- id: fn-histogram_fraction-1
+  domain: PromQL
+  difficulty: medium
+  question: Os buckets são `0.1, 0.25, 0.5, 1, +Inf`. Qual query dá a fração exata de requisições em até 250ms?
+  options:
+  - '`histogram_quantile(0.25, rate(x_bucket[5m]))`'
+  - '`sum(rate(x_bucket{le="0.25"}[5m])) / sum(rate(x_count[5m]))`'
+  - '`sum(rate(x_bucket{le="0.25"}[5m])) / sum(rate(x_sum[5m]))`'
+  - '`rate(x_bucket{le="0.25"}[5m])`'
+  answer: B
+  explanation_pt: Bucket cumulativo "até 0.25" dividido pelo total. A é o p25 (outra pergunta). C divide por segundos somados. D é req/s rápidas, não fração.
+  source: promql-functions-lab/functions/histogram_fraction/README.md
+  lang: pt
+- id: fn-histogram_fraction-2
+  domain: PromQL
+  difficulty: medium
+  question: Com os mesmos buckets, você calcula `histogram_fraction(0, 0.3, sum by (le) (rate(x_bucket[5m])))`. O resultado é...
+  options:
+  - Exato
+  - Uma estimativa por interpolação linear entre os buckets 0.25 e 0.5
+  - Vazio, porque 0.3 não é um bucket
+  - Sempre 1
+  answer: B
+  explanation_pt: Limites fora dos buckets são estimados, com erro que pode ser grande em classic (painel 5).
+  source: promql-functions-lab/functions/histogram_fraction/README.md
+  lang: pt
+- id: fn-histogram_fraction-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o Apdex quando 90% das requisições são ≤ T, 8% estão entre T e 4T e 2% são > 4T?
+  options:
+  - '0.90'
+  - '0.94'
+  - '0.98'
+  - '0.86'
+  answer: B
+  explanation_pt: '(satisfeitos + tolerantes/2) = 0.90 + 0.08/2 = 0.94. Com a fórmula de buckets: (F(T) + F(4T)) / 2 = (0.90 + 0.98) / 2 = 0.94.'
+  source: promql-functions-lab/functions/histogram_fraction/README.md
+  lang: pt
+- id: fn-histogram_fraction-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o equivalente de `histogram_fraction(0.2, +Inf, h)`?
+  options:
+  - '`histogram_fraction(0, 0.2, h)`'
+  - '`1 - histogram_fraction(0, 0.2, h)` (para histogramas sem valores negativos nem NaN)'
+  - '`histogram_quantile(0.2, h)`'
+  - '`histogram_count(h) - 0.2`'
+  answer: B
+  explanation_pt: Tudo acima de 0.2 = 1 − tudo até 0.2 (desde que não haja observações negativas ou NaN).
+  source: promql-functions-lab/functions/histogram_fraction/README.md
+  lang: pt
+- id: fn-histogram_fraction-5
+  domain: PromQL
+  difficulty: medium
+  question: Por que não dá para calcular "% abaixo de 200ms" a partir de um **summary**?
+  options:
+  - Summaries não têm `_count`
+  - Summaries só expõem quantis pré-calculados e `_sum`/`_count`, sem buckets
+  - Dá sim, com `histogram_fraction`
+  - Porque summaries são gauges
+  answer: B
+  explanation_pt: Sem buckets não há distribuição para consultar. Se você precisa de SLO por limite, instrumente com **histogram**.
+  source: promql-functions-lab/functions/histogram_fraction/README.md
+  lang: pt
+- id: fn-histogram_quantile-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual query calcula corretamente o p95 de latência de todas as instâncias de um job?
+  options:
+  - '`histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))`'
+  - '`histogram_quantile(0.95, sum by (job) (rate(http_request_duration_seconds_bucket[5m])))`'
+  - '`histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m])))`'
+  - '`avg by (job) (histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])))`'
+  answer: C
+  explanation_pt: Soma os buckets de todas as instâncias mantendo `le` e `job`. A dá um p95 **por instância**. B perde o `le` (resultado vazio). D tira média de quantis, o que é matematicamente errado (painel 6).
+  source: promql-functions-lab/functions/histogram_quantile/README.md
+  lang: pt
+- id: fn-histogram_quantile-2
+  domain: PromQL
+  difficulty: medium
+  question: Os buckets de um histograma classic são `0.1, 0.5, 1, +Inf`. O p99 real está em 2s. O que `histogram_quantile(0.99, ...)` retorna?
+  options:
+  - '2'
+  - +Inf
+  - '1'
+  - NaN
+  answer: C
+  explanation_pt: Se o quantil cai no bucket `+Inf`, a função devolve o limite superior do **penúltimo** bucket (1). É o sinal de que os buckets não cobrem a faixa de valores.
+  source: promql-functions-lab/functions/histogram_quantile/README.md
+  lang: pt
+- id: fn-histogram_quantile-3
+  domain: PromQL
+  difficulty: medium
+  question: Por que não se pode agregar `http_request_duration_seconds{quantile="0.99"}` de 10 pods com `avg`?
+  options:
+  - Porque é um counter
+  - 'Porque é um summary: quantis calculados no cliente não são agregáveis'
+  - Porque falta o label `le`
+  - Pode sim, `avg` de quantis é correto
+  answer: B
+  explanation_pt: A média de 10 p99 não é o p99 do conjunto. Summaries são precisos por instância, mas não se combinam. Para agregar, use **histogram**.
+  source: promql-functions-lab/functions/histogram_quantile/README.md
+  lang: pt
+- id: fn-histogram_quantile-4
+  domain: PromQL
+  difficulty: medium
+  question: O que acontece com `histogram_quantile(0.9, sum by (le) (http_request_duration_seconds_bucket))` (sem `rate`)?
+  options:
+  - Erro de parse
+  - Retorna o p90 de todas as requisições desde que cada processo subiu
+  - Retorna o p90 dos últimos 5 minutos
+  - Retorna vazio
+  answer: B
+  explanation_pt: 'É válido, mas os buckets são counters acumulados: o resultado é o quantil "desde sempre" e quase não reage a mudanças (painel 7).'
+  source: promql-functions-lab/functions/histogram_quantile/README.md
+  lang: pt
+- id: fn-histogram_quantile-5
+  domain: PromQL
+  difficulty: medium
+  question: Com native histograms, como fica a query do p99 agregado por `job`?
+  options:
+  - '`histogram_quantile(0.99, sum by (job, le) (rate(x[5m])))`'
+  - '`histogram_quantile(0.99, sum by (job) (rate(x[5m])))`'
+  - '`histogram_quantile(0.99, sum by (job) (rate(x_bucket[5m])))`'
+  - Native histograms não suportam `histogram_quantile`
+  answer: B
+  explanation_pt: Native histogram é **uma série** com todos os buckets dentro; não existe `le` nem `_bucket`.
+  source: promql-functions-lab/functions/histogram_quantile/README.md
+  lang: pt
+- id: fn-histogram_quantiles-1
+  domain: PromQL
+  difficulty: medium
+  question: O que `histogram_quantiles(sum(rate(x[5m])), "q", 0.5, 0.99)` retorna?
+  options:
+  - Um escalar com a média entre p50 e p99
+  - 'Duas séries: `{q="0.5"}` e `{q="0.99"}`'
+  - Uma série com dois valores
+  - 'Erro: o nome do label deve ser `quantile`'
+  answer: B
+  explanation_pt: Uma série por quantil, identificada pelo label cujo nome é o 2º argumento (qualquer nome válido).
+  source: promql-functions-lab/functions/histogram_quantiles/README.md
+  lang: pt
+- id: fn-histogram_quantiles-2
+  domain: PromQL
+  difficulty: medium
+  question: Durante um incidente, o p50 continua em 120ms e o p99 vai de 270ms para 1.8s. O que isso indica?
+  options:
+  - Todas as requisições ficaram lentas
+  - Uma pequena fração das requisições ficou muito lenta
+  - O tráfego caiu
+  - O histograma está com buckets errados
+  answer: B
+  explanation_pt: Se a mediana não se move, a maioria está normal. Só a cauda (≤ 5% aqui) mudou. Exatamente o cenário deste lab.
+  source: promql-functions-lab/functions/histogram_quantiles/README.md
+  lang: pt
+- id: fn-histogram_quantiles-3
+  domain: PromQL
+  difficulty: medium
+  question: O que é necessário para usar `histogram_quantiles` no Prometheus 3.x?
+  options:
+  - Nada, é estável
+  - '`--enable-feature=promql-experimental-functions`'
+  - '`--enable-feature=native-histograms`'
+  - Só funciona com recording rules
+  answer: B
+  explanation_pt: Está marcada como experimental na documentação. Sem a flag, a query dá erro de função desconhecida/desabilitada.
+  source: promql-functions-lab/functions/histogram_quantiles/README.md
+  lang: pt
+- id: fn-histogram_quantiles-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o equivalente com funções estáveis?
+  options:
+  - '`quantile(0.5, x) or quantile(0.99, x)`'
+  - Várias chamadas a `histogram_quantile(φ, ...)`, uma por quantil
+  - '`quantile_over_time(0.99, x[5m])`'
+  - Não existe equivalente
+  answer: B
+  explanation_pt: 'Mesmo cálculo, uma query por φ. `quantile()` é agregação **entre séries** e `quantile_over_time` é sobre amostras float no tempo: outras coisas.'
+  source: promql-functions-lab/functions/histogram_quantiles/README.md
+  lang: pt
+- id: fn-histogram_stddev-1
+  domain: PromQL
+  difficulty: medium
+  question: Você quer o desvio padrão da latência das requisições dos últimos 5 min, a partir de um native histogram `x`. Qual query?
+  options:
+  - '`stddev(x)`'
+  - '`stddev_over_time(x[5m])`'
+  - '`histogram_stddev(rate(x[5m]))`'
+  - '`stddev(rate(x[5m]))`'
+  answer: C
+  explanation_pt: A e D calculam o desvio **entre séries**; B é para amostras float ao longo do tempo (e ignora histogramas).
+  source: promql-functions-lab/functions/histogram_stddev/README.md
+  lang: pt
+- id: fn-histogram_stddev-2
+  domain: PromQL
+  difficulty: medium
+  question: Como `histogram_stddev` estima o valor de cada observação?
+  options:
+  - Usa o valor exato de cada observação
+  - Assume que todas as observações de um bucket valem o meio do bucket (média geométrica nos buckets exponenciais)
+  - Usa só `_sum` e `_count`
+  - Usa o limite superior de cada bucket
+  answer: B
+  explanation_pt: Está na documentação. Por isso é uma estimativa; com buckets finos (native) o erro é pequeno.
+  source: promql-functions-lab/functions/histogram_stddev/README.md
+  lang: pt
+- id: fn-histogram_stddev-3
+  domain: PromQL
+  difficulty: medium
+  question: Dois serviços têm média de 100ms; o A tem σ = 10ms e o B, σ = 130ms. Qual afirmação é verdadeira?
+  options:
+  - São equivalentes para o usuário
+  - B tem latência bem menos previsível; o p99 de B tende a ser bem maior
+  - A é mais lento
+  - B tem mais tráfego
+  answer: B
+  explanation_pt: 'Mesma média, dispersões muito diferentes. No lab: p99 ≈ 125ms no stable e ≈ 600ms no erratic em caos.'
+  source: promql-functions-lab/functions/histogram_stddev/README.md
+  lang: pt
+- id: fn-histogram_stddev-4
+  domain: PromQL
+  difficulty: medium
+  question: '`histogram_stddev(rate(x_bucket[5m]))` retorna...'
+  options:
+  - O desvio padrão estimado pelos buckets classic
+  - Vazio
+  - Erro de parse
+  - Zero
+  answer: B
+  explanation_pt: Floats são ignorados; não há suporte a classic.
+  source: promql-functions-lab/functions/histogram_stddev/README.md
+  lang: pt
+- id: fn-histogram_stdvar-1
+  domain: PromQL
+  difficulty: medium
+  question: '`histogram_stdvar(rate(x[5m]))` retorna `0.09` para uma métrica em segundos. Qual é o desvio padrão?'
+  options:
+  - 0.09 s
+  - 0.3 s
+  - 0.0081 s
+  - 9 ms
+  answer: B
+  explanation_pt: √0.09 = 0.3. A variância está em s².
+  source: promql-functions-lab/functions/histogram_stdvar/README.md
+  lang: pt
+- id: fn-histogram_stdvar-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é equivalente a `histogram_stddev(h)`?
+  options:
+  - '`histogram_stdvar(h) ^ 2`'
+  - '`sqrt(histogram_stdvar(h))`'
+  - '`histogram_stdvar(h) / histogram_count(h)`'
+  - '`stdvar(h)`'
+  answer: B
+  explanation_pt: O desvio é a raiz da variância (painel 2).
+  source: promql-functions-lab/functions/histogram_stdvar/README.md
+  lang: pt
+- id: fn-histogram_stdvar-3
+  domain: PromQL
+  difficulty: medium
+  question: O desvio padrão de uma fila passou de 0.1s para 0.3s. Quanto a variância aumentou?
+  options:
+  - 3×
+  - 6×
+  - 9×
+  - 0.2 s²
+  answer: C
+  explanation_pt: (0.3/0.1)² = 9. A variância amplifica as mudanças (painel 3).
+  source: promql-functions-lab/functions/histogram_stdvar/README.md
+  lang: pt
+- id: fn-histogram_stdvar-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual função calcula a variância **entre** as séries de `node_load1` de todos os nós, num instante?
+  options:
+  - '`histogram_stdvar(node_load1)`'
+  - '`stdvar_over_time(node_load1[5m])`'
+  - '`stdvar(node_load1)`'
+  - '`var(node_load1)`'
+  answer: C
+  explanation_pt: '`stdvar` é o operador de agregação. A retorna vazio (gauge float), B é por série ao longo do tempo, D não existe.'
+  source: promql-functions-lab/functions/histogram_stdvar/README.md
+  lang: pt
+- id: fn-histogram_sum-1
+  domain: PromQL
+  difficulty: medium
+  question: '`http_response_size_bytes` é um histograma classic. Qual query dá bytes/s?'
+  options:
+  - '`sum(http_response_size_bytes_bucket)`'
+  - '`rate(http_response_size_bytes_sum[5m])`'
+  - '`sum_over_time(http_response_size_bytes_sum[5m])`'
+  - '`rate(http_response_size_bytes_count[5m])`'
+  answer: B
+  explanation_pt: '`_sum` acumula os bytes; o `rate` dá bytes por segundo. D é respostas/s. C soma valores **acumulados** de cada scrape, que não tem significado útil.'
+  source: promql-functions-lab/functions/histogram_sum/README.md
+  lang: pt
+- id: fn-histogram_sum-2
+  domain: PromQL
+  difficulty: medium
+  question: '`rate(job_duration_seconds_sum[5m])` = 4. Qual interpretação?'
+  options:
+  - Cada job leva 4s
+  - 4 jobs por segundo
+  - Em média, 4 jobs estão em execução ao mesmo tempo
+  - A fila tem 4 jobs esperando
+  answer: C
+  explanation_pt: Segundos de trabalho por segundo = concorrência média (Lei de Little). A duração média precisaria dividir pelo `rate` do `_count`.
+  source: promql-functions-lab/functions/histogram_sum/README.md
+  lang: pt
+- id: fn-histogram_sum-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna vazio?
+  options:
+  - '`histogram_sum(rate(x[5m]))` com `x` native'
+  - '`rate(x_sum[5m])`'
+  - '`histogram_sum(rate(x_sum[5m]))`'
+  - '`sum(rate(x_sum[5m]))`'
+  answer: C
+  explanation_pt: '`x_sum` é float e `histogram_sum` ignora floats.'
+  source: promql-functions-lab/functions/histogram_sum/README.md
+  lang: pt
+- id: fn-histogram_sum-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é a diferença entre `sum(x)` e `histogram_sum(x)` para um native histogram `x`?
+  options:
+  - Nenhuma
+  - '`sum` soma histogramas de séries diferentes (resultado ainda é histograma); `histogram_sum` extrai o float "soma das observações" de cada histograma'
+  - '`sum` não funciona com native histograms'
+  - '`histogram_sum` agrega entre séries'
+  answer: B
+  explanation_pt: 'Por isso é comum combinar: `histogram_sum(sum(rate(x[5m])))`.'
+  source: promql-functions-lab/functions/histogram_sum/README.md
+  lang: pt
+- id: fn-hour-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna a hora atual em Brasília (UTC-3) sem nunca dar número negativo?
+  options:
+  - '`hour() - 3`'
+  - '`hour(vector(time() - 3 * 3600))`'
+  - '`hour(time() - 10800)`'
+  - '`hour() offset -3h`'
+  answer: B
+  explanation_pt: Desloca o timestamp antes. A fica negativo entre 00-02h UTC; C é erro de tipo (escalar); D é sintaxe inválida para função.
+  source: promql-functions-lab/functions/hour/README.md
+  lang: pt
+- id: fn-hour-2
+  domain: PromQL
+  difficulty: medium
+  question: Uma regra tem `and on() hour() >= 9 < 18`. Um SRE em São Paulo percebe que o alerta só dispara das 06h às 15h locais. Por quê?
+  options:
+  - bug do Prometheus
+  - '`hour()` é UTC; 9-18 UTC = 6-15 BRT'
+  - o servidor está com fuso errado
+  - o `for:` atrasa o alerta em 3 horas
+  answer: B
+  explanation_pt: Para 09-18h BRT use `>= 12 < 21`, ou trate no Alertmanager com `location`.
+  source: promql-functions-lab/functions/hour/README.md
+  lang: pt
+- id: fn-hour-3
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `hour() >= bool 12` às 10h UTC?
+  options:
+  - vazio
+  - '0'
+  - '1'
+  - '10'
+  answer: B
+  explanation_pt: Com `bool` a comparação devolve 0/1 em vez de filtrar. Sem `bool`, o resultado seria vazio.
+  source: promql-functions-lab/functions/hour/README.md
+  lang: pt
+- id: fn-hour-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual o valor de `hour(vector(0))`?
+  options:
+  - '0'
+  - '21'
+  - '1'
+  - erro
+  answer: A
+  explanation_pt: Timestamp 0 = 01/01/1970 00:00:00 UTC.
+  source: promql-functions-lab/functions/hour/README.md
+  lang: pt
+- id: fn-idelta-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `idelta(x[5m])` e `delta(x[5m])`?
+  options:
+  - '`idelta` é por segundo; `delta` não'
+  - '`idelta` usa as duas últimas amostras; `delta` usa a primeira e a última da janela (extrapolado)'
+  - '`idelta` funciona com counters; `delta` com gauges'
+  - Nenhuma, são sinônimos
+  answer: B
+  explanation_pt: Ambas são para gauges e retornam a variação na unidade do gauge; o `idelta` só olha o último intervalo.
+  source: promql-functions-lab/functions/idelta/README.md
+  lang: pt
+- id: fn-idelta-2
+  domain: PromQL
+  difficulty: medium
+  question: 'Amostras de um gauge (scrape de 15s): `40, 42, 47, 45`. Qual o resultado de `idelta(x[1m])`?'
+  options:
+  - '5'
+  - −2
+  - −0.133
+  - '2'
+  answer: B
+  explanation_pt: Última (45) − penúltima (47) = −2. Não divide pelo tempo (C seria −2/15).
+  source: promql-functions-lab/functions/idelta/README.md
+  lang: pt
+- id: fn-idelta-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o equivalente de `idelta` para counters?
+  options:
+  - '`rate`'
+  - '`increase`'
+  - '`irate`'
+  - '`resets`'
+  answer: C
+  explanation_pt: '`irate` também usa as 2 últimas amostras, mas divide pelo tempo e compensa resets.'
+  source: promql-functions-lab/functions/idelta/README.md
+  lang: pt
+- id: fn-increase-1
+  domain: PromQL
+  difficulty: medium
+  question: Um counter só incrementa de 1 em 1. Por que `increase(x[1m])` retornou `5.45`?
+  options:
+  - Bug de precisão de ponto flutuante
+  - O Prometheus extrapola o aumento para cobrir a janela inteira
+  - O counter foi resetado no meio da janela
+  - O `increase` divide o resultado pelo scrape interval
+  answer: B
+  explanation_pt: A primeira e a última amostras não caem exatamente nas bordas da janela, então o aumento observado é extrapolado para a janela completa. A documentação cita isso explicitamente.
+  source: promql-functions-lab/functions/increase/README.md
+  lang: pt
+- id: fn-increase-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é equivalente a `increase(http_requests_total[5m])`?
+  options:
+  - '`rate(http_requests_total[5m]) * 5`'
+  - '`rate(http_requests_total[5m]) * 300`'
+  - '`delta(http_requests_total[5m])`'
+  - '`irate(http_requests_total[5m]) * 300`'
+  answer: B
+  explanation_pt: '`rate` é por segundo; multiplicado pelos 300 segundos da janela vira o aumento total. C não compensa resets; D usa só as 2 últimas amostras.'
+  source: promql-functions-lab/functions/increase/README.md
+  lang: pt
+- id: fn-increase-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é a melhor query para "quantos restarts o container teve na última hora" com kube-state-metrics?
+  options:
+  - '`resets(kube_pod_container_status_restarts_total[1h])`'
+  - '`delta(kube_pod_container_status_restarts_total[1h])`'
+  - '`increase(kube_pod_container_status_restarts_total[1h])`'
+  - '`rate(kube_pod_container_status_restarts_total[1h])`'
+  answer: C
+  explanation_pt: A métrica é um counter que **conta** restarts; o que queremos é quanto ele cresceu. A contaria resets do próprio counter (restarts do exporter). B não trata resets. D dá "restarts por segundo".
+  source: promql-functions-lab/functions/increase/README.md
+  lang: pt
+- id: fn-increase-4
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Em uma recording rule que alimenta vários dashboards e SLOs, o que a documentação recomenda gravar?
+  options:
+  - '`increase(x[5m])`'
+  - '`rate(x[5m])`'
+  - '`irate(x[5m])`'
+  - o counter cru
+  answer: B
+  explanation_pt: '"Use `rate` em recording rules para que os aumentos sejam rastreados de forma consistente por segundo." `increase` é para legibilidade humana.'
+  source: promql-functions-lab/functions/increase/README.md
+  lang: pt
+- id: fn-info-1
+  domain: PromQL
+  difficulty: medium
+  question: Por que se multiplica por um info metric (`* on(job, instance) group_left(version) build_info`)?
+  options:
+  - Para converter a unidade
+  - Porque o info metric vale 1, então o valor não muda e o `group_left` copia labels
+  - Para somar as séries
+  - Para filtrar séries com valor 0
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/info/README.md
+  lang: pt
+- id: fn-info-2
+  domain: PromQL
+  difficulty: medium
+  question: Quais labels o `info()` usa hoje como identificadores?
+  options:
+  - '`__name__`'
+  - Todos os labels em comum
+  - '`job` e `instance`'
+  - Os definidos no 2º argumento
+  answer: C
+  explanation_pt: O 2º argumento seleciona **data labels** e info metrics, não identificadores.
+  source: promql-functions-lab/functions/info/README.md
+  lang: pt
+- id: fn-info-3
+  domain: PromQL
+  difficulty: medium
+  question: O alvo `X` não tem `target_info`. O que `info(up, {k8s_cluster_name=~".+"})` retorna para `up` de `X`?
+  options:
+  - '`up` sem enriquecimento'
+  - '`up` com `k8s_cluster_name=""`'
+  - 'Nada: a série é descartada'
+  - Erro
+  answer: C
+  explanation_pt: O matcher `.+` não aceita vazio, então o enriquecimento é obrigatório.
+  source: promql-functions-lab/functions/info/README.md
+  lang: pt
+- id: fn-info-4
+  domain: PromQL
+  difficulty: medium
+  question: Em `x * on(job, instance) group_left(k8s_cluster_name) target_info`, a versão do app (data label) mudou e a série antiga não ficou stale. O que pode acontecer?
+  options:
+  - Nada
+  - Erro de matching many-to-many por até ~5 min (lookback delta)
+  - Valores dobrados
+  - O Prometheus apaga a série antiga
+  answer: B
+  explanation_pt: Duas séries de `target_info` com o mesmo `job`/`instance` do lado "um". É exatamente o problema que o `info()` resolve.
+  source: promql-functions-lab/functions/info/README.md
+  lang: pt
+- id: fn-irate-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual é a diferença essencial entre `rate(x[5m])` e `irate(x[5m])`?
+  options:
+  - '`irate` devolve o aumento total; `rate`, o aumento por segundo'
+  - '`irate` usa apenas as duas últimas amostras da janela; `rate` usa a primeira e a última (com extrapolação)'
+  - '`irate` funciona com gauges; `rate` só com counters'
+  - '`irate` não trata resets de counter'
+  answer: B
+  explanation_pt: Ambos são "por segundo" (A errada), ambos são para counters (C errada) e ambos compensam resets (D errada). O `irate` olha só o último intervalo entre amostras.
+  source: promql-functions-lab/functions/irate/README.md
+  lang: pt
+- id: fn-irate-2
+  domain: PromQL
+  difficulty: medium
+  question: 'Para uma regra de alerta com `for: 10m` sobre taxa de erros, qual expressão é mais adequada?'
+  options:
+  - '`irate(http_requests_total{code=~"5.."}[1m]) > 1`'
+  - '`rate(http_requests_total{code=~"5.."}[5m]) > 1`'
+  - '`increase(http_requests_total{code=~"5.."}[10s]) > 1`'
+  - '`delta(http_requests_total{code=~"5.."}[5m]) > 1`'
+  answer: B
+  explanation_pt: 'A documentação recomenda `rate` para alertas: mudanças breves no `irate` "resetam" a cláusula `for`. C usa janela curta demais (pode não ter 2 amostras) e D usa `delta` em counter (não compensa resets).'
+  source: promql-functions-lab/functions/irate/README.md
+  lang: pt
+- id: fn-irate-3
+  domain: PromQL
+  difficulty: medium
+  question: Com scrape a cada 15s, qual é o resultado de trocar `irate(x[1m])` por `irate(x[10m])`?
+  options:
+  - O resultado fica 10× mais suave
+  - O resultado é praticamente o mesmo
+  - O resultado vira o total de 10 minutos
+  - A query falha
+  answer: B
+  explanation_pt: O `irate` só usa as 2 últimas amostras; a janela maior só permite achá-las mesmo se houver falhas de scrape.
+  source: promql-functions-lab/functions/irate/README.md
+  lang: pt
+- id: fn-irate-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão está correta para obter a taxa instantânea total de requisições de um serviço com vários pods?
+  options:
+  - '`irate(sum(http_requests_total)[1m:])`'
+  - '`sum(irate(http_requests_total[1m]))`'
+  - '`irate(sum by (pod) (http_requests_total))`'
+  - '`sum(http_requests_total) / 60`'
+  answer: B
+  explanation_pt: Primeiro `irate`, depois agregação; senão o restart de um pod derruba a soma e o `irate` não consegue detectar o reset corretamente. C nem é válida (falta range vector).
+  source: promql-functions-lab/functions/irate/README.md
+  lang: pt
+- id: fn-label_join-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `label_join(up{job="api", instance="a:80"}, "id", "-", "job", "instance")`?
+  options:
+  - '`id="api-a:80"`'
+  - '`id="a:80-api"`'
+  - '`id="api;a:80"`'
+  - 'Erro: `instance` contém `:`'
+  answer: A
+  explanation_pt: Concatena na ordem das origens com o separador dado.
+  source: promql-functions-lab/functions/label_join/README.md
+  lang: pt
+- id: fn-label_join-2
+  domain: PromQL
+  difficulty: medium
+  question: A série `m{a="x"}` (sem label `b`). O que `label_join(m, "c", ",", "a", "b")` produz?
+  options:
+  - A série sem o label `c`
+  - '`c="x"`'
+  - '`c="x,"`'
+  - Erro, label `b` inexistente
+  answer: C
+  explanation_pt: Label ausente conta como string vazia e o separador é colado mesmo assim.
+  source: promql-functions-lab/functions/label_join/README.md
+  lang: pt
+- id: fn-label_join-3
+  domain: PromQL
+  difficulty: medium
+  question: Você precisa de `version="1.2"` a partir de `image="app:1.2"`. Qual função?
+  options:
+  - '`label_join`'
+  - '`label_replace`'
+  - '`info`'
+  - '`sort_by_label`'
+  answer: B
+  explanation_pt: Extrair parte de um valor exige regex (`.*:(.*)`). `label_join` só concatena.
+  source: promql-functions-lab/functions/label_join/README.md
+  lang: pt
+- id: fn-label_join-4
+  domain: PromQL
+  difficulty: medium
+  question: O que acontece em `label_join(m{service="a"}, "service", "-", "service", "zone")` com `zone="z1"`?
+  options:
+  - Cria `service_1="a-z1"`
+  - '`service` passa a ser `a-z1`'
+  - 'Erro: destino já existe'
+  - Nada muda
+  answer: B
+  explanation_pt: O destino pode ser um label existente; ele é sobrescrito.
+  source: promql-functions-lab/functions/label_join/README.md
+  lang: pt
+- id: fn-label_replace-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `label_replace(up{instance="db:5432"}, "port", "$1", "instance", "[a-z]+")`?
+  options:
+  - Série com `port="db"`
+  - Série com `port="5432"`
+  - A série sem o label `port`
+  - Erro de execução
+  answer: C
+  explanation_pt: 'A regex é ancorada: `[a-z]+` precisaria casar `db:5432` inteiro, e não casa. Quando não casa, a série volta **inalterada**, sem erro.'
+  source: promql-functions-lab/functions/label_replace/README.md
+  lang: pt
+- id: fn-label_replace-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual a ordem correta dos parâmetros?
+  options:
+  - '`label_replace(v, src_label, regex, dst_label, replacement)`'
+  - '`label_replace(v, dst_label, replacement, src_label, regex)`'
+  - '`label_replace(v, regex, replacement, src_label, dst_label)`'
+  - '`label_replace(v, dst_label, src_label, regex, replacement)`'
+  answer: B
+  explanation_pt: Destino e substituição primeiro, depois origem e regex.
+  source: promql-functions-lab/functions/label_replace/README.md
+  lang: pt
+- id: fn-label_replace-3
+  domain: PromQL
+  difficulty: medium
+  question: Você quer somar memória por deployment, mas só tem o label `pod="api-6d4cf56db6-2xk8p"`. Qual query?
+  options:
+  - '`sum by (deployment) (label_join(mem, "deployment", "-", "pod"))`'
+  - '`sum by (deployment) (label_replace(mem, "deployment", "$1", "pod", "(.*)-[^-]+-[^-]+"))`'
+  - '`sum by (pod) (mem)`'
+  - '`sum(label_replace(mem, "pod", "$1", "deployment", "(.*)"))`'
+  answer: B
+  explanation_pt: Extrai tudo antes dos dois últimos segmentos. A) só copiaria o pod inteiro; C) não agrupa por deployment; D) inverte origem/destino (e `deployment` nem existe).
+  source: promql-functions-lab/functions/label_replace/README.md
+  lang: pt
+- id: fn-label_replace-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual a forma de **remover** o label `pod` de todas as séries com `label_replace`?
+  options:
+  - '`label_replace(v, "pod", "", "pod", ".*")`'
+  - '`label_replace(v, "", "pod", ".*", "pod")`'
+  - '`label_replace(v, "pod", "null", "pod", "")`'
+  - Não é possível
+  answer: A
+  explanation_pt: Gravar string vazia em um label equivale a removê-lo. (C criaria `pod="null"`... só nas séries onde `pod` é vazio.)
+  source: promql-functions-lab/functions/label_replace/README.md
+  lang: pt
+- id: fn-label_replace-5
+  domain: PromQL
+  difficulty: medium
+  question: '`x / on (service) y` retorna vazio. `x` tem `service`, `y` tem `app` com os mesmos valores. O que resolve?'
+  options:
+  - Trocar `on (service)` por `ignoring (service)`
+  - '`x / on (service) label_replace(y, "service", "$1", "app", "(.*)")`'
+  - '`x / on (app) y`'
+  - '`label_join(x / y, "service", "", "app")`'
+  answer: B
+  explanation_pt: Copia `app` → `service` em `y`, criando a chave comum para o `on`.
+  source: promql-functions-lab/functions/label_replace/README.md
+  lang: pt
+- id: fn-last_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Um batch job expõe `items_processed` por 20s a cada 30 min. Qual consulta mostra o último valor continuamente num painel?
+  options:
+  - '`items_processed`'
+  - '`last_over_time(items_processed[5m])`'
+  - '`last_over_time(items_processed[35m])`'
+  - '`max(items_processed)`'
+  answer: C
+  explanation_pt: A janela precisa ser **maior** que o intervalo entre execuções (30 min) com folga. A) só mostra algo durante os 20s (staleness). B) tem buracos de 25 min. D) é agregação entre séries, também só existe durante a execução.
+  source: promql-functions-lab/functions/last_over_time/README.md
+  lang: pt
+- id: fn-last_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Sem `last_over_time`, por quanto tempo uma consulta instantânea `x` continua devolvendo a última amostra de uma série **que ainda existe** no target, mas não teve scrape recente?
+  options:
+  - 1 minuto
+  - Até o próximo scrape
+  - Até 5 minutos (lookback delta padrão)
+  - Para sempre
+  answer: C
+  explanation_pt: O `--query.lookback-delta` padrão é 5m. Se a série **sumiu** do target (staleness marker), porém, o resultado para imediatamente.
+  source: promql-functions-lab/functions/last_over_time/README.md
+  lang: pt
+- id: fn-last_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual destas funções **mantém** o label `__name__` no resultado?
+  options:
+  - '`avg_over_time`'
+  - '`last_over_time`'
+  - '`sum_over_time`'
+  - '`rate`'
+  answer: B
+  explanation_pt: No Prometheus 3, `last_over_time` e `first_over_time` mantêm o nome (só selecionam uma amostra, não transformam o valor). As demais removem.
+  source: promql-functions-lab/functions/last_over_time/README.md
+  lang: pt
+- id: fn-last_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o risco de `last_over_time(temperature[1d])` num alerta de temperatura?
+  options:
+  - Nenhum
+  - Um sensor morto há horas continua aparecendo com o último valor e o alerta nunca percebe
+  - Soma as temperaturas do dia
+  - 'Erro de sintaxe: janela máxima é 1h'
+  answer: B
+  explanation_pt: O `last_over_time` "segura" o valor pela janela inteira, escondendo a falta de dados. Use janelas curtas e/ou um alerta de `absent_over_time`.
+  source: promql-functions-lab/functions/last_over_time/README.md
+  lang: pt
+- id: fn-ln-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `ln(vector(0))`?
+  options:
+  - '0'
+  - NaN
+  - -Inf
+  - Erro de divisão por zero
+  answer: C
+  explanation_pt: Pela documentação, `ln(0) = -Inf`. Para negativos seria NaN.
+  source: promql-functions-lab/functions/ln/README.md
+  lang: pt
+- id: fn-ln-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão calcula a **média geométrica** de `probe_duration_seconds` entre todos os alvos?
+  options:
+  - '`avg(probe_duration_seconds)`'
+  - '`exp(avg(ln(probe_duration_seconds)))`'
+  - '`ln(avg(exp(probe_duration_seconds)))`'
+  - '`sqrt(avg(probe_duration_seconds ^ 2))`'
+  answer: B
+  explanation_pt: Média no espaço log, de volta com `exp`. D) é o RMS (média quadrática), que é ainda **mais** sensível a outliers.
+  source: promql-functions-lab/functions/ln/README.md
+  lang: pt
+- id: fn-ln-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual das expressões é **inválida**?
+  options:
+  - '`ln(node_load1)`'
+  - '`ln(vector(2))`'
+  - '`ln(2)`'
+  - '`ln(rate(http_requests_total[5m]))`'
+  answer: C
+  explanation_pt: '`2` é escalar; `ln` exige instant vector.'
+  source: promql-functions-lab/functions/ln/README.md
+  lang: pt
+- id: fn-ln-4
+  domain: PromQL
+  difficulty: medium
+  question: Uma métrica cresce 1% por segundo, de forma composta. O que mostra `deriv(ln(x)[5m:10s])`?
+  options:
+  - ≈ 0.01, constante
+  - Um valor que aumenta com o tempo
+  - ≈ 1
+  - ≈ ln(0.01)
+  answer: A
+  explanation_pt: A inclinação de `ln(x)` é a taxa contínua de crescimento (`ln(1.01) ≈ 0.00995 /s`), constante para crescimento exponencial. A inclinação do valor **cru** é que aumentaria com o tempo (B).
+  source: promql-functions-lab/functions/ln/README.md
+  lang: pt
+- id: fn-log10-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `log10(vector(0.01))`?
+  options:
+  - '2'
+  - '-2'
+  - '0.01'
+  - NaN
+  answer: B
+  explanation_pt: 10⁻² = 0.01.
+  source: promql-functions-lab/functions/log10/README.md
+  lang: pt
+- id: fn-log10-2
+  domain: PromQL
+  difficulty: medium
+  question: Um p99 foi de 20 ms para 200 ms. Quanto variou `log10(p99)`?
+  options:
+  - '+180'
+  - '+10'
+  - '+1'
+  - '+0.18'
+  answer: C
+  explanation_pt: O valor ficou 10× maior; em log10, multiplicar por 10 soma 1 (`log10(0.2) - log10(0.02) = -0.7 - (-1.7) = 1`).
+  source: promql-functions-lab/functions/log10/README.md
+  lang: pt
+- id: fn-log10-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão converte uma potência em **mW** para **dBm**?
+  options:
+  - '`log10(x) * 20`'
+  - '`10 * log10(x)`'
+  - '`10 ^ x`'
+  - '`ln(x) / 10`'
+  answer: B
+  explanation_pt: dBm = 10 × log10(P / 1 mW). O fator 20 é para grandezas de **amplitude** (tensão).
+  source: promql-functions-lab/functions/log10/README.md
+  lang: pt
+- id: fn-log10-4
+  domain: PromQL
+  difficulty: medium
+  question: A métrica `link_rx_power_mw` vale `0` quando o link cai. O que acontece com `10 * log10(link_rx_power_mw)` nesse momento, e como evitar?
+  options:
+  - Erro de query; use `try()`
+  - Resultado `-Inf`; filtre com `log10(link_rx_power_mw > 0)`
+  - Resultado `0`; nada a fazer
+  - Resultado `NaN`; use `abs()`
+  answer: B
+  explanation_pt: '`log10(0) = -Inf` (sem erro). O filtro `> 0` remove a série nesse instante; o link caído deve ser tratado por outro alerta. `NaN` seria para valores **negativos**.'
+  source: promql-functions-lab/functions/log10/README.md
+  lang: pt
+- id: fn-log2-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `log2(vector(0.25))`?
+  options:
+  - '2'
+  - '-2'
+  - '0.5'
+  - NaN
+  answer: B
+  explanation_pt: 2⁻² = 1/4 = 0.25. Valores entre 0 e 1 têm logaritmo negativo.
+  source: promql-functions-lab/functions/log2/README.md
+  lang: pt
+- id: fn-log2-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna a **menor potência de 2 maior ou igual** a `x`?
+  options:
+  - '`log2(ceil(x))`'
+  - '`2 ^ ceil(log2(x))`'
+  - '`ceil(2 ^ x)`'
+  - '`2 * ceil(x / 2)`'
+  answer: B
+  explanation_pt: '`log2` dá o expoente, `ceil` arredonda o expoente para cima, `2 ^` volta para a escala original. D) dá o próximo número **par**.'
+  source: promql-functions-lab/functions/log2/README.md
+  lang: pt
+- id: fn-log2-3
+  domain: PromQL
+  difficulty: medium
+  question: Um deployment tinha 4 réplicas há 1 hora e agora tem 64. Quanto vale `log2(agora / (agora offset 1h))`?
+  options:
+  - '60'
+  - '16'
+  - '4'
+  - '6'
+  answer: C
+  explanation_pt: '64 / 4 = 16 = 2⁴: o deployment dobrou 4 vezes. D) seria `log2(64)`.'
+  source: promql-functions-lab/functions/log2/README.md
+  lang: pt
+- id: fn-log2-4
+  domain: PromQL
+  difficulty: medium
+  question: Em um native histogram com **schema 0**, qual é o fator de crescimento entre fronteiras de buckets consecutivos?
+  options:
+  - '1.1'
+  - '2'
+  - '10'
+  - e
+  answer: B
+  explanation_pt: O fator é `2^(2^-schema)`; com schema 0, `2^(2^0) = 2^1 = 2`. Cada schema a mais divide a largura (em log2) pela metade.
+  source: promql-functions-lab/functions/log2/README.md
+  lang: pt
+- id: fn-mad_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual destas funções **exige** `--enable-feature=promql-experimental-functions` no Prometheus 3.x?
+  options:
+  - '`stddev_over_time`'
+  - '`quantile_over_time`'
+  - '`mad_over_time`'
+  - '`present_over_time`'
+  answer: C
+  explanation_pt: '`mad_over_time` (e as `ts_of_*_over_time`) são experimentais. As demais são estáveis.'
+  source: promql-functions-lab/functions/mad_over_time/README.md
+  lang: pt
+- id: fn-mad_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Numa janela, 90% das amostras estão em 100±5 e 10% valem 10000. Qual medida de dispersão fica **mais próxima** de 5?
+  options:
+  - '`stddev_over_time`'
+  - '`stdvar_over_time`'
+  - '`mad_over_time`'
+  - '`max_over_time - min_over_time`'
+  answer: C
+  explanation_pt: MAD usa medianas e ignora até ~50% de outliers. Desvio padrão e variância são dominados pelos 10000; a amplitude (D) dá ~9900.
+  source: promql-functions-lab/functions/mad_over_time/README.md
+  lang: pt
+- id: fn-mad_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: 'Para transformar o MAD numa estimativa do desvio padrão (dados normais), multiplica-se por:'
+  options:
+  - 0,6745
+  - '1'
+  - 1,4826
+  - '2'
+  answer: C
+  explanation_pt: σ ≈ 1,4826 × MAD (1,4826 = 1/0,6745, onde 0,6745 é o quantil 75% da normal padrão).
+  source: promql-functions-lab/functions/mad_over_time/README.md
+  lang: pt
+- id: fn-mad_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: O que acontece com `mad_over_time(x[5m])` se `x` for um **counter** crescente?
+  options:
+  - Dá erro de tipo.
+  - Calcula a dispersão dos valores acumulados, um número sem significado operacional.
+  - Aplica `rate` automaticamente.
+  - Retorna vazio.
+  answer: B
+  explanation_pt: PromQL não verifica tipo de métrica. Para counters, use `rate` antes (subquery ou recording rule).
+  source: promql-functions-lab/functions/mad_over_time/README.md
+  lang: pt
+- id: fn-max_of-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão aplica um piso de 80 ao limiar vindo de `threshold` (1 série)?
+  options:
+  - '`max(threshold, 80)`'
+  - '`max_of(scalar(threshold), 80)`'
+  - '`max_over_time(threshold[80s])`'
+  - '`clamp_max(threshold, 80)`'
+  answer: B
+  explanation_pt: (Também valeria `clamp_min(threshold, 80)`, que devolve vetor.) A) é inválida; C) é outra coisa; D) é um **teto**.
+  source: promql-functions-lab/functions/max_of/README.md
+  lang: pt
+- id: fn-max_of-2
+  domain: PromQL
+  difficulty: medium
+  question: '`max_of(scalar(x), 80)` com `x` tendo 2 séries retorna:'
+  options:
+  - '80'
+  - o maior valor de `x`
+  - NaN
+  - erro
+  answer: C
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/max_of/README.md
+  lang: pt
+- id: fn-max_of-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual função mantém os labels e aplica o piso por série?
+  options:
+  - '`max_of`'
+  - '`clamp_min`'
+  - '`max`'
+  - '`scalar`'
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/max_of/README.md
+  lang: pt
+- id: fn-max_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual consulta retorna o maior uso de memória de **cada** container nos últimos 30 min?
+  options:
+  - '`max(container_memory_working_set_bytes)`'
+  - '`max_over_time(container_memory_working_set_bytes[30m])`'
+  - '`topk(1, container_memory_working_set_bytes)`'
+  - '`max by (container) (container_memory_working_set_bytes offset 30m)`'
+  answer: B
+  explanation_pt: Máximo por série ao longo do tempo. A e C olham só o instante atual entre séries; D olha um instante 30 min atrás.
+  source: promql-functions-lab/functions/max_over_time/README.md
+  lang: pt
+- id: fn-max_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Como obter o maior valor de `rate(http_requests_total[5m])` na última hora?
+  options:
+  - '`max_over_time(http_requests_total[1h])`'
+  - '`max(rate(http_requests_total[1h]))`'
+  - '`max_over_time(rate(http_requests_total[5m])[1h:])`'
+  - '`rate(max_over_time(http_requests_total[1h])[5m])`'
+  answer: C
+  explanation_pt: 'Subquery: o `rate` é avaliado em vários instantes da última hora e o `max_over_time` pega o maior. A dá o valor atual do counter; B é a taxa média da hora (não o pico); D é inválida.'
+  source: promql-functions-lab/functions/max_over_time/README.md
+  lang: pt
+- id: fn-max_over_time-3
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Um dashboard de 7 dias mostra memória estável em 400 MiB, mas o pod sofre OOM. Qual a causa mais provável?
+  options:
+  - O Prometheus descarta picos automaticamente
+  - Cada ponto do gráfico mostra o valor em um instante; picos curtos entre pontos não aparecem
+  - '`container_memory_working_set_bytes` é um counter'
+  - O lookback delta é de 7 dias
+  answer: B
+  explanation_pt: Com passo grande, o gráfico "amostra" instantes. `max_over_time(x[$__interval])` resolve.
+  source: promql-functions-lab/functions/max_over_time/README.md
+  lang: pt
+- id: fn-max_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: O que `max_over_time(node_network_receive_bytes_total[1h])` retorna?
+  options:
+  - O pico de bytes/s da última hora
+  - Praticamente o valor atual do counter (ou o valor antes de um reset)
+  - Erro de tipo
+  - A soma de bytes da hora
+  answer: B
+  explanation_pt: 'Counters só crescem: o máximo é a última amostra (a não ser que tenha havido reset). Para pico de taxa, use subquery sobre `rate`.'
+  source: promql-functions-lab/functions/max_over_time/README.md
+  lang: pt
+- id: fn-min_of-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **válida**?
+  options:
+  - '`min_of(node_load1, 4)`'
+  - '`min_of(scalar(max(node_load1)), 4)`'
+  - '`min(node_load1, 4)`'
+  - '`min_of(node_load1[5m], 4)`'
+  answer: B
+  explanation_pt: '`min_of` exige dois escalares. A) passa um vetor; C) `min` é agregador de um vetor só; D) range vector.'
+  source: promql-functions-lab/functions/min_of/README.md
+  lang: pt
+- id: fn-min_of-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `min_of(scalar(up), 1)` com 3 alvos?
+  options:
+  - '1'
+  - '0'
+  - NaN
+  - '3'
+  answer: C
+  explanation_pt: '`scalar(up)` com 3 séries é NaN, e NaN contamina o `min_of`.'
+  source: promql-functions-lab/functions/min_of/README.md
+  lang: pt
+- id: fn-min_of-3
+  domain: PromQL
+  difficulty: medium
+  question: Você quer limitar **cada** série de `desired_replicas{deployment=...}` a 10. Qual função?
+  options:
+  - '`min_of`'
+  - '`min`'
+  - '`clamp_max`'
+  - '`min_over_time`'
+  answer: C
+  explanation_pt: Aplica o teto por série e mantém os labels.
+  source: promql-functions-lab/functions/min_of/README.md
+  lang: pt
+- id: fn-min_of-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual o tipo de retorno de `min_of(1, 2)`?
+  options:
+  - instant vector
+  - scalar
+  - range vector
+  - string
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/min_of/README.md
+  lang: pt
+- id: fn-min_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual consulta dispara se o target teve **pelo menos um** scrape com falha nos últimos 10 min?
+  options:
+  - '`up == 0`'
+  - '`min_over_time(up[10m]) == 0`'
+  - '`max_over_time(up[10m]) == 0`'
+  - '`avg(up) == 0`'
+  answer: B
+  explanation_pt: O mínimo de um 0/1 é 0 se houve qualquer 0. A só vê o instante atual; C só dispara se **todos** foram 0; D agrega entre targets.
+  source: promql-functions-lab/functions/min_over_time/README.md
+  lang: pt
+- id: fn-min_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: '`min_over_time(node_filesystem_avail_bytes[1h])` retorna:'
+  options:
+  - O menor espaço livre de cada filesystem na última hora
+  - O filesystem com menos espaço agora
+  - O espaço livre 1 hora atrás
+  - Um único número para todo o cluster
+  answer: A
+  explanation_pt: Por série, no tempo. B seria `bottomk(1, node_filesystem_avail_bytes)`; C seria `offset 1h`.
+  source: promql-functions-lab/functions/min_over_time/README.md
+  lang: pt
+- id: fn-min_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Uma aplicação para de expor `app_queue_free_slots` por 2 min (a série some). O que `min_over_time(app_queue_free_slots[5m])` mostra nesse período?
+  options:
+  - '0'
+  - O menor valor entre as amostras que existiram na janela
+  - NaN
+  - Erro
+  answer: B
+  explanation_pt: Ausência não gera amostra 0. Para detectar a falta, use `count_over_time` ou `absent_over_time`.
+  source: promql-functions-lab/functions/min_over_time/README.md
+  lang: pt
+- id: fn-min_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o equivalente "E lógico no tempo" para um sinal 0/1?
+  options:
+  - '`max_over_time`'
+  - '`sum_over_time`'
+  - '`min_over_time`'
+  - '`count_over_time`'
+  answer: C
+  explanation_pt: '`min_over_time` = 1 só se **todas** as amostras forem 1 ("OK o tempo todo"). `max_over_time` é o "OU".'
+  source: promql-functions-lab/functions/min_over_time/README.md
+  lang: pt
+- id: fn-minute-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é verdadeira (não vazia) somente nos minutos 0, 15, 30 e 45?
+  options:
+  - '`minute() / 15 == 0`'
+  - '`minute() % 15 == 0`'
+  - '`minute() == 15`'
+  - '`minute(15)`'
+  answer: B
+  explanation_pt: 'Resto da divisão por 15 igual a zero. A só vale no minuto 0; C só no 15; D é erro de tipo: `15` é escalar e a função exige instant vector (e mesmo `minute(vector(15))` seria o timestamp 1970-01-01 00:00:15 → minuto 0).'
+  source: promql-functions-lab/functions/minute/README.md
+  lang: pt
+- id: fn-minute-2
+  domain: PromQL
+  difficulty: medium
+  question: O que faz `errors_ratio unless on() (minute() < 3)`?
+  options:
+  - mostra o erro só nos minutos 0-2
+  - mostra o erro exceto nos minutos 0-2
+  - retorna 0 nos minutos 0-2
+  - erro de sintaxe
+  answer: B
+  explanation_pt: '`unless` remove do lado esquerdo os elementos que têm correspondência no direito; com `on()` a correspondência ignora labels.'
+  source: promql-functions-lab/functions/minute/README.md
+  lang: pt
+- id: fn-minute-3
+  domain: PromQL
+  difficulty: medium
+  question: Em que fuso `minute()` pode dar um valor diferente do minuto do relógio local?
+  options:
+  - Brasília (UTC-3)
+  - Nova York (UTC-5)
+  - Índia (UTC+5:30)
+  - Londres (UTC+0)
+  answer: C
+  explanation_pt: Offsets com meia hora (ou 45 min) mudam o minuto. Offsets de hora cheia não.
+  source: promql-functions-lab/functions/minute/README.md
+  lang: pt
+- id: fn-month-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `month(vector(0))`?
+  options:
+  - '0'
+  - '1'
+  - '12'
+  - erro
+  answer: B
+  explanation_pt: Timestamp 0 = 1º de janeiro de 1970 UTC, mês 1.
+  source: promql-functions-lab/functions/month/README.md
+  lang: pt
+- id: fn-month-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna o trimestre atual (1 a 4)?
+  options:
+  - '`month() / 4`'
+  - '`ceil(month() / 3)`'
+  - '`floor(month() / 3)`'
+  - '`month() % 3`'
+  answer: B
+  explanation_pt: Jan-Mar → 1, Abr-Jun → 2... C daria 0 em jan/fev e 4 em dezembro.
+  source: promql-functions-lab/functions/month/README.md
+  lang: pt
+- id: fn-month-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é a melhor expressão para **alertar** 14 dias antes de um certificado vencer?
+  options:
+  - '`month(probe_ssl_earliest_cert_expiry) == month()`'
+  - '`probe_ssl_earliest_cert_expiry - time() < 14 * 86400`'
+  - '`day_of_month(probe_ssl_earliest_cert_expiry) - day_of_month() < 14`'
+  - '`probe_ssl_earliest_cert_expiry < 14`'
+  answer: B
+  explanation_pt: Diferença de timestamps em segundos. A não casa labels e é grosseira; C quebra na virada do mês; D compara um timestamp com 14.
+  source: promql-functions-lab/functions/month/README.md
+  lang: pt
+- id: fn-pi-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o tipo de retorno de `pi()`?
+  options:
+  - instant vector
+  - range vector
+  - scalar
+  - string
+  answer: C
+  explanation_pt: '`pi()` é um escalar.'
+  source: promql-functions-lab/functions/pi/README.md
+  lang: pt
+- id: fn-pi-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **inválida**?
+  options:
+  - '`2 * pi() * node_load1`'
+  - '`vector(pi())`'
+  - '`cos(pi())`'
+  - '`scalar(vector(pi()))`'
+  answer: C
+  explanation_pt: '`cos()` exige instant vector; `pi()` é escalar. Correto: `cos(vector(pi()))`.'
+  source: promql-functions-lab/functions/pi/README.md
+  lang: pt
+- id: fn-pi-3
+  domain: PromQL
+  difficulty: medium
+  question: '`pi() * my_radius_meters{pipe="a"} ^ 2` retorna uma série com quais labels?'
+  options:
+  - '`{__name__="my_radius_meters", pipe="a"}`'
+  - '`{pipe="a"}`'
+  - nenhuma
+  - 'erro: escalar e vetor não se combinam'
+  answer: B
+  explanation_pt: Operações aritméticas entre escalar e vetor mantêm as labels do vetor e removem o nome da métrica.
+  source: promql-functions-lab/functions/pi/README.md
+  lang: pt
+- id: fn-predict_linear-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão alerta se o disco vai encher nas próximas 4 horas, com base nas últimas 6 horas?
+  options:
+  - '`predict_linear(node_filesystem_avail_bytes[4h], 6*3600) < 0`'
+  - '`predict_linear(node_filesystem_avail_bytes[6h], 4*3600) < 0`'
+  - '`deriv(node_filesystem_avail_bytes[6h]) * 4 < 0`'
+  - '`predict_linear(node_filesystem_avail_bytes[6h], 4) < 0`'
+  answer: B
+  explanation_pt: A janela `[6h]` é o histórico usado na regressão; o segundo argumento é o horizonte em segundos (4 × 3600). A troca os papéis, C só multiplica a inclinação por 4 segundos, D prevê 4 segundos.
+  source: promql-functions-lab/functions/predict_linear/README.md
+  lang: pt
+- id: fn-predict_linear-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual método matemático o `predict_linear` usa?
+  options:
+  - Média móvel exponencial
+  - Regressão linear simples (mínimos quadrados)
+  - Holt-Winters
+  - Interpolação entre a primeira e a última amostra
+  answer: B
+  explanation_pt: Suavização exponencial dupla é o `double_exponential_smoothing`; primeira/última amostra é o `delta`.
+  source: promql-functions-lab/functions/predict_linear/README.md
+  lang: pt
+- id: fn-predict_linear-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o tipo do segundo argumento de `predict_linear`?
+  options:
+  - Duração (`4h`)
+  - Range vector
+  - Scalar (segundos)
+  - String
+  answer: C
+  explanation_pt: '`t scalar`. `predict_linear(x[1h], 4h)` é inválido; escreva `4*3600` (ou `14400`).'
+  source: promql-functions-lab/functions/predict_linear/README.md
+  lang: pt
+- id: fn-predict_linear-4
+  domain: PromQL
+  difficulty: medium
+  question: Por que alertas reais combinam `predict_linear(...) < 0` com `avail/size < 0.4`?
+  options:
+  - Porque `predict_linear` só funciona com percentuais
+  - Para evitar alertar discos grandes e quase vazios só porque tiveram uma tendência de queda momentânea
+  - Porque `predict_linear` não aceita labels
+  - Para converter bytes em porcentagem
+  answer: B
+  explanation_pt: A condição extra garante que só discos já razoavelmente cheios alertem, reduzindo falsos positivos.
+  source: promql-functions-lab/functions/predict_linear/README.md
+  lang: pt
+- id: fn-present_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: O que `present_over_time(http_requests_total{code="500"}[10m])` retorna para uma série que teve 12 amostras com valores 0, 0, 3, 5...?
+  options:
+  - '12'
+  - '5'
+  - '1'
+  - '0'
+  answer: C
+  explanation_pt: '`present_over_time` sempre retorna 1 para séries com pelo menos uma amostra, ignorando valores. 12 seria `count_over_time`; 5 seria `last_over_time`/`max_over_time`.'
+  source: promql-functions-lab/functions/present_over_time/README.md
+  lang: pt
+- id: fn-present_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Uma série não teve **nenhuma** amostra nos últimos 10 min. O que `present_over_time(x[10m])` retorna para ela?
+  options:
+  - '0'
+  - NaN
+  - Nada (a série não aparece no resultado)
+  - '1'
+  answer: C
+  explanation_pt: Funções `*_over_time` não inventam séries. Para "1 quando falta", use `absent_over_time`.
+  source: promql-functions-lab/functions/present_over_time/README.md
+  lang: pt
+- id: fn-present_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão lista séries que existiram na última hora mas **não existem agora**?
+  options:
+  - '`absent(x)`'
+  - '`present_over_time(x[1h]) unless x`'
+  - '`present_over_time(x[1h]) == 0`'
+  - '`count_over_time(x[1h]) == 0`'
+  answer: B
+  explanation_pt: '`unless` remove do lado esquerdo o que existe agora. C e D nunca retornam nada (não há 0); A só funciona se **todas** as séries sumirem e não diz quais.'
+  source: promql-functions-lab/functions/present_over_time/README.md
+  lang: pt
+- id: fn-present_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: 'Para contar quantos pods **distintos** existiram no último dia:'
+  options:
+  - '`count(kube_pod_info)`'
+  - '`count_over_time(kube_pod_info[1d])`'
+  - '`count(present_over_time(kube_pod_info[1d]))`'
+  - '`sum(kube_pod_info)`'
+  answer: C
+  explanation_pt: '`present_over_time` gera 1 por série vista no dia; `count` conta as séries. A e D contam só os de agora; B conta amostras **por série**.'
+  source: promql-functions-lab/functions/present_over_time/README.md
+  lang: pt
+- id: fn-quantile_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Você tem o gauge `probe_duration_seconds` e quer o p95 dos últimos 10 minutos. Qual query está correta?
+  options:
+  - '`histogram_quantile(0.95, probe_duration_seconds[10m])`'
+  - '`quantile_over_time(0.95, probe_duration_seconds[10m])`'
+  - '`quantile(0.95, probe_duration_seconds[10m])`'
+  - '`quantile_over_time(probe_duration_seconds[10m], 0.95)`'
+  answer: B
+  explanation_pt: '`quantile_over_time(φ, range-vector)`. A) `histogram_quantile` exige buckets (`le`) e instant vector. C) `quantile` é operador de agregação e recebe **instant** vector. D) ordem dos argumentos invertida (erro de parse/tipo).'
+  source: promql-functions-lab/functions/quantile_over_time/README.md
+  lang: pt
+- id: fn-quantile_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `quantile(0.9, x)` e `quantile_over_time(0.9, x[5m])`?
+  options:
+  - Nenhuma, são sinônimos.
+  - '`quantile` calcula entre **séries** num instante; `quantile_over_time` calcula entre **amostras no tempo**, para **cada** série.'
+  - '`quantile` só funciona com histogram.'
+  - '`quantile_over_time` agrega todas as séries em uma.'
+  answer: B
+  explanation_pt: 'O operador `quantile` "achata" várias séries num instante (ex.: p90 dos pods agora). `quantile_over_time` mantém uma saída por série e olha as amostras ao longo da janela. D) está errado: `_over_time` **não** junta séries.'
+  source: promql-functions-lab/functions/quantile_over_time/README.md
+  lang: pt
+- id: fn-quantile_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `quantile_over_time(1.2, up[5m])`?
+  options:
+  - Erro de sintaxe.
+  - O máximo de `up` na janela.
+  - '`+Inf` para cada série.'
+  - Vetor vazio.
+  answer: C
+  explanation_pt: φ > 1 → `+Inf` (φ < 0 → `-Inf`). Não é erro; a API só anexa um warning.
+  source: promql-functions-lab/functions/quantile_over_time/README.md
+  lang: pt
+- id: fn-quantile_over_time-4
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Você quer o p99 da latência de **todas** as requisições HTTP de um serviço instrumentado com `http_request_duration_seconds` (histogram). Qual abordagem é a certa?
+  options:
+  - '`quantile_over_time(0.99, http_request_duration_seconds_sum[5m])`'
+  - '`histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))`'
+  - '`quantile_over_time(0.99, http_request_duration_seconds_bucket[5m])`'
+  - '`max_over_time(http_request_duration_seconds_count[5m])`'
+  answer: B
+  explanation_pt: Com histogram, use `histogram_quantile` sobre o `rate` dos buckets. `quantile_over_time` em `_sum`/`_bucket` (counters) calcula o percentil de valores acumulados, sem sentido.
+  source: promql-functions-lab/functions/quantile_over_time/README.md
+  lang: pt
+- id: fn-quantile_over_time-5
+  domain: PromQL
+  difficulty: medium
+  question: Com scrape de 15s, qual janela é mais adequada para um p99 confiável via `quantile_over_time`?
+  options:
+  - '`[30s]`'
+  - '`[1m]`'
+  - '`[5m]`'
+  - '`[30m]`'
+  answer: D
+  explanation_pt: p99 precisa de muitas amostras (~100+). `[30m]` com scrape de 15s = 120 amostras. Com `[1m]` (4 amostras) o "p99" é praticamente uma interpolação entre as duas maiores amostras.
+  source: promql-functions-lab/functions/quantile_over_time/README.md
+  lang: pt
+- id: fn-rad-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual query retorna `1` para um ângulo de 90 graus?
+  options:
+  - '`sin(vector(90))`'
+  - '`sin(deg(vector(90)))`'
+  - '`sin(rad(vector(90)))`'
+  - '`rad(sin(vector(90)))`'
+  answer: C
+  explanation_pt: Converter para radianos **antes** do seno.
+  source: promql-functions-lab/functions/rad/README.md
+  lang: pt
+- id: fn-rad-2
+  domain: PromQL
+  difficulty: medium
+  question: '`rad(vector(180))` retorna:'
+  options:
+  - '`1`'
+  - '`3.14159...`'
+  - '`10313.2`'
+  - '`0.5`'
+  answer: B
+  explanation_pt: 180° = π rad. (C seria `deg(vector(180))`.)
+  source: promql-functions-lab/functions/rad/README.md
+  lang: pt
+- id: fn-rad-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o tipo de retorno de `rad(pi_metric)`?
+  options:
+  - escalar
+  - instant vector
+  - range vector
+  - string
+  answer: B
+  explanation_pt: Recebe e devolve instant vector.
+  source: promql-functions-lab/functions/rad/README.md
+  lang: pt
+- id: fn-range-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre um *range vector* e uma *range query*?
+  options:
+  - nenhuma
+  - range vector é um tipo de dado (`x[5m]`, várias amostras por série); range query é uma chamada de API que avalia uma expressão em vários instantes
+  - range query só aceita range vectors
+  - range vector só existe em range queries
+  answer: B
+  explanation_pt: 'Você pode usar `x[5m]` numa instant query (ex.: `rate(x[5m])`) e uma range query pode avaliar expressões sem range vector (ex.: `up`).'
+  source: promql-functions-lab/functions/range/README.md
+  lang: pt
+- id: fn-range-2
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: O que o Grafana faz com `$__range` numa consulta?
+  options:
+  - envia literalmente `$__range` para o Prometheus
+  - 'substitui pela duração do intervalo selecionado (ex.: `900s`) antes de enviar'
+  - converte para `range()`
+  - usa como `step`
+  answer: B
+  explanation_pt: É uma variável de template do Grafana, resolvida no cliente.
+  source: promql-functions-lab/functions/range/README.md
+  lang: pt
+- id: fn-range-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão dá o total de requisições nas últimas 24 h, numa regra de alerta?
+  options:
+  - '`increase(http_requests_total[24h])`'
+  - '`increase(http_requests_total[range()])`'
+  - '`sum_over_time(http_requests_total[24h])`'
+  - '`http_requests_total - http_requests_total offset 24h`'
+  answer: A
+  explanation_pt: B falha (range() = 0 em avaliação instantânea); C soma os **valores** acumulados do counter (número sem sentido); D quebra com resets.
+  source: promql-functions-lab/functions/range/README.md
+  lang: pt
+- id: fn-rate-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é válida?
+  options:
+  - '`rate(http_requests_total)`'
+  - '`rate(http_requests_total[5m])`'
+  - '`rate(sum(http_requests_total))`'
+  - '`sum(http_requests_total)[5m]`'
+  answer: B
+  explanation_pt: '`rate` exige um *range vector* (`[5m]`). A e C passam instant vectors (erro de parse), e D aplica o seletor de range sobre uma expressão sem ser subquery (`[5m:]`), o que também é erro.'
+  source: promql-functions-lab/functions/rate/README.md
+  lang: pt
+- id: fn-rate-2
+  domain: PromQL
+  difficulty: medium
+  question: Um counter tinha valor `1000` e, após um restart do pod, passou a `20`, `40`, `60`... O que `rate()` faz?
+  options:
+  - Retorna um valor negativo
+  - Descarta a série
+  - Trata a queda como reset e soma o que veio depois do zero
+  - Retorna NaN
+  answer: C
+  explanation_pt: Qualquer queda num counter é interpretada como reset. O `rate` assume que o counter recomeçou em 0 e continua a conta. Por isso **nunca** use `rate` em gauges.
+  source: promql-functions-lab/functions/rate/README.md
+  lang: pt
+- id: fn-rate-3
+  domain: PromQL
+  difficulty: medium
+  question: Você quer a % de CPU ocupada. Qual é a melhor query?
+  options:
+  - '`100 - node_cpu_seconds_total{mode="idle"}`'
+  - '`100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`'
+  - '`rate(avg(node_cpu_seconds_total)[5m])`'
+  - '`deriv(node_cpu_seconds_total{mode="idle"}[5m])`'
+  answer: B
+  explanation_pt: '`node_cpu_seconds_total` é counter. O `rate` do modo idle dá a fração ociosa (0..1) por CPU, `avg by (instance)` junta as CPUs e `1 -` inverte.'
+  source: promql-functions-lab/functions/rate/README.md
+  lang: pt
+- id: fn-rate-4
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Por que as recording rules usam `rate` em vez de `increase`?
+  options:
+  - '`increase` não funciona em regras'
+  - '`rate` é sempre por segundo, então resultados de janelas diferentes ficam comparáveis'
+  - '`rate` não extrapola'
+  - '`increase` só funciona com gauges'
+  answer: B
+  explanation_pt: 'A própria doc: *"Use `rate` in recording rules so that increases are tracked consistently on a per-second basis."* Os dois extrapolam, e ambos são para counters.'
+  source: promql-functions-lab/functions/rate/README.md
+  lang: pt
+- id: fn-rate-5
+  domain: PromQL
+  difficulty: medium
+  question: 'Com `scrape_interval: 1m`, qual janela é problemática?'
+  options:
+  - '`[5m]`'
+  - '`[4m]`'
+  - '`[1m]`'
+  - '`[10m]`'
+  answer: C
+  explanation_pt: 'Com `[1m]` há no máximo ~1 amostra na janela, e o `rate` precisa de **no mínimo 2**. Resultado: buracos ou vazio. Regra prática: janela ≥ **4× o scrape interval**.'
+  source: promql-functions-lab/functions/rate/README.md
+  lang: pt
+- id: fn-resets-1
+  domain: PromQL
+  difficulty: medium
+  question: Dadas as amostras `5, 8, 2, 4, 4, 1, 7` numa janela, qual é o resultado de `resets()`?
+  options:
+  - '1'
+  - '2'
+  - '3'
+  - '5'
+  answer: B
+  explanation_pt: 'Quedas: `8 → 2` e `4 → 1`. `4 → 4` não é queda.'
+  source: promql-functions-lab/functions/resets/README.md
+  lang: pt
+- id: fn-resets-2
+  domain: PromQL
+  difficulty: medium
+  question: E qual seria o resultado de `changes()` para as mesmas amostras `5, 8, 2, 4, 4, 1, 7`?
+  options:
+  - '2'
+  - '4'
+  - '5'
+  - '6'
+  answer: C
+  explanation_pt: 'Mudanças: 5→8, 8→2, 2→4, 4→1, 1→7 = 5. O par `4 → 4` não conta.'
+  source: promql-functions-lab/functions/resets/README.md
+  lang: pt
+- id: fn-resets-3
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Para qual tipo de métrica `resets()` deve ser usada?
+  options:
+  - Gauge
+  - Counter
+  - Summary quantile (`{quantile="0.9"}`)
+  - Qualquer tipo, o resultado é sempre significativo
+  answer: B
+  explanation_pt: A documentação diz que `resets` deve ser usada apenas com counters. Em gauges e quantis de summary, quedas são normais.
+  source: promql-functions-lab/functions/resets/README.md
+  lang: pt
+- id: fn-resets-4
+  domain: PromQL
+  difficulty: medium
+  question: Você precisa alertar quando um container do Kubernetes reiniciar mais de 3 vezes em 1 hora. Qual query?
+  options:
+  - '`resets(kube_pod_container_status_restarts_total[1h]) > 3`'
+  - '`increase(kube_pod_container_status_restarts_total[1h]) > 3`'
+  - '`changes(kube_pod_container_status_restarts_total[1h]) > 3`'
+  - '`rate(kube_pod_container_status_restarts_total[1h]) > 3`'
+  answer: B
+  explanation_pt: A métrica conta restarts, então queremos o aumento. A mede restarts do exporter; C funcionaria "quase", mas é semanticamente errado e pode divergir (dois restarts entre scrapes contam 1 mudança); D dá restarts por segundo.
+  source: promql-functions-lab/functions/resets/README.md
+  lang: pt
+- id: fn-round-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `round(vector(-0.5))`?
+  options:
+  - '-1'
+  - '0'
+  - '0.5'
+  - NaN
+  answer: B
+  explanation_pt: 'No PromQL, empates são resolvidos **para cima** (em direção ao +∞): `floor(-0.5 + 0.5) = 0`. Em muitas linguagens o resultado seria -1 ("half away from zero").'
+  source: promql-functions-lab/functions/round/README.md
+  lang: pt
+- id: fn-round-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão arredonda a latência (em segundos) para o **milissegundo** mais próximo?
+  options:
+  - '`round(latency_seconds, 1000)`'
+  - '`round(latency_seconds, 0.001)`'
+  - '`round(latency_seconds * 0.001)`'
+  - '`round(latency_seconds, 3)`'
+  answer: B
+  explanation_pt: '`to_nearest` é o **múltiplo** desejado (0.001 s = 1 ms), não o número de casas decimais. D) arredondaria para múltiplos de 3 segundos. A) para múltiplos de 1000 s.'
+  source: promql-functions-lab/functions/round/README.md
+  lang: pt
+- id: fn-round-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o tipo esperado do segundo argumento de `round()`?
+  options:
+  - instant vector
+  - range vector
+  - scalar
+  - string
+  answer: C
+  explanation_pt: '`to_nearest` é um escalar (ex.: `5`, `0.5`, ou `scalar(algum_vetor)`).'
+  source: promql-functions-lab/functions/round/README.md
+  lang: pt
+- id: fn-round-4
+  domain: PromQL
+  difficulty: medium
+  question: Você precisa exibir quantos pods estão em cada faixa de ~100 MiB de memória. Qual combinação resolve?
+  options:
+  - '`histogram_quantile(0.5, container_memory_working_set_bytes)`'
+  - '`count_values("faixa", round(container_memory_working_set_bytes / 2^20, 100))`'
+  - '`round(count(container_memory_working_set_bytes), 100)`'
+  - '`sum by (le) (container_memory_working_set_bytes)`'
+  answer: B
+  explanation_pt: '`round(..., 100)` leva cada pod para o múltiplo de 100 MiB mais próximo e `count_values` conta quantas séries têm cada valor, criando o label `faixa`. A) exige um histograma com buckets `le`. C) arredonda a **contagem** total. D) não há label `le` num gauge.'
+  source: promql-functions-lab/functions/round/README.md
+  lang: pt
+- id: fn-round-5
+  domain: PromQL
+  difficulty: medium
+  question: Por que `round(vector(1.005), 0.01)` retorna `1` e não `1.01`?
+  options:
+  - '`round` sempre arredonda pra baixo'
+  - '`to_nearest` menor que 1 é ignorado'
+  - '`1.005` não é representável exatamente em float64; vale `1.00499999...`'
+  - bug de versão
+  answer: C
+  explanation_pt: Limitação do ponto flutuante IEEE 754. O valor armazenado é ligeiramente menor que 1.005.
+  source: promql-functions-lab/functions/round/README.md
+  lang: pt
+- id: fn-scalar-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `scalar(up)` se existem 3 alvos?
+  options:
+  - '3'
+  - '1'
+  - NaN
+  - Erro de execução
+  answer: C
+  explanation_pt: Mais de um elemento → NaN (sem erro).
+  source: promql-functions-lab/functions/scalar/README.md
+  lang: pt
+- id: fn-scalar-2
+  domain: PromQL
+  difficulty: medium
+  question: Por que `rate(x[5m]) / sum(rate(x[5m]))` normalmente retorna vazio, e `rate(x[5m]) / scalar(sum(rate(x[5m])))` funciona?
+  options:
+  - '`sum` não funciona com `rate`'
+  - Vetor/vetor exige labels iguais; o `sum` não tem labels. Com `scalar`, vira vetor/escalar e aplica a todas as séries
+  - '`scalar` arredonda o resultado'
+  - Não há diferença
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/scalar/README.md
+  lang: pt
+- id: fn-scalar-3
+  domain: PromQL
+  difficulty: medium
+  question: Uma regra de alerta `cpu > scalar(threshold)` nunca dispara, e `threshold` existe. Qual a causa mais provável?
+  options:
+  - '`threshold` tem mais de uma série, e `scalar()` retorna NaN'
+  - '`scalar()` só aceita counters'
+  - '`>` não funciona com escalares'
+  - Falta o `for:`
+  answer: A
+  explanation_pt: Comparações com NaN são sempre falsas.
+  source: promql-functions-lab/functions/scalar/README.md
+  lang: pt
+- id: fn-scalar-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual o tipo de retorno de `scalar(sum(up))`?
+  options:
+  - instant vector
+  - range vector
+  - scalar
+  - string
+  answer: C
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/scalar/README.md
+  lang: pt
+- id: fn-sgn-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão indica se o **espaço livre** do disco está aumentando (+1), diminuindo (-1) ou estável (0)?
+  options:
+  - '`sgn(rate(node_filesystem_avail_bytes[1h]))`'
+  - '`sgn(deriv(node_filesystem_avail_bytes[1h]))`'
+  - '`sgn(node_filesystem_avail_bytes)`'
+  - '`deriv(sgn(node_filesystem_avail_bytes)[1h:])`'
+  answer: B
+  explanation_pt: '`node_filesystem_avail_bytes` é **gauge**, então a inclinação vem de `deriv()`. A) `rate()` em gauge trata quedas como resets. C) o espaço livre é sempre positivo → sempre 1. D) `sgn` do valor cru é constante 1, a derivada é 0.'
+  source: promql-functions-lab/functions/sgn/README.md
+  lang: pt
+- id: fn-sgn-2
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `sgn(vector(-0.000001))`?
+  options:
+  - '0'
+  - '-1'
+  - '-0.000001'
+  - NaN
+  answer: B
+  explanation_pt: Qualquer valor negativo, por menor que seja, vira -1.
+  source: promql-functions-lab/functions/sgn/README.md
+  lang: pt
+- id: fn-sgn-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o resultado de `x > bool 0.5` quando `x = 0.2`?
+  options:
+  - A série é removida do resultado
+  - '`0.2`'
+  - '`0`'
+  - '`false`'
+  answer: C
+  explanation_pt: 'Com o modificador `bool`, a comparação **não filtra**: devolve `1` (verdadeiro) ou `0` (falso). Sem `bool`, a série seria removida (A). É o que permite montar a "zona morta" `sgn(d) * (abs(d) > bool 0.5)`.'
+  source: promql-functions-lab/functions/sgn/README.md
+  lang: pt
+- id: fn-sgn-4
+  domain: PromQL
+  difficulty: medium
+  question: '`sgn(vector(NaN))` retorna:'
+  options:
+  - '0'
+  - '1'
+  - NaN
+  - resultado vazio
+  answer: C
+  explanation_pt: NaN não é positivo, negativo nem zero; o sinal de NaN é NaN.
+  source: promql-functions-lab/functions/sgn/README.md
+  lang: pt
+- id: fn-sin-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `sin(vector(90))`?
+  options:
+  - '`1`'
+  - '`0.894` (aproximadamente)'
+  - 'Erro: argumento fora do domínio'
+  - '`NaN`'
+  answer: B
+  explanation_pt: O argumento é interpretado como **90 radianos**, não 90 graus. Para 90° use `sin(rad(vector(90)))` = 1.
+  source: promql-functions-lab/functions/sin/README.md
+  lang: pt
+- id: fn-sin-2
+  domain: PromQL
+  difficulty: medium
+  question: A query `sin(2 * pi() * time() / 86400)` é executada. O que acontece?
+  options:
+  - Retorna uma onda diária
+  - Retorna um escalar entre -1 e 1
+  - 'Erro de parse: `sin` espera instant vector e recebeu escalar'
+  - Retorna um vetor vazio
+  answer: C
+  explanation_pt: '`pi()` e `time()` são escalares, e `sin()` só aceita instant vector. Correto: `sin(vector(2 * pi() * time() / 86400))`.'
+  source: promql-functions-lab/functions/sin/README.md
+  lang: pt
+- id: fn-sin-3
+  domain: PromQL
+  difficulty: medium
+  question: '`sin(my_angle_radians{motor="m1"})` retorna uma série com quais labels?'
+  options:
+  - '`{__name__="my_angle_radians", motor="m1"}`'
+  - '`{motor="m1"}`'
+  - '`{__name__="sin", motor="m1"}`'
+  - Nenhuma label
+  answer: B
+  explanation_pt: Funções que transformam o valor **removem o nome da métrica** e mantêm as demais labels.
+  source: promql-functions-lab/functions/sin/README.md
+  lang: pt
+- id: fn-sinh-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `sinh(vector(0))`?
+  options:
+  - '`1`'
+  - '`0`'
+  - '`NaN`'
+  - '`-Inf`'
+  answer: B
+  explanation_pt: (e⁰ − e⁰) / 2 = 0. Quem vale 1 em zero é o `cosh`.
+  source: promql-functions-lab/functions/sinh/README.md
+  lang: pt
+- id: fn-sinh-2
+  domain: PromQL
+  difficulty: medium
+  question: '`sinh(vector(1000))` retorna:'
+  options:
+  - '`NaN`'
+  - erro de overflow
+  - '`+Inf`'
+  - '`1000`'
+  answer: C
+  explanation_pt: O valor não cabe em float64 e vira +Inf; PromQL não aborta a query.
+  source: promql-functions-lab/functions/sinh/README.md
+  lang: pt
+- id: fn-sinh-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual par de funções é inverso uma da outra?
+  options:
+  - '`sinh` e `asin`'
+  - '`sinh` e `asinh`'
+  - '`sinh` e `cosh`'
+  - '`sinh` e `atanh`'
+  answer: B
+  explanation_pt: '`asinh` é a inversa hiperbólica do `sinh`.'
+  source: promql-functions-lab/functions/sinh/README.md
+  lang: pt
+- id: fn-sort-1
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: O que `sort(node_load1)` faz num painel **timeseries** do Grafana (range query)?
+  options:
+  - Ordena as linhas pelo último valor
+  - Ordena a legenda
+  - 'Nada: range queries têm ordem fixa'
+  - Retorna erro
+  answer: C
+  explanation_pt: A documentação diz que `sort` só afeta instant queries.
+  source: promql-functions-lab/functions/sort/README.md
+  lang: pt
+- id: fn-sort-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual query devolve os 5 filesystems com menos espaço livre, do mais cheio para o menos cheio?
+  options:
+  - '`sort(topk(5, node_filesystem_avail_bytes))`'
+  - '`sort(bottomk(5, node_filesystem_avail_bytes / node_filesystem_size_bytes))`'
+  - '`sort_desc(bottomk(5, node_filesystem_avail_bytes / node_filesystem_size_bytes))`'
+  - '`bottomk(5, sort(node_filesystem_size_bytes))`'
+  answer: B
+  explanation_pt: '`bottomk` escolhe os 5 menores; `sort` coloca o menor (mais cheio) primeiro. A) pega os mais **vazios**; C) ordena ao contrário; D) usa o tamanho, não o espaço livre.'
+  source: promql-functions-lab/functions/sort/README.md
+  lang: pt
+- id: fn-sort-3
+  domain: PromQL
+  difficulty: medium
+  question: Em `sort(x)`, onde aparece uma série com valor `NaN`?
+  options:
+  - Primeiro
+  - Último
+  - É removida
+  - Posição indefinida
+  answer: B
+  explanation_pt: O Prometheus coloca NaN no final tanto no `sort` quanto no `sort_desc`.
+  source: promql-functions-lab/functions/sort/README.md
+  lang: pt
+- id: fn-sort-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual o tipo de entrada e de saída de `sort`?
+  options:
+  - range vector → instant vector
+  - instant vector → instant vector
+  - instant vector → scalar
+  - scalar → instant vector
+  answer: B
+  explanation_pt: 'Ex.: `sort(rate(x[5m]))` funciona; `sort(x[5m])` é erro de tipo.'
+  source: promql-functions-lab/functions/sort/README.md
+  lang: pt
+- id: fn-sort_by_label-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual a saída de `sort_by_label(up, "instance")` para `instance` = `host-10`, `host-2`, `host-1`?
+  options:
+  - host-1, host-10, host-2
+  - host-1, host-2, host-10
+  - host-10, host-2, host-1
+  - A ordem original
+  answer: B
+  explanation_pt: 'Ordem natural: os números são comparados como números.'
+  source: promql-functions-lab/functions/sort_by_label/README.md
+  lang: pt
+- id: fn-sort_by_label-2
+  domain: PromQL
+  difficulty: medium
+  question: O que é necessário para usar `sort_by_label` no Prometheus 3.x?
+  options:
+  - Nada, é estável
+  - '`--enable-feature=promql-experimental-functions`'
+  - '`--enable-feature=native-histograms`'
+  - Só funciona via recording rule
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/sort_by_label/README.md
+  lang: pt
+- id: fn-sort_by_label-3
+  domain: PromQL
+  difficulty: medium
+  question: Em `sort_by_label(x, "zone", "node")`, qual o papel de `node`?
+  options:
+  - 'Ignorado: só o primeiro label conta'
+  - Critério de desempate dentro da mesma `zone`
+  - Filtra as séries que têm `node`
+  - Ordena `node` de forma decrescente
+  answer: B
+  explanation_pt: Funciona como `ORDER BY zone, node`.
+  source: promql-functions-lab/functions/sort_by_label/README.md
+  lang: pt
+- id: fn-sort_by_label-4
+  domain: PromQL
+  difficulty: medium
+  question: Você quer que uma tabela de nós **não mude de ordem** a cada refresh. Qual a melhor escolha?
+  options:
+  - '`sort_desc(node_load1)`'
+  - '`topk(100, node_load1)`'
+  - '`sort_by_label(node_load1, "instance")`'
+  - '`sort(node_load1)`'
+  answer: C
+  explanation_pt: A ordem por label é estável; por valor muda sempre que os valores mudam.
+  source: promql-functions-lab/functions/sort_by_label/README.md
+  lang: pt
+- id: fn-sort_by_label_desc-1
+  domain: PromQL
+  difficulty: medium
+  question: Partições `"0"`, `"2"`, `"10"`. Qual a saída de `sort_by_label_desc(x, "partition")`?
+  options:
+  - 2, 10, 0
+  - 10, 2, 0
+  - 0, 2, 10
+  - 2, 0, 10
+  answer: B
+  explanation_pt: Ordem natural decrescente compara os números como números.
+  source: promql-functions-lab/functions/sort_by_label_desc/README.md
+  lang: pt
+- id: fn-sort_by_label_desc-2
+  domain: PromQL
+  difficulty: medium
+  question: Versões `2.11.0` e `2.11.0-rc.1`. Qual aparece primeiro em `sort_by_label_desc(x, "version")`?
+  options:
+  - '`2.11.0`, porque é a versão final'
+  - '`2.11.0-rc.1`, porque ordem natural não é semver'
+  - 'Empate: a ordem é aleatória'
+  - A query falha com labels não numéricos
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/sort_by_label_desc/README.md
+  lang: pt
+- id: fn-sort_by_label_desc-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual função retorna os backups do **mais recente para o mais antigo**, dado o label `date="YYYY-MM-DD"`?
+  options:
+  - '`sort_desc(backup_size_bytes)`'
+  - '`sort_by_label_desc(backup_size_bytes, "date")`'
+  - '`topk(1, backup_size_bytes)`'
+  - '`sort_by_label(backup_size_bytes, "date")`'
+  answer: B
+  explanation_pt: A) ordena pelo **tamanho**, não pela data; D) é crescente (mais antigo primeiro).
+  source: promql-functions-lab/functions/sort_by_label_desc/README.md
+  lang: pt
+- id: fn-sort_desc-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual query mostra os 5 pods com maior uso de CPU, do maior para o menor?
+  options:
+  - '`topk(5, sort(rate(container_cpu_usage_seconds_total[5m])))`'
+  - '`sort_desc(topk(5, sum by (pod) (rate(container_cpu_usage_seconds_total[5m]))))`'
+  - '`sort_desc(rate(container_cpu_usage_seconds_total[5m]))[5]`'
+  - '`limit(5, sort_desc(container_cpu_usage_seconds_total))`'
+  answer: B
+  explanation_pt: '`topk` seleciona, `sort_desc` ordena. C e D não são sintaxe válida para isso; A ordena **antes** de selecionar (e crescente), e a saída do `topk` não tem ordem garantida.'
+  source: promql-functions-lab/functions/sort_desc/README.md
+  lang: pt
+- id: fn-sort_desc-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `sort_desc(x)` e `topk(3, x)`?
+  options:
+  - Nenhuma
+  - '`sort_desc` devolve todas as séries ordenadas; `topk` devolve só 3, sem garantia de ordem'
+  - '`topk` só funciona em range queries'
+  - '`sort_desc` remove séries NaN'
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/sort_desc/README.md
+  lang: pt
+- id: fn-sort_desc-3
+  domain: PromQL
+  difficulty: medium
+  question: A taxa de erro de um serviço sem tráfego é `NaN`. Em `sort_desc(taxa_erro)`, onde ele aparece?
+  options:
+  - Primeiro, porque NaN é tratado como +Inf
+  - Último
+  - É removido
+  - Causa erro na query
+  answer: B
+  explanation_pt: Tanto `sort` quanto `sort_desc` colocam NaN no fim.
+  source: promql-functions-lab/functions/sort_desc/README.md
+  lang: pt
+- id: fn-sort_desc-4
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Você coloca `sort_desc(...)` num painel timeseries e a legenda não muda. Por quê?
+  options:
+  - Bug do Grafana
+  - Precisa de `by (le)`
+  - '`sort_desc` só afeta instant queries'
+  - Precisa usar `sort_by_label_desc`
+  answer: C
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/sort_desc/README.md
+  lang: pt
+- id: fn-sqrt-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é equivalente a `stddev_over_time(node_load1[10m])`?
+  options:
+  - '`sqrt(avg_over_time(node_load1[10m]))`'
+  - '`sqrt(stdvar_over_time(node_load1[10m]))`'
+  - '`stdvar_over_time(sqrt(node_load1)[10m:])`'
+  - '`sqrt(node_load1)`'
+  answer: B
+  explanation_pt: Desvio padrão é a raiz quadrada da variância.
+  source: promql-functions-lab/functions/sqrt/README.md
+  lang: pt
+- id: fn-sqrt-2
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `sqrt(vector(-4))`?
+  options:
+  - '-2'
+  - '2'
+  - NaN
+  - erro de execução
+  answer: C
+  explanation_pt: Não existe raiz real de número negativo; o PromQL segue o float64 e devolve NaN sem erro.
+  source: promql-functions-lab/functions/sqrt/README.md
+  lang: pt
+- id: fn-sqrt-3
+  domain: PromQL
+  difficulty: medium
+  question: Como calcular o RMS da tensão `v` na última hora?
+  options:
+  - '`sqrt(avg_over_time(v[1h]))`'
+  - '`avg_over_time(sqrt(v)[1h:])`'
+  - '`sqrt(avg_over_time((v ^ 2)[1h:1m]))`'
+  - '`sqrt(sum_over_time(v[1h]) ^ 2)`'
+  answer: C
+  explanation_pt: Raiz (`sqrt`) da média (`avg_over_time`) dos quadrados (`v ^ 2`). Como `v ^ 2` é uma expressão, é preciso subquery. A) é a raiz da média (≈ 0 para AC).
+  source: promql-functions-lab/functions/sqrt/README.md
+  lang: pt
+- id: fn-sqrt-4
+  domain: PromQL
+  difficulty: medium
+  question: 'Você tem os desvios padrão de latência de 3 réplicas independentes: 3 ms, 4 ms e 12 ms. Qual o desvio padrão da **soma** das três?'
+  options:
+  - 19 ms
+  - 13 ms (`sqrt(9 + 16 + 144)`)
+  - 6.33 ms (média)
+  - 12 ms (máximo)
+  answer: B
+  explanation_pt: 'Para variáveis independentes, **variâncias** se somam: `9 + 16 + 144 = 169`, e `sqrt(169) = 13`.'
+  source: promql-functions-lab/functions/sqrt/README.md
+  lang: pt
+- id: fn-start-1
+  domain: PromQL
+  difficulty: medium
+  question: Quais parâmetros a API `/api/v1/query_range` exige?
+  options:
+  - '`query`, `time`'
+  - '`query`, `start`, `end`, `step`'
+  - '`query`, `range`'
+  - '`query`, `start`, `duration`'
+  answer: B
+  explanation_pt: '`start`/`end` delimitam a janela e `step` a resolução. `start()` e `end()` no PromQL leem exatamente esses valores.'
+  source: promql-functions-lab/functions/start/README.md
+  lang: pt
+- id: fn-start-2
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `http_requests_total @ 1700000000`?
+  options:
+  - o valor do counter 1 700 000 000 segundos atrás
+  - o valor do counter no instante Unix 1 700 000 000, para todos os pontos
+  - 'erro: `@` só aceita `start()` e `end()`'
+  - o counter multiplicado por 1 700 000 000
+  answer: B
+  explanation_pt: '`@` fixa o instante absoluto de avaliação do seletor. A descreveria `offset`.'
+  source: promql-functions-lab/functions/start/README.md
+  lang: pt
+- id: fn-start-3
+  domain: PromQL
+  difficulty: medium
+  question: Uma regra de alerta usa `x - x @ start() > 100`. O que acontece?
+  options:
+  - alerta quando x cresceu 100 desde o início da janela do dashboard
+  - 'nunca dispara: em avaliação instantânea `start()` = instante avaliado, então a diferença é 0'
+  - erro de sintaxe
+  - dispara sempre
+  answer: B
+  explanation_pt: Regras são consultas instantâneas; não existe "janela do dashboard".
+  source: promql-functions-lab/functions/start/README.md
+  lang: pt
+- id: fn-start_timestamp-1
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Em OpenMetrics, qual sufixo expõe o instante em que um counter começou a contar?
+  options:
+  - '`_total`'
+  - '`_created`'
+  - '`_start`'
+  - '`_timestamp`'
+  answer: B
+  explanation_pt: '`x_created`. O `_total` é o próprio valor do counter.'
+  source: promql-functions-lab/functions/start_timestamp/README.md
+  lang: pt
+- id: fn-start_timestamp-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão clássica dá o uptime de um processo instrumentado com client_golang, **sem** feature flags?
+  options:
+  - '`time() - process_start_time_seconds`'
+  - '`start_timestamp(up)`'
+  - '`timestamp(process_start_time_seconds)`'
+  - '`increase(process_start_time_seconds[1h])`'
+  answer: A
+  explanation_pt: '`process_start_time_seconds` é um gauge cujo valor é o horário de boot.'
+  source: promql-functions-lab/functions/start_timestamp/README.md
+  lang: pt
+- id: fn-start_timestamp-3
+  domain: PromQL
+  difficulty: medium
+  question: Com `use-start-timestamps` ligado, o que retorna `start_timestamp(rate(http_requests_total[5m]))`?
+  options:
+  - o created timestamp de cada série
+  - o horário da avaliação
+  - vazio
+  - '0'
+  answer: C
+  explanation_pt: A função só funciona diretamente sobre um seletor de instant vector; sobre expressões retorna vazio.
+  source: promql-functions-lab/functions/start_timestamp/README.md
+  lang: pt
+- id: fn-start_timestamp-4
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: 'Um exporter antigo expõe um counter sem created timestamp. Com a flag ligada, `start_timestamp(x)` retorna:'
+  options:
+  - vazio
+  - '0'
+  - o horário do primeiro scrape
+  - erro
+  answer: B
+  explanation_pt: (neste lab/versão 3.15.0.) Por isso `time() - start_timestamp(x)` precisa do filtro `> 0`.
+  source: promql-functions-lab/functions/start_timestamp/README.md
+  lang: pt
+- id: fn-stddev_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual query calcula o desvio padrão do uso de memória **de cada pod** ao longo da última hora?
+  options:
+  - '`stddev(container_memory_working_set_bytes)`'
+  - '`stddev_over_time(container_memory_working_set_bytes[1h])`'
+  - '`stddev(container_memory_working_set_bytes[1h])`'
+  - '`stddev_over_time(sum(container_memory_working_set_bytes))`'
+  answer: B
+  explanation_pt: '`_over_time` com range vector, uma saída por série. A) é entre pods num instante. C) operador de agregação não aceita range vector (erro). D) falta o range (e ainda somaria os pods).'
+  source: promql-functions-lab/functions/stddev_over_time/README.md
+  lang: pt
+- id: fn-stddev_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Você quer o desvio padrão da **taxa** de requisições (`http_requests_total` é counter) nos últimos 30 min. Qual é válida?
+  options:
+  - '`stddev_over_time(http_requests_total[30m])`'
+  - '`stddev_over_time(rate(http_requests_total[1m])[30m:])`'
+  - '`rate(stddev_over_time(http_requests_total[30m]))`'
+  - '`stddev_over_time(rate(http_requests_total[30m]))`'
+  answer: B
+  explanation_pt: Primeiro transforma o counter em taxa (`rate`), depois usa **subquery** `[30m:]` para gerar um range vector da taxa. A) mede a dispersão do total acumulado (sem sentido). D) `rate(...)` devolve instant vector, e `stddev_over_time` exige range vector (erro de tipo).
+  source: promql-functions-lab/functions/stddev_over_time/README.md
+  lang: pt
+- id: fn-stddev_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Se `stddev_over_time(x[5m])` = 4, quanto vale `stdvar_over_time(x[5m])`?
+  options:
+  - '2'
+  - '4'
+  - '8'
+  - '16'
+  answer: D
+  explanation_pt: 'Variância = desvio padrão ao quadrado: 4² = 16.'
+  source: promql-functions-lab/functions/stddev_over_time/README.md
+  lang: pt
+- id: fn-stddev_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Uma série ficou **constante** (valor 7) nos últimos 5 minutos. O que retorna `(x - avg_over_time(x[5m])) / stddev_over_time(x[5m])`?
+  options:
+  - '0'
+  - '1'
+  - NaN
+  - Vetor vazio
+  answer: C
+  explanation_pt: σ = 0 e o numerador também é 0 → 0/0 = `NaN`. (Se o valor atual fosse diferente da média, daria `±Inf`.) Por isso se protege o divisor com `> 0`.
+  source: promql-functions-lab/functions/stddev_over_time/README.md
+  lang: pt
+- id: fn-stdvar_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: '`stdvar_over_time(x[10m])` retornou `25`. Qual o desvio padrão?'
+  options:
+  - '625'
+  - '12.5'
+  - '5'
+  - '25'
+  answer: C
+  explanation_pt: 'σ = √25 = 5. Em PromQL: `sqrt(stdvar_over_time(x[10m]))`, que é igual a `stddev_over_time(x[10m])`.'
+  source: promql-functions-lab/functions/stdvar_over_time/README.md
+  lang: pt
+- id: fn-stdvar_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão é **equivalente** a `stddev_over_time(x[5m])`?
+  options:
+  - '`stdvar_over_time(x[5m]) ^ 2`'
+  - '`sqrt(stdvar_over_time(x[5m]))`'
+  - '`stdvar(x[5m])`'
+  - '`sqrt(stdvar(x))`'
+  answer: B
+  explanation_pt: O desvio padrão é a raiz da variância. C) o operador `stdvar` não aceita range vector. D) calcula entre séries num instante.
+  source: promql-functions-lab/functions/stdvar_over_time/README.md
+  lang: pt
+- id: fn-stdvar_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `stdvar(node_load1)` e `stdvar_over_time(node_load1[1h])`?
+  options:
+  - Nenhuma.
+  - O primeiro devolve uma série com a variância **entre os nodes** agora; o segundo devolve **uma série por node** com a variância ao longo de 1h.
+  - O primeiro é populacional e o segundo é amostral.
+  - O segundo junta todos os nodes numa série.
+  answer: B
+  explanation_pt: Operadores de agregação trabalham entre séries num instante; `_over_time` trabalha no tempo, série a série. Ambos são populacionais.
+  source: promql-functions-lab/functions/stdvar_over_time/README.md
+  lang: pt
+- id: fn-stdvar_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: 'Um sensor ficou **constante** a janela inteira. `stdvar_over_time` retorna:'
+  options:
+  - '`NaN`'
+  - '`0`'
+  - vetor vazio
+  - o próprio valor
+  answer: B
+  explanation_pt: Sem variação, todas as distâncias até a média são 0 → variância 0. (Só vira vazio se não houver nenhuma amostra na janela.)
+  source: promql-functions-lab/functions/stdvar_over_time/README.md
+  lang: pt
+- id: fn-step-1
+  domain: PromQL
+  difficulty: medium
+  question: Numa range query com `step=60s` e scrape de 15 s, qual valor o gráfico mostra para `node_load1` em cada ponto?
+  options:
+  - a média das 4 amostras do minuto
+  - a amostra mais recente anterior (ou igual) ao instante do ponto, dentro do lookback
+  - o máximo do minuto
+  - a soma das 4 amostras
+  answer: B
+  explanation_pt: 'Seletores instantâneos pegam a última amostra (até 5 min de lookback). Não há agregação automática: para máximo, use `max_over_time(x[1m])`.'
+  source: promql-functions-lab/functions/step/README.md
+  lang: pt
+- id: fn-step-2
+  domain: PromQL
+  difficulty: medium
+  question: Por que `rate(x[15s])` com scrape de 15 s costuma retornar vazio?
+  options:
+  - '`rate()` exige janela ≥ 1 min'
+  - a janela tem no máximo 1 amostra e `rate()` precisa de pelo menos 2
+  - '`rate()` não aceita segundos'
+  - o scrape interval precisa ser maior que a janela
+  answer: B
+  explanation_pt: 'Regra prática: janela ≥ 4 × scrape interval.'
+  source: promql-functions-lab/functions/step/README.md
+  lang: pt
+- id: fn-step-3
+  domain: PromQL
+  difficulty: medium
+  question: O que controla o parâmetro `step` numa chamada a `/api/v1/query_range`?
+  options:
+  - o tamanho da janela de `rate()`
+  - o intervalo entre os instantes em que a expressão é avaliada
+  - o scrape interval
+  - o retention
+  answer: B
+  explanation_pt: '`step` = resolução do resultado. Não muda a janela de `rate()` (ela é a que você escreve) nem nada no scrape.'
+  source: promql-functions-lab/functions/step/README.md
+  lang: pt
+- id: fn-sum_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: 'Para saber quantas requisições `http_requests_total` (counter) recebeu na última hora, a melhor opção é:'
+  options:
+  - '`sum_over_time(http_requests_total[1h])`'
+  - '`increase(http_requests_total[1h])`'
+  - '`sum(http_requests_total)`'
+  - '`count_over_time(http_requests_total[1h])`'
+  answer: B
+  explanation_pt: '`increase` calcula quanto o counter cresceu (tratando resets). A soma os **valores acumulados** (número gigante sem sentido); D conta amostras.'
+  source: promql-functions-lab/functions/sum_over_time/README.md
+  lang: pt
+- id: fn-sum_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Um gauge `memory_bytes` vale ~1 GiB constante, com scrape de 15s. Quanto vale `sum_over_time(memory_bytes[1m])`?
+  options:
+  - 1 GiB
+  - ~4 GiB, número sem significado físico
+  - 60 GiB
+  - '0'
+  answer: B
+  explanation_pt: 4 amostras × 1 GiB. Somar gauge de nível não faz sentido; use `avg_over_time`/`max_over_time`.
+  source: promql-functions-lab/functions/sum_over_time/README.md
+  lang: pt
+- id: fn-sum_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `sum_over_time((cpu_percent > bool 80)[10m:30s])`?
+  options:
+  - A soma da CPU acima de 80
+  - Quantos pontos (de 30s) nos últimos 10 min tiveram CPU acima de 80
+  - Erro, `bool` não pode ser usado em subquery
+  - 1 ou 0
+  answer: B
+  explanation_pt: '`> bool` vira 0/1; a subquery gera 20 pontos; a soma conta os 1s. Multiplicando por 30 = segundos acima de 80%. Sem `bool`, seria A.'
+  source: promql-functions-lab/functions/sum_over_time/README.md
+  lang: pt
+- id: fn-sum_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual relação é sempre verdadeira para uma série de floats na mesma janela?
+  options:
+  - '`sum_over_time = avg_over_time / count_over_time`'
+  - '`sum_over_time = avg_over_time × count_over_time`'
+  - '`sum_over_time = max_over_time × count_over_time`'
+  - '`sum_over_time = increase`'
+  answer: B
+  explanation_pt: 'Definição de média: soma / quantidade.'
+  source: promql-functions-lab/functions/sum_over_time/README.md
+  lang: pt
+- id: fn-tan-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `tan(rad(vector(90)))`?
+  options:
+  - '`+Inf`'
+  - '`NaN`'
+  - um número finito muito grande (~1.6e16)
+  - '`0`'
+  answer: C
+  explanation_pt: π/2 não é representável exatamente em float64; o valor fica um pouco abaixo do π/2 real e a tangente dá ~1.633e16.
+  source: promql-functions-lab/functions/tan/README.md
+  lang: pt
+- id: fn-tan-2
+  domain: PromQL
+  difficulty: medium
+  question: Você quer o **ângulo** (em graus) de uma rampa que sobe 1 m a cada 10 m. Qual query?
+  options:
+  - '`deg(tan(vector(0.1)))`'
+  - '`deg(atan(vector(0.1)))`'
+  - '`tan(rad(vector(0.1)))`'
+  - '`rad(atan(vector(0.1)))`'
+  answer: B
+  explanation_pt: A razão subida/avanço é a tangente; o ângulo vem da **inversa**, `atan`, e `deg()` converte o resultado para graus (≈ 5.71°).
+  source: promql-functions-lab/functions/tan/README.md
+  lang: pt
+- id: fn-tan-3
+  domain: PromQL
+  difficulty: medium
+  question: '`tan(node_load1)`: o que acontece com o label `__name__`?'
+  options:
+  - Mantido
+  - Removido
+  - Renomeado para `tan`
+  - Erro
+  answer: B
+  explanation_pt: Funções matemáticas removem o nome da métrica.
+  source: promql-functions-lab/functions/tan/README.md
+  lang: pt
+- id: fn-tanh-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o intervalo de valores possíveis de `tanh(x)` para x real finito?
+  options:
+  - '[0, 1]'
+  - (-1, 1)
+  - (-π/2, π/2)
+  - (-∞, +∞)
+  answer: B
+  explanation_pt: Ímpar e limitada a ±1 (C é o intervalo do `atan`).
+  source: promql-functions-lab/functions/tanh/README.md
+  lang: pt
+- id: fn-tanh-2
+  domain: PromQL
+  difficulty: medium
+  question: '`tanh(vector(+Inf))` retorna:'
+  options:
+  - '`+Inf`'
+  - '`NaN`'
+  - '`1`'
+  - erro
+  answer: C
+  explanation_pt: O limite da tangente hiperbólica no infinito é 1.
+  source: promql-functions-lab/functions/tanh/README.md
+  lang: pt
+- id: fn-tanh-3
+  domain: PromQL
+  difficulty: medium
+  question: Você aplica `tanh(queue_backlog)` com backlog típico de 5 000. O resultado é sempre 1. Por quê?
+  options:
+  - Bug do Prometheus
+  - '`tanh` exige valores entre -1 e 1'
+  - 'Faltou normalizar: tanh(5000) satura em 1; use `tanh(queue_backlog / 5000)`'
+  - '`tanh` só funciona com counters'
+  answer: C
+  explanation_pt: '`tanh` aceita qualquer real, mas satura muito antes de 5 000. Divida por uma referência.'
+  source: promql-functions-lab/functions/tanh/README.md
+  lang: pt
+- id: fn-time-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna há quantos segundos o processo foi iniciado?
+  options:
+  - '`process_start_time_seconds - time()`'
+  - '`time() - process_start_time_seconds`'
+  - '`timestamp(process_start_time_seconds)`'
+  - '`rate(process_start_time_seconds[5m])`'
+  answer: B
+  explanation_pt: Idade = agora − início. A dá um número negativo; C dá o horário do **scrape** (não o de início); D mede variação de um gauge que praticamente nunca muda.
+  source: promql-functions-lab/functions/time/README.md
+  lang: pt
+- id: fn-time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual é o tipo de retorno de `time()`?
+  options:
+  - instant vector com 1 elemento
+  - range vector
+  - scalar
+  - string
+  answer: C
+  explanation_pt: '`time()` é escalar. Para usar onde se exige vetor (ex.: `hour()`), use `vector(time())`.'
+  source: promql-functions-lab/functions/time/README.md
+  lang: pt
+- id: fn-time-3
+  domain: PromQL
+  difficulty: medium
+  question: Num gráfico de 1 h com step de 15 s, qual é o comportamento de `time()`?
+  options:
+  - linha reta com o horário de agora
+  - 'rampa: cada ponto recebe o horário da sua própria avaliação'
+  - linha reta com o horário do início do gráfico
+  - 'erro: `time()` só funciona em consultas instantâneas'
+  answer: B
+  explanation_pt: Uma consulta range é uma sequência de avaliações instantâneas, uma por step, e `time()` retorna o instante de **cada** avaliação.
+  source: promql-functions-lab/functions/time/README.md
+  lang: pt
+- id: fn-time-4
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Um exporter expõe `job_last_success_timestamp_seconds`. O job roda de hora em hora. Qual alerta é mais adequado?
+  options:
+  - '`job_last_success_timestamp_seconds < 3600`'
+  - '`time() - job_last_success_timestamp_seconds > 2 * 3600`'
+  - '`rate(job_last_success_timestamp_seconds[1h]) == 0`'
+  - '`absent(job_last_success_timestamp_seconds)`'
+  answer: B
+  explanation_pt: Compara a idade do último sucesso com uma tolerância (2 execuções). A compara um timestamp de 1970 com 1 h (sempre falso); C é frágil e sem sentido semântico; D só pega a métrica sumindo.
+  source: promql-functions-lab/functions/time/README.md
+  lang: pt
+- id: fn-timestamp-1
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `time() - timestamp(up)` num target raspado a cada 15 s, saudável?
+  options:
+  - sempre 0
+  - um valor entre 0 e ~15 segundos
+  - o uptime do target
+  - 1, porque `up == 1`
+  answer: B
+  explanation_pt: 'É a idade do último scrape: entre 0 e o scrape interval. C seria `time() - process_start_time_seconds`.'
+  source: promql-functions-lab/functions/timestamp/README.md
+  lang: pt
+- id: fn-timestamp-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual das expressões retorna o horário real de coleta das amostras?
+  options:
+  - '`timestamp(sum(node_load1))`'
+  - '`timestamp(node_load1)`'
+  - '`timestamp(rate(node_cpu_seconds_total[5m]))`'
+  - '`timestamp(avg_over_time(node_load1[5m]))`'
+  answer: B
+  explanation_pt: Só aplicado diretamente a um seletor de vetor instantâneo. Nos outros casos o resultado de uma expressão carrega o timestamp da **avaliação**.
+  source: promql-functions-lab/functions/timestamp/README.md
+  lang: pt
+- id: fn-timestamp-3
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Uma métrica do Pushgateway foi empurrada pela última vez há 20 min, com timestamp explícito. O que `metrica` retorna numa consulta instantânea agora (lookback padrão)?
+  options:
+  - o último valor, normalmente
+  - resultado vazio
+  - NaN
+  - '0'
+  answer: B
+  explanation_pt: 'Com timestamp de 20 min atrás, a amostra está fora do lookback de 5 min: a série não aparece. (Se o Pushgateway expõe **sem** timestamp, cada scrape gera uma amostra nova e a série aparece sempre; aí o frescor se mede com `push_time_seconds`.)'
+  source: promql-functions-lab/functions/timestamp/README.md
+  lang: pt
+- id: fn-timestamp-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual o tipo de retorno de `timestamp(x)`?
+  options:
+  - scalar
+  - instant vector
+  - range vector
+  - string
+  answer: B
+  explanation_pt: Um elemento por série de entrada, com os mesmos labels (o nome da métrica é removido).
+  source: promql-functions-lab/functions/timestamp/README.md
+  lang: pt
+- id: fn-ts_of_first_over_time-1
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Qual a forma **recomendada** de calcular o uptime de um processo instrumentado com client library oficial?
+  options:
+  - '`time() - ts_of_first_over_time(up[1h])`'
+  - '`time() - process_start_time_seconds`'
+  - '`count_over_time(up[1h]) * 15`'
+  - '`timestamp(up)`'
+  answer: B
+  explanation_pt: '`process_start_time_seconds` é exposto pelas client libraries e não depende de janela. A) seria cortado em 1h (e é experimental).'
+  source: promql-functions-lab/functions/ts_of_first_over_time/README.md
+  lang: pt
+- id: fn-ts_of_first_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Uma série existe há 3 horas. Quanto vale aproximadamente `time() - ts_of_first_over_time(x[1h])`?
+  options:
+  - '10800'
+  - '3600'
+  - '0'
+  - Vazio
+  answer: B
+  explanation_pt: 'A função só enxerga a janela: a amostra mais antiga dentro de `[1h]` tem ~1h de idade.'
+  source: promql-functions-lab/functions/ts_of_first_over_time/README.md
+  lang: pt
+- id: fn-ts_of_first_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `first_over_time(x[5m])` e `x offset 5m`?
+  options:
+  - Nenhuma.
+  - '`first_over_time` pega a primeira amostra **dentro** da janela de 5m; `offset 5m` pega a amostra mais recente **antes** do instante deslocado (podendo estar fora da janela).'
+  - '`offset` só funciona com counters.'
+  - '`first_over_time` é experimental.'
+  answer: B
+  explanation_pt: Exatamente o que a documentação explica sobre `first_over_time`. (Ela é estável; experimentais são `ts_of_*` e `mad_over_time`.)
+  source: promql-functions-lab/functions/ts_of_first_over_time/README.md
+  lang: pt
+- id: fn-ts_of_first_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: O label `version` de `app_build_info` muda a cada deploy. Quantas séries `app_build_info` existem, no total, na última hora se houve 4 deploys?
+  options:
+  - '1'
+  - '4'
+  - '5'
+  - Depende do scrape interval
+  answer: C
+  explanation_pt: A versão que estava rodando antes do 1º deploy + 4 novas = 5 combinações de labels = 5 séries. Cada valor de label distinto é uma série diferente.
+  source: promql-functions-lab/functions/ts_of_first_over_time/README.md
+  lang: pt
+- id: fn-ts_of_last_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Uma série parou de aparecer no scrape há 2 minutos. O que retorna `timestamp(minha_metrica)`?
+  options:
+  - O timestamp da última amostra.
+  - Vazio, porque o marcador de staleness faz o instant vector não retornar a série.
+  - O instante atual.
+  - '0.'
+  answer: B
+  explanation_pt: Quando uma série some de um scrape bem-sucedido, o Prometheus grava um *staleness marker*; o seletor instantâneo deixa de retorná-la.
+  source: promql-functions-lab/functions/ts_of_last_over_time/README.md
+  lang: pt
+- id: fn-ts_of_last_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual query devolve, para cada sensor que reportou nos últimos 30 minutos, **há quantos segundos** ele reportou pela última vez?
+  options:
+  - '`time() - timestamp(temp_celsius)`'
+  - '`time() - ts_of_last_over_time(temp_celsius[30m])`'
+  - '`absent_over_time(temp_celsius[30m])`'
+  - '`last_over_time(temp_celsius[30m])`'
+  answer: B
+  explanation_pt: A) some para sensores parados. C) só diz se **nenhuma** série existe (e perde os labels das que sumiram). D) devolve o **valor**, não o horário.
+  source: promql-functions-lab/functions/ts_of_last_over_time/README.md
+  lang: pt
+- id: fn-ts_of_last_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual a diferença entre `last_over_time(x[10m])` e `ts_of_last_over_time(x[10m])`?
+  options:
+  - Nenhuma.
+  - O primeiro devolve o **valor** da amostra mais recente; o segundo, o **timestamp** dela.
+  - O primeiro é experimental.
+  - O segundo junta todas as séries.
+  answer: B
+  explanation_pt: '`last_over_time` é estável e devolve o valor; `ts_of_last_over_time` é experimental e devolve o timestamp.'
+  source: promql-functions-lab/functions/ts_of_last_over_time/README.md
+  lang: pt
+- id: fn-ts_of_last_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: 'Um sensor está parado há 45 minutos. `time() - ts_of_last_over_time(temp[30m])` retorna para ele:'
+  options:
+  - ~2700
+  - '1800'
+  - 'Nada: não há amostras dele na janela de 30m.'
+  - +Inf
+  answer: C
+  explanation_pt: A função só enxerga a janela. Sem amostras nos últimos 30 min, a série não aparece no resultado.
+  source: promql-functions-lab/functions/ts_of_last_over_time/README.md
+  lang: pt
+- id: fn-ts_of_max_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Você quer saber **quando**, na última hora, o uso de memória de cada pod foi máximo. Qual query?
+  options:
+  - '`timestamp(max_over_time(container_memory_working_set_bytes[1h]))`'
+  - '`ts_of_max_over_time(container_memory_working_set_bytes[1h])`'
+  - '`max_over_time(timestamp(container_memory_working_set_bytes)[1h])`'
+  - '`time() - max_over_time(container_memory_working_set_bytes[1h])`'
+  answer: B
+  explanation_pt: A) retorna o instante de avaliação. C) é inválido sem subquery e, com subquery, daria o timestamp mais recente, não o do pico. D) mistura bytes com segundos.
+  source: promql-functions-lab/functions/ts_of_max_over_time/README.md
+  lang: pt
+- id: fn-ts_of_max_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: 'Na janela, a CPU bateu 100% em t=50 e novamente 100% em t=90. `ts_of_max_over_time` retorna:'
+  options:
+  - '50'
+  - '90'
+  - '70'
+  - as duas amostras
+  answer: B
+  explanation_pt: Empate → última amostra com o valor máximo. E a função retorna **uma** amostra por série.
+  source: promql-functions-lab/functions/ts_of_max_over_time/README.md
+  lang: pt
+- id: fn-ts_of_max_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Por que `ts_of_max_over_time(http_requests_total[1h])` quase sempre retorna um valor próximo de "agora"?
+  options:
+  - Porque a função ignora counters.
+  - Porque um counter só cresce, então o máximo é a amostra mais recente (salvo resets).
+  - Porque o resultado é sempre `time()`.
+  - Porque counters não têm timestamp.
+  answer: B
+  explanation_pt: 'Counters são monotônicos: o maior valor é o último. Para "quando foi o pico de **taxa**", aplique `rate` antes (subquery ou recording rule).'
+  source: promql-functions-lab/functions/ts_of_max_over_time/README.md
+  lang: pt
+- id: fn-ts_of_max_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: O que é necessário para usar `ts_of_max_over_time`?
+  options:
+  - Prometheus ≥ 2.0 sem flags.
+  - '`--enable-feature=promql-experimental-functions`.'
+  - Um histogram nativo.
+  - Um recording rule.
+  answer: B
+  explanation_pt: É uma função experimental.
+  source: promql-functions-lab/functions/ts_of_max_over_time/README.md
+  lang: pt
+- id: fn-ts_of_min_over_time-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão retorna "há quantos segundos o espaço livre em disco atingiu o menor valor da última hora"?
+  options:
+  - '`min_over_time(node_filesystem_avail_bytes[1h]) - time()`'
+  - '`time() - ts_of_min_over_time(node_filesystem_avail_bytes[1h])`'
+  - '`timestamp(min_over_time(node_filesystem_avail_bytes[1h]))`'
+  - '`ts_of_min_over_time(node_filesystem_avail_bytes[1h]) - time()`'
+  answer: B
+  explanation_pt: '`ts_of_min_over_time` dá o instante do mínimo; `time()` menos ele dá a idade (positiva). D daria negativo. C) `timestamp()` de um resultado de função retorna o instante de **avaliação**, não o do mínimo.'
+  source: promql-functions-lab/functions/ts_of_min_over_time/README.md
+  lang: pt
+- id: fn-ts_of_min_over_time-2
+  domain: PromQL
+  difficulty: medium
+  question: Na janela, o valor mínimo 0 aparece em 3 amostras (t=100, t=105, t=110). O que `ts_of_min_over_time` retorna?
+  options:
+  - '100'
+  - '105'
+  - '110'
+  - '0'
+  answer: C
+  explanation_pt: 'A documentação define: timestamp da **última** amostra com o valor mínimo.'
+  source: promql-functions-lab/functions/ts_of_min_over_time/README.md
+  lang: pt
+- id: fn-ts_of_min_over_time-3
+  domain: PromQL
+  difficulty: medium
+  question: Em que unidade vem o resultado de `ts_of_min_over_time`?
+  options:
+  - milissegundos desde 1970
+  - segundos desde 1970
+  - segundos desde o início da janela
+  - mesma unidade da métrica
+  answer: B
+  explanation_pt: Timestamps em PromQL são segundos Unix (com fração), como em `time()` e `timestamp()`.
+  source: promql-functions-lab/functions/ts_of_min_over_time/README.md
+  lang: pt
+- id: fn-ts_of_min_over_time-4
+  domain: PromQL
+  difficulty: medium
+  question: Qual condição é necessária para usar `ts_of_min_over_time` no Prometheus 3.x?
+  options:
+  - Nenhuma, é estável.
+  - '`--enable-feature=promql-experimental-functions`'
+  - '`--enable-feature=native-histograms`'
+  - Só funciona em recording rules.
+  answer: B
+  explanation_pt: Todas as `ts_of_*_over_time` (e `mad_over_time`) são experimentais.
+  source: promql-functions-lab/functions/ts_of_min_over_time/README.md
+  lang: pt
+- id: fn-vector-1
+  domain: PromQL
+  difficulty: medium
+  question: Qual o resultado de `vector(5)`?
+  options:
+  - O escalar 5
+  - Um instant vector com um elemento `{}` de valor 5
+  - Um range vector de 5 minutos
+  - 5 séries com valor 1
+  answer: B
+  explanation_pt: (sem justificativa no README)
+  source: promql-functions-lab/functions/vector/README.md
+  lang: pt
+- id: fn-vector-2
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Por que `sum(rate(errors_total[5m])) or vector(0)` é comum em dashboards?
+  options:
+  - Para arredondar o resultado
+  - Para devolver 0 quando não existem séries de erro, em vez de "No data"
+  - Para converter o counter em gauge
+  - Para somar o valor 0 ao resultado
+  answer: B
+  explanation_pt: Com dados, o `or` ignora o `vector(0)` (mesmo conjunto de labels `{}`).
+  source: promql-functions-lab/functions/vector/README.md
+  lang: pt
+- id: fn-vector-3
+  domain: PromQL
+  difficulty: medium
+  question: Qual é **inválida**?
+  options:
+  - '`sum(x) or vector(0)`'
+  - '`sum(x) or 0`'
+  - '`vector(1) + 1`'
+  - '`scalar(sum(x))`'
+  answer: B
+  explanation_pt: Operadores de conjunto (`or`, `and`, `unless`) exigem vetores dos dois lados.
+  source: promql-functions-lab/functions/vector/README.md
+  lang: pt
+- id: fn-vector-4
+  domain: PromQL
+  difficulty: medium
+  question: '`sum by (job) (rate(errors_total[5m])) or vector(0)`, quando não há erros em nenhum job, retorna:'
+  options:
+  - Uma série com valor 0 para cada job
+  - Uma série `{}` com valor 0
+  - Nada
+  - Erro de execução
+  answer: B
+  explanation_pt: '`vector(0)` não conhece os jobs; ele só tem labels vazios.'
+  source: promql-functions-lab/functions/vector/README.md
+  lang: pt
+- id: fn-year-1
+  domain: PromQL
+  difficulty: medium
+  question: Quanto vale `year(vector(1767225600))` (01/01/2026 00:00 UTC)?
+  options:
+  - '2025'
+  - '2026'
+  - depende do fuso do servidor
+  - erro
+  answer: B
+  explanation_pt: O PromQL sempre usa UTC; o fuso do servidor não influencia.
+  source: promql-functions-lab/functions/year/README.md
+  lang: pt
+- id: fn-year-2
+  domain: PromQL
+  difficulty: medium
+  question: Qual expressão dá a idade de um dispositivo em anos, com fração?
+  options:
+  - '`year() - year(manufactured_ts)`'
+  - '`(time() - manufactured_ts) / (365.25 * 86400)`'
+  - '`year(time() - manufactured_ts)`'
+  - '`rate(manufactured_ts[1y])`'
+  answer: B
+  explanation_pt: A conta viradas de ano (e ainda não casa labels sem `scalar()`); C é erro de tipo (escalar) e, se fosse vetor, daria algo como "1977"; D não faz sentido para um gauge constante.
+  source: promql-functions-lab/functions/year/README.md
+  lang: pt
+- id: fn-year-3
+  domain: PromQL
+  difficulty: medium
+  question: O que retorna `year()` às 22h de 31/12/2025 em São Paulo?
+  options:
+  - '2025'
+  - '2026'
+  - '2024'
+  - vazio
+  answer: B
+  explanation_pt: 22h BRT = 01h UTC de 01/01/2026.
+  source: promql-functions-lab/functions/year/README.md
+  lang: pt

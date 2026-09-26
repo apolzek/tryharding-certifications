@@ -1,0 +1,11 @@
+groups:
+  - name: app-aggregations
+    interval: 5s
+    rules:
+      # nível:métrica:operação -> "job:" = agregado por job
+      - record: job:http_requests:rate1m
+        expr: sum by (job) (rate(http_requests_total[1m]))
+      - record: job:http_requests_errors:rate1m
+        expr: sum by (job) (rate(http_requests_total{code=~"5.."}[1m]))
+      - record: job:http_requests_error_ratio:rate1m
+        expr: job:http_requests_errors:rate1m / job:http_requests:rate1m

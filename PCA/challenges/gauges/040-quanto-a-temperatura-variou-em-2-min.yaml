@@ -1,0 +1,23 @@
+id: "040"
+title: "Quanto a temperatura variou em 2 min"
+topic: gauges
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/delta/
+prompt: |
+  Quanto a temperatura de cada host (`delta_node_hwmon_temp_celsius`, gauge em °C) **variou nos
+  últimos 2 minutos**? (positivo = esquentou, negativo = esfriou)
+hints:
+  - "É um gauge: a função certa é a 'diferença' entre começo e fim da janela."
+  - "delta(gauge[2m])"
+  - "delta(delta_node_hwmon_temp_celsius[2m])"
+solution: 'delta(delta_node_hwmon_temp_celsius[2m])'
+wrong_answers:
+  - 'increase(delta_node_hwmon_temp_celsius[2m])'
+  - 'rate(delta_node_hwmon_temp_celsius[2m])'
+  - 'delta_node_hwmon_temp_celsius - delta_node_hwmon_temp_celsius offset 1m'
+explanation: |
+  `delta()` = último − primeiro ponto da janela (extrapolado às bordas). Pode ser negativo.
+
+  Pegadinha: `increase()`/`rate()` são para counters: interpretam toda queda de temperatura
+  como um reset e o resultado explode.

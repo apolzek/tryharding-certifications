@@ -1,0 +1,24 @@
+route:
+  receiver: default-null
+  group_by: [alertname]
+  group_wait: 2s
+  group_interval: 5s
+  repeat_interval: 1m
+  routes:
+    - matchers: ['team="payment"']
+      receiver: pager-payments
+    - matchers: ['team="data"']
+      receiver: slack-data
+
+inhibit_rules:
+  # "durante manutenção, não quero ser acordado" (time data, 3 meses atrás)
+  - source_matchers: ['alertname="DatalakeEmManutencao"']
+    target_matchers: ['severity=~"critical|warning"']
+
+receivers:
+  - name: default-null        # buraco negro: ninguém recebe
+  - name: slack-data          # (fake) canal do time data
+  - name: pager-payments
+    webhook_configs:
+      - url: http://app:9182/webhook
+        send_resolved: true

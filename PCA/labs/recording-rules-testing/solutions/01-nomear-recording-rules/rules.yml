@@ -1,0 +1,10 @@
+groups:
+  - name: ex01
+    rules:
+      # nível "job" = sobrou só o label job; métrica sem _total; operação rate5m
+      - record: job:http_requests:rate5m
+        expr: sum by (job) (rate(http_requests_total[5m]))
+
+      # nível "job_code" = sobraram job e code
+      - record: job_code:http_requests:rate5m
+        expr: sum by (job, code) (rate(http_requests_total[5m]))

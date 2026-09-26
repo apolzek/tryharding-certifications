@@ -1,0 +1,16 @@
+# Exercício 01: complete as recording rules de SLI (disponibilidade) para as janelas pedidas.
+# SLI "ruim" = fração de requisições com status 5xx.
+# Métrica: http_requests_total{job="checkout", code="200"|"500"}   (counter)
+# Convenção de nome: nível:métrica:operação  ->  job:slo_errors_per_request:ratio_rate<janela>
+groups:
+  - name: slo-checkout-sli
+    rules:
+      - record: job:slo_errors_per_request:ratio_rate5m
+        expr: vector(0)   # TODO
+      - record: job:slo_errors_per_request:ratio_rate30m
+        expr: vector(0)   # TODO
+      - record: job:slo_errors_per_request:ratio_rate1h
+        expr: vector(0)   # TODO
+      - record: job:slo_errors_per_request:ratio_rate6h
+        expr: vector(0)   # TODO
+      # TODO (desafio): 2h, 1d e 3d

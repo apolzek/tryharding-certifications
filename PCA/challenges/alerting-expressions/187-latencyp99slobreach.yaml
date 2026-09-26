@@ -1,0 +1,25 @@
+id: "187"
+title: "LatencyP99SLOBreach"
+topic: alerting-expressions
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_quantile/
+prompt: |
+  Alerta de latência: **rotas cujo p99 (5 min, somando os pods) está acima de 300 ms**. Use os buckets
+  clássicos `histogram_quantile_http_request_duration_seconds_bucket`.
+hints:
+  - "histogram_quantile(0.99, sum by (le, route) (rate(..._bucket[5m])))"
+  - "A unidade é segundos: 300 ms = 0.3."
+  - "... > 0.3"
+solution: 'histogram_quantile(0.99, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m]))) > 0.3'
+accepted_answers:
+  - 'histogram_quantile(0.99, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m]))) > 300 / 1000'
+wrong_answers:
+  - 'histogram_quantile(0.99, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m]))) > 300'
+  - 'histogram_quantile(0.99, sum by (le) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m]))) > 0.3'
+  - 'histogram_quantile(0.99, sum by (route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m]))) > 0.3'
+explanation: |
+  Em 5 min sempre cabe uma degradação do pod-b, então as duas rotas costumam estar acima de 0,3 s.
+  Convenção do Prometheus: tempo sempre em SEGUNDOS (`_seconds`).
+
+  Pegadinha: `> 300` compara com 300 segundos (5 minutos!).

@@ -1,0 +1,27 @@
+groups:
+  - name: orders
+    rules:
+      - alert: OrdersDown
+        expr: up{job="orders"} == 0
+        for: 30s
+        labels:
+          severity: page
+
+  - name: inventory
+    rules:
+      - alert: InventoryDown
+        expr: up{job="inventory"} == 0 or absent(up{job="inventory"})
+        for: 30s
+        labels:
+          severity: page
+
+  # meta-monitoramento: quem vigia o vigia?
+  - name: meta
+    rules:
+      - alert: PrometheusConfigReloadFailed
+        expr: prometheus_config_last_reload_successful == 0
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "{{ $labels.instance }} não conseguiu recarregar a config: está rodando a versão ANTIGA"

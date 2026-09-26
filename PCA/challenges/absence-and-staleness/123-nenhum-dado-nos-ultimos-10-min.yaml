@@ -1,0 +1,25 @@
+id: "123"
+title: "Nenhum dado nos últimos 10 min"
+topic: absence-and-staleness
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/absent_over_time/
+prompt: |
+  O backup semanal do payroll deveria publicar `absent_over_time_nonexistent_metric{backup="payroll"}`
+  (nunca publicou). Escreva a expressão que **retorna 1, com o label `backup="payroll"`, quando não houve
+  NENHUMA amostra dessa série nos últimos 10 minutos**.
+hints:
+  - "absent() olha só o instante; você quer a janela inteira."
+  - "Existe a versão _over_time de absent."
+  - "absent_over_time(v{backup=\"payroll\"}[10m])"
+solution: 'absent_over_time(absent_over_time_nonexistent_metric{backup="payroll"}[10m])'
+wrong_answers:
+  - 'absent_over_time(absent_over_time_nonexistent_metric[10m])'
+  - 'absent_over_time(absent_over_time_nonexistent_metric{backup=~"payroll"}[10m])'
+  - 'absent_over_time(absent_over_time_backup_heartbeat{backup="files"}[10m])'
+explanation: |
+  `absent_over_time(v[10m])` só retorna algo se NÃO houver amostra nenhuma na janela — ideal para
+  métricas esparsas (batch que reporta de vez em quando), sem disparar a cada buraco curto.
+  Assim como `absent()`, os labels vêm só dos matchers de **igualdade**.
+
+  Pegadinha: com `=~` o label não é copiado para o resultado.

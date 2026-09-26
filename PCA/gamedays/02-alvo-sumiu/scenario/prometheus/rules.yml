@@ -1,0 +1,10 @@
+groups:
+  - name: payments
+    rules:
+      - alert: PaymentsDown
+        expr: up{job="payments"} == 0
+        for: 30s
+        labels:
+          severity: page
+        annotations:
+          summary: "payments fora do ar ({{ $labels.instance }})"

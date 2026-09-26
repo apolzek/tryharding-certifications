@@ -1,0 +1,26 @@
+id: "180"
+title: "Taxa de erro 5xx global"
+topic: alerting-expressions
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/rate/
+prompt: |
+  Base do alerta `HighErrorRate`: calcule a **fração (0..1) de requisições com código 5xx**, considerando
+  todo o tráfego de `increase_http_requests_total{code}`, janela de 5 min.
+hints:
+  - "Erros por segundo ÷ total por segundo."
+  - "Agregue os dois lados com sum() antes de dividir."
+  - "sum(rate(x{code=~\"5..\"}[5m])) / sum(rate(x[5m]))"
+solution: 'sum(rate(increase_http_requests_total{code=~"5.."}[5m])) / sum(rate(increase_http_requests_total[5m]))'
+accepted_answers:
+  - 'sum(increase(increase_http_requests_total{code=~"5.."}[5m])) / sum(increase(increase_http_requests_total[5m]))'
+  - 'sum(rate(increase_http_requests_total{code="500"}[5m])) / sum(rate(increase_http_requests_total[5m]))'
+wrong_answers:
+  - 'rate(increase_http_requests_total{code=~"5.."}[5m]) / rate(increase_http_requests_total[5m])'
+  - 'sum(rate(increase_http_requests_total{code=~"5.."}[5m])) / sum(rate(increase_http_requests_total{code="200"}[5m]))'
+  - 'sum(rate(increase_http_requests_total{code=~"5.."}[5m]))'
+explanation: |
+  ≈ 0,048 (1 erro a cada 10 s de ~2,1 req/s). É a razão entre duas taxas, então `rate` ou `increase`
+  dão o mesmo resultado.
+
+  Pegadinha: dividir sem agregar casa `code="500"` com ele mesmo (= 100%).

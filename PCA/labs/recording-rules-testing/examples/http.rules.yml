@@ -1,0 +1,28 @@
+# Exemplo completo: recording rules em cadeia + alerta que usa o resultado.
+# Convenção de nome: nível:métrica:operações
+#   nível      = labels que SOBRAM depois da agregação (job, job_instance, cluster...)
+#   métrica    = nome original, sem o sufixo _total quando se aplica rate/increase
+#   operações  = o que foi feito, da mais recente para a mais antiga (rate5m, ratio_rate5m...)
+groups:
+  - name: http-recording
+    interval: 1m               # opcional; sem isso vale o evaluation_interval global
+    rules:
+      - record: job:http_requests:rate5m
+        expr: sum by (job) (rate(http_requests_total[5m]))
+
+      - record: job:http_requests_errors:rate5m
+        expr: sum by (job) (rate(http_requests_total{code=~"5.."}[5m]))
+
+      # regras do MESMO grupo rodam em sequência: esta já enxerga o resultado das duas de cima
+      - record: job:http_requests_errors:ratio_rate5m
+        expr: job:http_requests_errors:rate5m / job:http_requests:rate5m
+
+  - name: http-alerts
+    rules:
+      - alert: HighErrorRatio
+        expr: job:http_requests_errors:ratio_rate5m > 0.05
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "{{ $labels.job }} com {{ $value | humanizePercentage }} de erros"

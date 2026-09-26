@@ -1,0 +1,72 @@
+name: pca-federation-remote-write
+
+x-app: &app
+  image: python:3.14-alpine
+  command: ["python", "-u", "/app/app.py"]
+  volumes:
+    - ./app:/app:ro
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/metrics', timeout=2)"]
+    interval: 3s
+    timeout: 3s
+    retries: 20
+
+x-prom: &prom
+  image: prom/prometheus:v3.15.0
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+    interval: 3s
+    timeout: 3s
+    retries: 30
+
+services:
+  # ---- apps (só na rede interna) ----
+  app-a: { <<: *app, environment: { APP: app-a, RPS: "10" } }
+  app-b: { <<: *app, environment: { APP: app-b, RPS: "4" } }
+  app-c: { <<: *app, environment: { APP: app-c, RPS: "2" } }
+
+  # ---- "cluster a": Prometheus normal + recording rules + remote_write ----
+  prom-a:
+    <<: *prom
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.path=/prometheus, --web.enable-lifecycle]
+    volumes: [./prometheus/prom-a:/etc/prometheus]
+    ports: ["9160:9090"]
+    depends_on: [app-a]
+
+  # ---- "cluster b" ----
+  prom-b:
+    <<: *prom
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.path=/prometheus, --web.enable-lifecycle]
+    volumes: [./prometheus/prom-b:/etc/prometheus]
+    ports: ["9161:9090"]
+    depends_on: [app-b]
+
+  # ---- global: federa job:* de prom-a e prom-b ----
+  global:
+    <<: *prom
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.path=/prometheus, --web.enable-lifecycle]
+    volumes: [./prometheus/global:/etc/prometheus]
+    ports: ["9162:9090"]
+
+  # ---- receiver: um Prometheus que ACEITA remote write (faz papel de Mimir/Thanos Receive) ----
+  receiver:
+    <<: *prom
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver   # habilita POST /api/v1/write
+    volumes: [./prometheus/receiver:/etc/prometheus]
+    ports: ["9163:9090"]
+
+  # ---- agent: só raspa e envia (sem TSDB local consultável, sem regras) ----
+  agent:
+    <<: *prom
+    command:
+      - --agent                               # modo agent
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.agent.path=/prometheus      # só um WAL
+      - --web.enable-lifecycle
+    volumes: [./prometheus/agent:/etc/prometheus]
+    ports: ["9164:9090"]
+    depends_on: [app-c, receiver]

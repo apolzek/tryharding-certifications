@@ -1,0 +1,24 @@
+id: '202'
+title: '`!~`: tudo menos kube-system e batch'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#2-seletores-e-matchers
+prompt: |
+  Na métrica `sort_desc_container_cpu_usage_seconds_total{namespace, pod}`, retorne as séries de
+  **todos os namespaces exceto** `kube-system` e `batch`, usando **um único matcher**.
+hints:
+- Existe um matcher de regex negativa
+- namespace!~"a|b"
+solution: sort_desc_container_cpu_usage_seconds_total{namespace!~"kube-system|batch"}
+accepted_answers:
+- sort_desc_container_cpu_usage_seconds_total{namespace="shop"}
+- sort_desc_container_cpu_usage_seconds_total{namespace!="kube-system", namespace!="batch"}
+wrong_answers:
+- sort_desc_container_cpu_usage_seconds_total{namespace!="kube-system"}
+- sort_desc_container_cpu_usage_seconds_total{namespace=~"kube-system|batch"}
+tolerance: 0.001
+explanation: |
+  `!~` seleciona as séries cujo label **não** casa com a regex (ancorada). A alternância `a|b`
+  cobre os dois namespaces de uma vez. Sobra só o namespace `shop`.
+  `!="kube-system"` sozinho ainda deixaria passar os pods de `batch`.

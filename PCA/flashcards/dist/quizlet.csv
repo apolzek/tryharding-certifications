@@ -1,0 +1,1316 @@
+"Quais são os três pilares da observabilidade, e qual deles o Prometheus cobre?","Métricas (numéricas, agregadas, baratas: o Prometheus), logs (eventos detalhados: Loki/ELK) e traces (caminho de uma requisição entre serviços: Tempo/Jaeger)."
+Quando métricas são melhores que logs?,"Para tendências, agregação e alertas, com custo fixo por série (independe do volume de eventos). Logs servem para detalhes de eventos individuais e dados de alta cardinalidade."
+Vantagens do modelo pull?,"• Detecta target fora do ar (up == 0)
+• O servidor controla a taxa de coleta
+• Fácil depurar (abrir /metrics no navegador) e rodar uma 2ª instância
+• O target não precisa saber para onde enviar"
+Quando o push é apropriado no ecossistema Prometheus?,"Jobs batch de curta duração (service-level), que terminam antes de serem raspados, via Pushgateway. Não use push para serviços de longa duração."
+Monitoramento white-box vs black-box?,White-box: métricas internas expostas pela instrumentação da app. Black-box: sondar de fora como um usuário (ex.: blackbox_exporter → probe_success).
+"Método RED (para […]): […], […], […].","Método RED (para serviços): Rate, Errors, Duration."
+"Método USE (para […]: CPU, disco, rede): […], […], […].","Método USE (para recursos: CPU, disco, rede): Utilization, Saturation, Errors."
+Quais são os Four Golden Signals (Google SRE)?,"Latency, Traffic, Errors, Saturation."
+SLI vs SLO vs SLA?,"• SLI: indicador medido (ex.: requisições boas ÷ total)
+• SLO: meta interna para o SLI (ex.: 99,9% em 30 dias)
+• SLA: contrato com consequência (multa/crédito); normalmente mais frouxo que o SLO"
+"Qual é o error budget de um SLO de 99,9% em 30 dias?","1 − 0,999 = 0,1%. Em tempo: 0,001 × 43.200 min = 43,2 min de indisponibilidade."
+"Indisponibilidade permitida em 30 dias: 99% → […]; 99,9% → […]; 99,99% → […].","Indisponibilidade permitida em 30 dias: 99% → 7,2 h; 99,9% → 43,2 min; 99,99% → 4,32 min."
+O que é burn rate?,"Velocidade de consumo do error budget em relação ao ritmo ""ideal"". Burn rate 1 gasta o budget exatamente no período do SLO; 14,4 mantido por 1 h consome 2% de um budget de 30 dias."
+"Por que alertas de SLO usam multi-window, multi-burn-rate?","A janela longa (ex.: 1 h) dá significância (evita alarme por ruído); a curta (ex.: 5 m) faz o alerta parar logo que o problema acaba. Ex.: page se burn rate > 14,4 em 1 h e em 5 m."
+Alertar em sintomas ou em causas?,"Em sintomas (o que o usuário sente: erros, latência, indisponibilidade). Causas (CPU alta, disco) vão para dashboards/tickets, ou viram alertas só quando preveem um sintoma."
+Por que a média de latência engana?,Esconde a cauda: poucos usuários muito lentos somem na média. Use percentis (p95/p99) via histogram: histogram_quantile.
+O que é cardinalidade e por que importa?,"Número de séries únicas = combinações de valores de labels. Labels como user_id, email, IP ou URL com IDs explodem memória e disco."
+O que são exemplars?,Amostras com um trace ID anexado a um bucket/counter: permitem pular de um pico no gráfico para um trace concreto. Vêm via OpenMetrics; armazenamento com --enable-feature=exemplar-storage.
+O que é um trace e um span?,"Trace: árvore de spans de uma requisição ponta a ponta. Span: uma operação (nome, início, duração, trace_id, span_id, pai). O contexto é propagado entre serviços (W3C traceparent)."
+Qual a relação entre OpenTelemetry e Prometheus?,"O OTel é o padrão aberto de instrumentação (API/SDK/Collector) para métricas, logs e traces. O Prometheus pode receber OTLP (--web.enable-otlp-receiver) ou raspar o endpoint Prometheus do SDK/Collector."
+Monitoramento vs observabilidade?,Monitoramento responde perguntas conhecidas (dashboards/alertas pré-definidos). Observabilidade é a capacidade de responder perguntas novas a partir dos sinais que o sistema emite.
+Por que não usar o Prometheus para faturamento (billing)?,"Os dados são amostrados por scrape, rate/increase extrapolam, e scrapes podem falhar. Não é 100% exato. Para cobrança, use um sistema de eventos/logs."
+SLI de disponibilidade em PromQL?,"sum(rate(http_requests_total{code!~""5..""}[5m])) / sum(rate(http_requests_total[5m])): fração de requisições boas."
+SLI de latência em PromQL (ex.: % de requisições < 300 ms)?,"sum(rate(http_request_duration_seconds_bucket{le=""0.3""}[5m])) / sum(rate(http_request_duration_seconds_count[5m])). Para isso ser exato, é preciso ter um bucket exatamente no limiar."
+O error budget acabou. O que a política de SLO costuma prever?,Congelar releases de features e priorizar confiabilidade até o budget se recuperar.
+"Métricas, logs e traces: qual responde ""qual serviço na cadeia está lento para esta requisição""?",Traces. As métricas mostram que a latência subiu; os traces mostram onde o tempo foi gasto em uma requisição específica.
+lab slo-end-to-end · SLI = ?,bons/válidos (ou ruins/válidos) · SLO = meta numa janela · SLA = contrato · budget = 1 - SLO.
+lab slo-end-to-end · 99% → ?,"7,2h/30d · 99,9% → 43,2 min · 99,95% → 21,6 min · 99,99% → 4,3 min."
+lab slo-end-to-end · Razão de erro: ?,sum by (job)(rate(bad[w])) / sum by (job)(rate(total[w])) em recording rules job:slo_errors_per_request:ratio_rate<w>.
+lab slo-end-to-end · Burn rate = ?,razão / budget. Gasto = burn × janela / período. Tempo até zerar = período / burn.
+lab slo-end-to-end · Workbook (30d): […] · […] · […] · […]. Janela curta = longa/12.,"lab slo-end-to-end · Workbook (30d): 14,4x 1h&5m page · 6x 6h&30m page · 3x 1d&2h ticket · 1x 3d&6h ticket. Janela curta = longa/12."
+lab slo-end-to-end · Latência: ?,"rate(x_bucket{le=""0.3""}) / rate(x_count) ou histogram_fraction(0, 0.3, ...). Precisa de bucket no limiar."
+lab slo-end-to-end · Estados: inactive → ?,"pending (for) → firing. ALERTS{alertname, alertstate}. Teste com promtool test rules."
+lab slo-end-to-end · Ferramentas que geram tudo isso: ?,"Sloth, Pyrra, OpenSLO, Grafana SLO."
+⚠️ lab slo-end-to-end: pegadinha «SLO de 100% não existe». O que acontece / por quê?,"Budget zero = qualquer deploy é violação. E o usuário não percebe a diferença entre 99,99% e 100% (a rede dele falha mais que isso)."
+⚠️ lab slo-end-to-end: pegadinha «SLA ≠ SLO». O que acontece / por quê?,"SLA tem consequência contratual e é mais frouxo. O SLO é interno e mais apertado, para você agir antes do SLA."
+⚠️ lab slo-end-to-end: pegadinha «Série de erro inexistente». O que acontece / por quê?,"Se http_requests_total{code=""500""} só aparece no primeiro erro, a razão fica vazia (não 0) e o alerta nunca avalia. Inicialize os labels com 0 (o app deste lab faz WithLabelValues(""…"",""500"") no início)."
+⚠️ lab slo-end-to-end: pegadinha «Média de razões ≠ razão de somas». O que acontece / por quê?,avg_over_time(ratio_rate5m[30d]) dá peso igual à madrugada e ao pico. Use sum(rate(bad[30d])) / sum(rate(total[30d])).
+⚠️ lab slo-end-to-end: pegadinha «4xx conta?». O que acontece / por quê?,Normalmente não (erro do cliente). Mas 429 por rate limiting seu talvez conte. Decida e documente.
+⚠️ lab slo-end-to-end: pegadinha «Sem tráfego = sem SLI». O que acontece / por quê?,"Serviço fora do ar que não recebe requisição nenhuma tem razão de erro vazia, e os alertas de burn rate ficam quietos. Complemente com absent()/up == 0 ou SLI via blackbox (sondas sintéticas)."
+⚠️ lab slo-end-to-end: pegadinha «Bucket no limiar». O que acontece / por quê?,"O SLO de latência por razão de buckets só é exato se existir le exatamente no limiar (aqui, 0.3). Mudou o SLO para 250ms e não tem bucket? Estimativa (ou native histograms)."
+⚠️ lab slo-end-to-end: pegadinha «Percentil não é SLI». O que acontece / por quê?,"histogram_quantile(0.99, …) < 0.3 responde sim/não por janela; não conta eventos e não gera budget."
+⚠️ lab slo-end-to-end: pegadinha «Janela curta sozinha = barulho; janela longa sozinha = alerta que não para». O que acontece / por quê?,Por isso o and das duas.
+⚠️ lab slo-end-to-end: pegadinha «Burn rates dependem do período do SLO». O que acontece / por quê?,"14,4 vem de ""2% de 30 dias em 1h"". Para um SLO de 7 dias, recalcule (0,02 × 168h / 1h = 3,36)."
+Quais são os componentes internos de um servidor Prometheus?,"• Retrieval: service discovery + scrape
+• TSDB local
+• PromQL engine + HTTP API/UI (:9090)
+• Rule manager: recording/alerting rules; envia alertas ao Alertmanager"
+Qual é o modelo de coleta padrão do Prometheus?,Pull: HTTP GET em /metrics de cada target. Push só como exceção: Pushgateway (e receivers de remote write/OTLP).
+"Defaults do global: scrape_interval […], scrape_timeout […], evaluation_interval […].","Defaults do global: scrape_interval 1m, scrape_timeout 10s, evaluation_interval 1m."
+Quais labels todo target recebe automaticamente?,job (vem do job_name) e instance (vem do __address__ após o relabeling).
+Quais séries o Prometheus gera sozinho a cada scrape?,"up (1 = scrape ok, 0 = falhou), scrape_duration_seconds, scrape_samples_scraped, scrape_samples_post_metric_relabeling, scrape_series_added."
+Seções de topo do prometheus.yml?,"global, rule_files, scrape_configs, alerting, remote_write, remote_read (além de storage, tracing, scrape_config_files...)."
+Como recarregar a configuração sem reiniciar o Prometheus?,"kill -HUP <pid> ou curl -X POST :9090/-/reload (exige --web.enable-lifecycle). Se a nova config for inválida, a antiga continua valendo."
+Como validar configuração e regras antes de aplicar?,promtool check config prometheus.yml (valida também os rule_files referenciados) e promtool check rules rules.yml.
+relabel_configs vs metric_relabel_configs?,"• relabel_configs: antes do scrape, sobre o target (__meta_*, __address__). Decide o quê/como raspar.
+• metric_relabel_configs: depois do scrape, sobre cada amostra, antes de gravar. Serve para descartar métricas/labels caros."
+Quais são as actions de relabeling?,"replace (padrão), keep, drop, keepequal, dropequal, hashmod, labelmap, labeldrop, labelkeep, lowercase, uppercase."
+"Defaults de uma regra de relabel: regex […], separator […], replacement […], action […].","Defaults de uma regra de relabel: regex (.*), separator ;, replacement $1, action replace."
+O que acontece com labels que começam com __ depois do relabeling?,"São removidos do target (os __meta_* só existem durante o relabeling). Para labels temporários, use o prefixo __tmp."
+Quais labels especiais controlam como um target é raspado?,"__address__ (host:porta), __scheme__ (http/https), __metrics_path__ (padrão /metrics), __param_<nome> (query string), __scrape_interval__, __scrape_timeout__."
+O que faz honor_labels: true?,"Em conflito de labels, mantém os do target. Com false (padrão), os do target são renomeados para exported_<label>. Usado em federation e Pushgateway."
+Cite mecanismos de service discovery.,"static_configs, file_sd_configs (JSON/YAML, recarregado quando muda), kubernetes_sd_configs, consul_sd_configs, ec2_sd_configs, dns_sd_configs, http_sd_configs..."
+Quais são os roles do kubernetes_sd_configs?,"node, pod, service, endpoints, endpointslice, ingress."
+"Como raspar só os pods com a annotation prometheus.io/scrape: ""true""?","relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+    regex: ""true""
+    action: keep"
+Retenção padrão da TSDB: […]. Flags: --storage.tsdb.retention.[…] e --storage.tsdb.retention.[…] (vale o que estourar primeiro).,Retenção padrão da TSDB: 15d. Flags: --storage.tsdb.retention.time e --storage.tsdb.retention.size (vale o que estourar primeiro).
+Como a TSDB organiza os dados?,"• Head block em memória (amostras recentes), protegido pelo WAL em disco
+• A cada ~2 h vira um bloco imutável em disco (chunks/, index, meta.json, tombstones)
+• Compaction junta blocos em blocos maiores"
+Para que serve o WAL (write-ahead log)?,"Durabilidade do head block: após um crash/restart, o Prometheus reproduz o WAL para reconstruir os dados em memória."
+Como apagar séries da TSDB?,Admin API (precisa --web.enable-admin-api): POST /api/v1/admin/tsdb/delete_series?match[]=... grava tombstones; clean_tombstones remove do disco. Snapshots: POST /api/v1/admin/tsdb/snapshot.
+O que define a identidade de uma série temporal?,Nome da métrica + conjunto de labels (o nome é o label __name__). Qualquer valor de label diferente cria uma série nova.
+Regras de nomes de métricas e labels (formato clássico)?,"• Métrica: [a-zA-Z_:][a-zA-Z0-9_:]* (: reservado para recording rules)
+• Label: [a-zA-Z_][a-zA-Z0-9_]*; prefixo __ reservado ao uso interno
+• O Prometheus 3 também aceita UTF-8 (entre aspas: {""my.metric""})"
+O que é um staleness marker?,"Quando uma série some de um scrape (ou o target some), o Prometheus grava um marcador especial. A série deixa de aparecer em instant queries imediatamente, sem esperar o lookback de 5 min."
+Como funciona a federation?,"Um Prometheus raspa /federate?match[]=<seletor> de outro, com honor_labels: true. Use para hierarquia (global puxando agregados/recording rules), não para copiar tudo."
+Para que servem remote_write e remote_read?,"remote_write envia amostras em tempo real para um storage remoto (Thanos, Cortex, Mimir, VictoriaMetrics...) para retenção longa e visão global. remote_read consulta esses dados de volta."
+O que é o Agent mode?,"prometheus --agent: só faz scrape + remote_write (com WAL). Não tem TSDB consultável, nem regras ou alertas locais. Ideal para edge/clusters que enviam para um storage central."
+Quais são as limitações conhecidas do Prometheus?,"• Não serve para logs/eventos individuais
+• Não é 100% preciso (billing): amostragem + extrapolação
+• Single-node: escala com sharding/federation/Thanos/Mimir
+• Alta cardinalidade consome muita memória"
+Para que servem global.external_labels?,"São labels anexados quando os dados saem do Prometheus (federation, remote_write, alertas enviados ao Alertmanager), para identificar a origem (ex.: cluster, replica)."
+Endpoints de saúde do Prometheus?,/-/healthy (processo vivo) e /-/ready (pronto para servir consultas). Os targets aparecem na UI /targets e na API /api/v1/targets.
+"Portas padrão: Prometheus […], Pushgateway […], Alertmanager […] (cluster 9094), node_exporter […], blackbox_exporter […].","Portas padrão: Prometheus 9090, Pushgateway 9091, Alertmanager 9093 (cluster 9094), node_exporter 9100, blackbox_exporter 9115."
+"lab federation-remote-write · […] = pull de /federate?match[]=..., honor_labels: true, só agregados (job:*), intervalo maior. Não é backup nem long-term.","lab federation-remote-write · Federation = pull de /federate?match[]=..., honor_labels: true, só agregados (job:*), intervalo maior. Não é backup nem long-term."
+"lab federation-remote-write · […] = push a partir do WAL, queue_config (shards, capacity, max_samples_per_send, batch_send_deadline), write_relabel_configs para filtrar só o envio.","lab federation-remote-write · Remote write = push a partir do WAL, queue_config (shards, capacity, max_samples_per_send, batch_send_deadline), write_relabel_configs para filtrar só o envio."
+lab federation-remote-write · Receptor: --web.enable-remote-write-receiver → ?,POST /api/v1/write.
+"lab federation-remote-write · […] = PromQL local sobre dados crus do remoto; read_recent, required_matchers, filter_external_labels.","lab federation-remote-write · Remote read = PromQL local sobre dados crus do remoto; read_recent, required_matchers, filter_external_labels."
+lab federation-remote-write · […] = --agent: scrape + remote write + WAL. Sem queries/regras/alertas. promtool check config --agent.,lab federation-remote-write · Agent = --agent: scrape + remote write + WAL. Sem queries/regras/alertas. promtool check config --agent.
+"lab federation-remote-write · […] = carimbo de origem em tudo que sai (cluster, replica). Obrigatório com federation/remote write/HA.","lab federation-remote-write · external_labels = carimbo de origem em tudo que sai (cluster, replica). Obrigatório com federation/remote write/HA."
+"lab federation-remote-write · […] = 2 réplicas idênticas + dedup (Thanos --query.replica-label, Mimir HA tracker cluster+__replica__); alertas deduplicados pelo Alertmanager (remova replica com alert_relabel_configs).","lab federation-remote-write · HA = 2 réplicas idênticas + dedup (Thanos --query.replica-label, Mimir HA tracker cluster+__replica__); alertas deduplicados pelo Alertmanager (remova replica com alert_relabel_configs)."
+lab federation-remote-write · Long-term: ?,"Thanos, Mimir/Cortex, VictoriaMetrics, serviços gerenciados."
+lab federation-remote-write · Métricas: ?,"prometheus_remote_storage_samples_{total,failed_total,dropped_total,pending}, ..._shards, ..._queue_highest_(sent_)timestamp_seconds."
+⚠️ lab federation-remote-write: pegadinha «match[] é obrigatório». O que acontece / por quê?,"no /federate, e a regex é ancorada (job: não casa com job:x)."
+⚠️ lab federation-remote-write: pegadinha «Federation sem honor_labels: true». O que acontece / por quê?,troca job/instance da origem por exported_job/exported_instance.
+⚠️ lab federation-remote-write: pegadinha «Federar tudo». O que acontece / por quê?,"Federar tudo ({__name__=~"".+""}) é anti-padrão: scrape gigante, timeouts, e o global vira ponto único de falha com toda a cardinalidade."
+⚠️ lab federation-remote-write: pegadinha «external_labels não aparecem em queries locais». O que acontece / por quê?,"external_labels não aparecem em queries locais, só no que sai. Colocar o mesmo cluster em dois Prometheus = colisão silenciosa ou rejeição (duplicate sample)."
+⚠️ lab federation-remote-write: pegadinha «write_relabel_configs afeta só o remote write». O que acontece / por quê?,write_relabel_configs afeta só o remote write; metric_relabel_configs afeta o local e o remoto.
+⚠️ lab federation-remote-write: pegadinha «Remote write lê o WAL». O que acontece / por quê?,"se o destino ficar fora mais que a janela do WAL (~2h), dados se perdem. Monitore ..._samples_failed_total, ..._samples_pending e o atraso highest_timestamp - highest_sent_timestamp."
+⚠️ lab federation-remote-write: pegadinha «O receptor precisa de --web.enable-remote-write-receiver». O que acontece / por quê?,"O receptor precisa de --web.enable-remote-write-receiver, senão 404 em /api/v1/write."
+"⚠️ lab federation-remote-write: pegadinha «Agent não consulta, não avalia regras, não alerta». O que acontece / por quê?",rule_files/alerting/remote_read na config = erro.
+⚠️ lab federation-remote-write: pegadinha «Remote read acrescenta os external_labels do leitor». O que acontece / por quê?,como filtro (filter_external_labels: true padrão) e é processado localmente (puxa dados crus).
+⚠️ lab federation-remote-write: pegadinha «HA sem dedup». O que acontece / por quê?,= sum() em dobro. O label de réplica deve ser o único diferente entre as réplicas.
+lab service-discovery-relabeling · Pull: ?,Prometheus busca <__scheme__>://<__address__><__metrics_path__>?<__param_*> a cada scrape_interval (padrão 1m; timeout padrão 10s).
+"lab service-discovery-relabeling · […] gera __address__ + __meta_*. static (à mão) · file_sd (arquivo, hot reload) · http_sd (JSON por HTTP, __meta_url) · kubernetes/consul/ec2...","lab service-discovery-relabeling · SD gera __address__ + __meta_*. static (à mão) · file_sd (arquivo, hot reload) · http_sd (JSON por HTTP, __meta_url) · kubernetes/consul/ec2..."
+"lab service-discovery-relabeling · […] = alvos, antes do scrape. […] = séries, depois do scrape. […] = só remote write.","lab service-discovery-relabeling · relabel_configs = alvos, antes do scrape. metric_relabel_configs = séries, depois do scrape. write_relabel_configs = só remote write."
+"lab service-discovery-relabeling · Actions: replace (padrão) · keep/drop · keepequal/dropequal · hashmod · labelmap · labeldrop/labelkeep (só regex, casam […]) · lowercase/uppercase.","lab service-discovery-relabeling · Actions: replace (padrão) · keep/drop · keepequal/dropequal · hashmod · labelmap · labeldrop/labelkeep (só regex, casam nomes) · lowercase/uppercase."
+"lab service-discovery-relabeling · Regex […], RE2. separator padrão ;. replacement padrão $1.","lab service-discovery-relabeling · Regex ancorada, RE2. separator padrão ;. replacement padrão $1."
+lab service-discovery-relabeling · __* somem depois do relabel. instance = ?,__address__ se não definido. __tmp_* = rascunho seu.
+lab service-discovery-relabeling · Conflito de labels: honor_labels: false → ?,"exported_job; true → alvo vence (Pushgateway, federation)."
+"lab service-discovery-relabeling · up, scrape_duration_seconds, scrape_samples_scraped, […], scrape_series_added.","lab service-discovery-relabeling · up, scrape_duration_seconds, scrape_samples_scraped, scrape_samples_post_metric_relabeling, scrape_series_added."
+lab service-discovery-relabeling · Limites: ?,sample_limit/label_limit falham o scrape; target_limit falha o job inteiro.
+lab service-discovery-relabeling · API: ?,"/api/v1/targets (discoveredLabels x labels), ?state=dropped, ?scrapePool=<job>. UI: /targets, /service-discovery."
+lab service-discovery-relabeling · Reload: ?,POST /-/reload (com --web.enable-lifecycle) ou SIGHUP. Validar: promtool check config.
+⚠️ lab service-discovery-relabeling: pegadinha «Regex ancorada». O que acontece / por quê?,regex: payment não casa com payments. Use payment.*.
+⚠️ lab service-discovery-relabeling: pegadinha «relabel_configs ≠ metric_relabel_configs». O que acontece / por quê?,"o primeiro age em alvos (antes do scrape; não existe __name__), o segundo em séries (depois). Drop de métrica em relabel_configs não faz nada (e não dá erro!)."
+⚠️ lab service-discovery-relabeling: pegadinha «separator padrão é ;». O que acontece / por quê?,"[a, b] vira ""a;b""."
+⚠️ lab service-discovery-relabeling: pegadinha «Labels __* somem». O que acontece / por quê?,"depois do relabel. Para guardar um __meta_*, copie para um label sem __."
+⚠️ lab service-discovery-relabeling: pegadinha «Ordem importa». O que acontece / por quê?,as regras rodam em sequência. Trocar __address__ antes de copiá-lo para __param_target perde o valor original.
+⚠️ lab service-discovery-relabeling: pegadinha «Colisão silenciosa». O que acontece / por quê?,reescrever instance/remover labels até dois alvos/séries ficarem iguais mistura dados sem erro visível.
+⚠️ lab service-discovery-relabeling: pegadinha «labeldrop/labelkeep aceitam só regex». O que acontece / por quê?,labeldrop/labelkeep aceitam só regex (casam com o nome do label). promtool rejeita source_labels ali.
+⚠️ lab service-discovery-relabeling: pegadinha «labelkeep em relabel_configs». O que acontece / por quê?,"também apaga __address__, __metrics_path__...: use em metric_relabel_configs (e inclua __name__, job, instance)."
+⚠️ lab service-discovery-relabeling: pegadinha «sample_limit estourado = scrape inteiro perdido». O que acontece / por quê?,"sample_limit estourado = scrape inteiro perdido (up=0), não ""só o excesso"". O limite é conferido depois do metric_relabel_configs."
+⚠️ lab service-discovery-relabeling: pegadinha «scrape_timeout > scrape_interval». O que acontece / por quê?,é erro de config.
+⚠️ lab service-discovery-relabeling: pegadinha «up e scrape_* sempre usam os labels do alvo». O que acontece / por quê?,"up e scrape_* sempre usam os labels do alvo, nunca os expostos (mesmo com honor_labels: true)."
+⚠️ lab service-discovery-relabeling: pegadinha «Reload falho não derruba o Prometheus». O que acontece / por quê?,ele segue com a config anterior; prometheus_config_last_reload_successful vira 0.
+⚠️ lab service-discovery-relabeling: pegadinha «file_sd recarrega sozinho». O que acontece / por quê?,file_sd recarrega sozinho (inotify + refresh_interval); prometheus.yml não (precisa de SIGHUP ou POST /-/reload com --web.enable-lifecycle).
+"lab tsdb-storage · Head (RAM) + WAL (wal/, segmentos, checkpoint) → ?","blocos de 2h (index, chunks/, meta.json, tombstones) → compactação (2h→6h→18h...; máx 10% da retenção / 31d) → retenção apaga blocos."
+"lab tsdb-storage · Retenção: storage.tsdb.retention.{time,size} no config (3.x, com reload) ou flags --storage.tsdb.retention.* (deprecated). Padrão […]. Relativa ao bloco mais novo.","lab tsdb-storage · Retenção: storage.tsdb.retention.{time,size} no config (3.x, com reload) ou flags --storage.tsdb.retention.* (deprecated). Padrão 15d. Relativa ao bloco mais novo."
+lab tsdb-storage · Complete: Disco ≈ retenção(s) × amostras/s × 1-2 …,Disco ≈ retenção(s) × amostras/s × 1-2 B. RAM ∝ séries ativas (+ churn).
+lab tsdb-storage · Complete: promtool tsdb list | analyze | …,promtool tsdb list | analyze | dump | dump-openmetrics | create-blocks-from openmetrics|rules.
+lab tsdb-storage · Admin API (--web.enable-admin-api): ?,"snapshot, delete_series, clean_tombstones."
+"lab tsdb-storage · Staleness: stale marker quando série/alvo some; senão lookback […] (--query.lookback-delta, ou lookback_delta= na API).","lab tsdb-storage · Staleness: stale marker quando série/alvo some; senão lookback 5m (--query.lookback-delta, ou lookback_delta= na API)."
+lab tsdb-storage · OOO: ?,storage.tsdb.out_of_order_time_window (padrão 0 = rejeita).
+lab tsdb-storage · Self-metrics: ?,"prometheus_tsdb_head_series, ..._head_samples_appended_total, ..._wal_storage_size_bytes, ..._storage_blocks_bytes, ..._compactions_failed_total, ..._time_retentions_total."
+lab tsdb-storage · Local = ?,"1 nó, sem replicação. Longo prazo/HA global = remote write / Thanos / Mimir."
+⚠️ lab tsdb-storage: pegadinha «promtool tsdb analyze não vê a head». O que acontece / por quê?,"Ele lê blocos. Métrica nova de 10 minutos atrás? Tire um snapshot e analise o snapshot, ou use /api/v1/status/tsdb."
+⚠️ lab tsdb-storage: pegadinha «delete_series não libera disco». O que acontece / por quê?,Só grava tombstones. Precisa de clean_tombstones (ou esperar a compactação).
+⚠️ lab tsdb-storage: pegadinha «Apagar série ainda raspada é inútil». O que acontece / por quê?,ela volta no próximo scrape. Corrija na origem ou com metric_relabel_configs.
+⚠️ lab tsdb-storage: pegadinha «Retenção é por bloco e relativa ao bloco mais novo». O que acontece / por quê?,"Retenção é por bloco e relativa ao bloco mais novo, não ao relógio. E blocos só são apagados inteiros."
+⚠️ lab tsdb-storage: pegadinha «Retenção não reduz RAM». O que acontece / por quê?,Quem manda na memória são as séries ativas na head.
+⚠️ lab tsdb-storage: pegadinha «Admin API desligada por padrão». O que acontece / por quê?,Admin API desligada por padrão (--web.enable-admin-api). E /-/reload só com --web.enable-lifecycle (ou mande SIGHUP).
+⚠️ lab tsdb-storage: pegadinha «Flags de retenção estão deprecated no 3.x». O que acontece / por quê?,"Flags de retenção estão deprecated no 3.x (ainda funcionam). O jeito novo é storage.tsdb.retention no prometheus.yml, que muda com reload."
+⚠️ lab tsdb-storage: pegadinha «Unidades de tempo diferentes». O que acontece / por quê?,"OpenMetrics usa segundos (com fração); o text format clássico do Prometheus usa milissegundos; --min-time/--max-time do promtool tsdb dump são em ms; a API HTTP (time=, start=, end=) aceita unix em segundos ou RFC3339."
+⚠️ lab tsdb-storage: pegadinha «Lookback de 5m». O que acontece / por quê?,"explica ""a série continua no gráfico depois que o pod morreu"" (quando não há stale marker) e ""buracos"" com scrape/eval > 5m."
+⚠️ lab tsdb-storage: pegadinha «Snapshots não se apagam sozinhos». O que acontece / por quê?,e ficam dentro do data dir: limpe snapshots/.
+Quais são os 4 tipos de dado de uma expressão PromQL?,"• instant vector: 1 amostra por série num instante (up)
+• range vector: várias amostras por série numa janela (up[5m])
+• scalar: um número (42, scalar(...))
+• string: só literal (quase não usado)"
+rate(http_requests_total) (sem [5m]): o que acontece?,Erro de parse: rate() exige um range vector. Correto: rate(http_requests_total[5m]).
+"Os matchers =~ e !~ usam regex RE2 […]: {env=~""prod""} casa prod, mas não production (use prod.*).","Os matchers =~ e !~ usam regex RE2 totalmente ancorada: {env=~""prod""} casa prod, mas não production (use prod.*)."
+"{job=~"".*""} é um seletor válido sozinho?","Não. Todo seletor precisa de pelo menos um matcher que não case com string vazia (ou do nome da métrica). Válidos: {job=~"".+""}, {job=~"".*"", env=""prod""}, http_requests_total{job=~"".*""}."
+Como selecionar séries que não têm o label env?,"http_requests_total{env=""""}: label ausente é tratado como valor vazio."
+Como selecionar métricas por regex no nome?,"{__name__=~""http_.*_total""}: o nome da métrica é só o label __name__."
+Diferença entre o modificador offset e o modificador @?,"• x offset 1h: relativo ao instante de avaliação (valor de 1 h atrás).
+• x @ 1700000000: absoluto (timestamp Unix fixo); também @ start() / @ end().
+• Podem ser combinados: x @ 1700000000 offset 5m. Ambos vêm logo depois do seletor."
+Sintaxe de uma subquery e o que ela retorna?,"<expr instantânea>[<range>:<resolução>] → retorna range vector. Ex.: max_over_time(rate(x[5m])[1h:1m]) = maior rate de 5m na última hora, avaliado a cada 1m. Sem resolução ([1h:]) usa o evaluation_interval global."
+"No Prometheus 3.x, range selectors são […]: uma amostra exatamente no início da janela é […].","No Prometheus 3.x, range selectors são left-open: uma amostra exatamente no início da janela é excluída."
+O que é o lookback delta e qual o padrão?,5m (--query.lookback-delta). Um instant vector pega a amostra mais recente de cada série nos últimos 5 min; série sem amostra há mais de 5 min (ou com staleness marker) não aparece.
+x > 100 vs x > bool 100?,"• Sem bool: filtro. Séries falsas somem; as verdadeiras mantêm o valor original.
+• Com bool: devolve 0 ou 1 para todas as séries (remove o nome).
+• Entre dois escalares, bool é obrigatório: 1 > bool 0."
+Precedência dos operadores binários (maior → menor)?,1. ^ (associativo à direita) 2. * / % atan2 3. + - 4. == != <= < >= > 5. and unless 6. or
+Qual é o vector matching padrão em a / b entre dois instant vectors?,One-to-one: pareia séries com exatamente o mesmo conjunto de labels (ignorando __name__). Séries sem par somem. Ajuste com on(labels) ou ignoring(labels).
+Quando usar group_left? Dê um exemplo.,Many-to-one: o lado esquerdo tem várias séries para cada série do direito. group_left(labels) copia labels do lado direito: rate(node_network_receive_bytes_total[5m]) * on(instance) group_left(nodename) node_uname_info
+"and, or, unless: que tipo de matching e o que cada um retorna?","Many-to-many (set operators):
+• a and b: séries de a que têm par em b (valores de a)
+• a or b: todas de a + as de b sem par em a
+• a unless b: séries de a sem par em b"
+sum by (job) (x) vs sum without (instance) (x)?,"• by (job): mantém só os labels listados.
+• without (instance): remove os listados e mantém o resto.
+Em recording rules, without é preferido: preserva labels como job, cluster."
+Qual operador de agregação devolve as séries originais (labels intactos) em vez de uma série agregada?,"topk(k, v) e bottomk(k, v): devolvem os elementos de entrada inalterados (por grupo, se usar by). Em range queries, o conjunto pode mudar a cada step."
+"O que faz count_values(""version"", build_info)?","Conta quantas séries têm cada valor; o valor vira o label version. Ex.: {version=""1.2""} 3."
+"quantile(0.9, x) vs quantile_over_time(0.9, x[5m]) vs histogram_quantile(0.9, ...)?","• quantile: entre séries, no mesmo instante (agregação).
+• quantile_over_time: ao longo do tempo, por série.
+• histogram_quantile: estima a partir de buckets de histograma."
+rate vs irate vs increase: quando usar cada um?,"• rate: média por segundo na janela: alertas e recording rules.
+• irate: por segundo usando só as 2 últimas amostras: gráficos de counters voláteis.
+• increase: total na janela (= rate × segundos): leitura humana (""quantos na última hora"")."
+"Regra de ouro: primeiro […], depois […]: sum(rate(x[5m])). Nunca rate(sum(x)[5m:]), porque o restart de um pod vira um […].","Regra de ouro: primeiro rate, depois sum: sum(rate(x[5m])). Nunca rate(sum(x)[5m:]), porque o restart de um pod vira um reset falso do total."
+Por que increase(errors_total[1h]) pode dar 2.97 num counter que só soma inteiros?,Extrapolação: rate/increase extrapolam até as bordas da janela. Não é bug.
+Quais funções são para gauges (e não para counters)?,"delta, idelta, deriv, predict_linear (e os *_over_time). Counters: rate, irate, increase, resets."
+"O que significa predict_linear(node_filesystem_avail_bytes[6h], 4*3600) < 0?","Regressão linear sobre as últimas 6 h, projetada 4 h (em segundos) à frente. O alerta clássico: ""o disco enche em 4 h""."
+Forma correta de histogram_quantile num histograma clássico agregado por serviço?,"histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))). Mantenha o le no by e use rate."
+Como calcular a latência média a partir de um histogram ou summary?,rate(x_sum[5m]) / rate(x_count[5m]): soma das durações ÷ quantidade de observações.
+"O que absent(up{job=""api""}) retorna?","Vazio se a série existe; {job=""api""} 1 se não existe nenhuma. Serve para alertar que ""a métrica sumiu""."
+"Como evitar ""No data"" quando uma soma de erros fica vazia?",sum(rate(errors_total[5m])) or vector(0)
+scalar(v) retorna […] se v não tiver […] elemento.,scalar(v) retorna NaN se v não tiver exatamente 1 elemento.
+Assinatura de label_replace e o que acontece se a regex não casar?,"label_replace(v, ""dst"", ""replacement"", ""src"", ""regex""): destino primeiro. Regex ancorada; se não casar, a série volta inalterada (sem erro)."
+sort() / sort_desc() têm efeito em range queries (gráficos)?,Não. Só afetam instant queries (tabela/console).
+Endpoints HTTP da API para consultas?,"• /api/v1/query: instant (query, time)
+• /api/v1/query_range: range (query, start, end, step)
+• /api/v1/series, /api/v1/labels, /api/v1/label/<nome>/values: metadados"
+count(x) vs count_over_time(x[5m])?,count: número de séries no instante. count_over_time: número de amostras de cada série na janela.
+Operações aritméticas mantêm o nome da métrica?,Não: aritmética (e bool) removem __name__. Comparação usada como filtro (sem bool) mantém a série original com o nome.
+Query de taxa de erro em % de um serviço HTTP?,"100 * sum(rate(http_requests_total{code=~""5..""}[5m])) / sum(rate(http_requests_total[5m]))"
+Quais unidades de duração o PromQL aceita?,"ms, s, m, h, d, w, y, combináveis em ordem decrescente: 1h30m. 1d = 24 h, 1y = 365 d."
+Por que a janela do rate deve ser ≥ 4× o scrape_interval?,"rate precisa de no mínimo 2 amostras na janela; a folga tolera scrapes que falham. No Grafana, use $__rate_interval."
+Query de % de CPU ocupada por instância (node_exporter)?,"100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=""idle""}[5m])))"
+Operação entre um vetor com labels e um vetor sem labels (ex.: x / on() group_left vector(2)): por que às vezes precisa de on()?,Para casar séries com conjuntos de labels diferentes: on() (lista vazia) casa tudo com a série única do outro lado. Alternativa mais simples: scalar(...).
+rate/increase/irate/resets → […]. delta/deriv/predict_linear/idelta → […].,rate/increase/irate/resets → counters. delta/deriv/predict_linear/idelta → gauges.
+"Funções *_over_time, rate etc. recebem […] (x[5m]). Matemáticas (abs, ceil...) recebem […].","Funções *_over_time, rate etc. recebem range vector (x[5m]). Matemáticas (abs, ceil...) recebem instant vector."
+"[…], nunca o contrário.","Primeiro rate, depois sum, nunca o contrário."
+histogram_quantile em histograma […] precisa de le no by: sum by (le) (rate(x_bucket[5m])).,histogram_quantile em histograma clássico precisa de le no by: sum by (le) (rate(x_bucket[5m])).
+histogram_quantile retorna um valor […] (interpolação linear dentro do bucket).,histogram_quantile retorna um valor estimado (interpolação linear dentro do bucket).
+"absent() retorna […] quando a série existe e […] quando não existe. Serve para alertar ""métrica sumiu"".","absent() retorna vazio quando a série existe e 1 quando não existe. Serve para alertar ""métrica sumiu""."
+"irate usa só as […], e rate faz a média da janela. Para alertas, use rate.","irate usa só as 2 últimas amostras, e rate faz a média da janela. Para alertas, use rate."
+increase pode dar número […] por causa da extrapolação.,increase pode dar número fracionado por causa da extrapolação.
+"Funções de data (hour, day_of_week...) são em […].","Funções de data (hour, day_of_week...) são em UTC."
+sort/sort_desc só afetam […].,sort/sort_desc só afetam instant queries.
+scalar() retorna […] se o vetor não tiver […] elemento.,scalar() retorna NaN se o vetor não tiver exatamente 1 elemento.
+label_replace […] altera a série quando a regex não casa (retorna a série inalterada).,label_replace não altera a série quando a regex não casa (retorna a série inalterada).
+"[…] evita ""No data"" em painéis e alertas.","or vector(0) evita ""No data"" em painéis e alertas."
+Janela do rate ≥ […].,Janela do rate ≥ 4× scrape_interval.
+"Quase todas as funções […] (__name__) do resultado. last_over_time, sort, label_* preservam.","Quase todas as funções removem o nome da métrica (__name__) do resultado. last_over_time, sort, label_* preservam."
+abs() · abs(v instant-vector) → ?,instant vector; tira o sinal; nome da métrica é removido.
+abs() · abs(-3) = ?,"erro de tipo; abs(vector(-3)) = 3. abs(-Inf) = +Inf, abs(NaN) = NaN."
+"abs() · Alerta de desvio ""pros dois lados"": ?",abs(x - alvo) > limite (ex.: abs(node_timex_offset_seconds) > 0.05).
+abs() · avg(abs(x)) = ?,erro médio real; abs(avg(x)) cancela os sinais.
+abs() · Quer direção?,"sgn(). Quer zerar negativos? clamp_min(x, 0)."
+⚠️ abs(): pegadinha «Média antes do abs()». O que acontece / por quê?,abs(avg(erro)) ≠ avg(abs(erro)). O primeiro cancela os sinais e dá ≈ 0; o segundo dá o erro real.
+⚠️ abs(): pegadinha «abs() esconde a direção». O que acontece / por quê?,um alerta com abs() não diz se o relógio está adiantado ou atrasado. Coloque o valor cru na anotação do alerta.
+"⚠️ abs(): pegadinha «Não ""conserta"" counter com reset». O que acontece / por quê?","abs(delta(counter[5m])) numa queda de reset dá um número positivo sem sentido. Para counters, use rate()/increase()."
+⚠️ abs(): pegadinha «Nome da métrica some». O que acontece / por quê?,"como em toda função matemática, o resultado não tem mais __name__. Os outros labels ficam."
+⚠️ abs(): pegadinha «Histogramas nativos são ignorados em silêncio». O que acontece / por quê?,abs() só age em amostras float.
+absent() · absent(v) → ?,vazio se existe qualquer série; {labels =} 1 se não existe nenhuma.
+absent() · Labels deduzidos só de matchers =; regex e agregação → ?,não viram labels (sum(...) → {}).
+"absent() · absent(up{job=""x""}) = ?","job sumiu do SD; absent(up{job=""x""} == 1) = nenhum target saudável; up == 0 = scrape falhando."
+absent() · Filtre até o nível que quer vigiar: ?,absent(métrica) sem filtro quase nunca dispara.
+absent() · count(x) == 0 não detecta ausência. Quer tolerância?,absent_over_time(x[w]) ou for:.
+⚠️ absent(): pegadinha «Só dispara quando TODAS as séries do seletor somem». O que acontece / por quê?,absent(up) quase nunca dispara.
+⚠️ absent(): pegadinha «Labels do resultado vêm só dos matchers =». O que acontece / por quê?,"do seletor. Regex (=~), != e agregações não geram labels."
+"⚠️ absent(): pegadinha «Não serve para ""qual instância caiu""». O que acontece / por quê?",o resultado tem no máximo 1 elemento.
+⚠️ absent(): pegadinha «Staleness». O que acontece / por quê?,"a série some no scrape seguinte ao sumiço (staleness marker). Se o target inteiro cai, o up continua existindo (valor 0), e as outras séries do target somem."
+⚠️ absent(): pegadinha «Resultado vazio ≠ 0». O que acontece / por quê?,"em painéis, ""No data"" é o estado ""tudo bem""."
+⚠️ absent(): pegadinha «count(x) == 0 não funciona». O que acontece / por quê?,para detectar ausência: count de vetor vazio é vazio. Use absent(x).
+absent_over_time() · absent_over_time(x[w]) → ?,vazio se houve qualquer amostra na janela; {labels =} 1 se nenhuma.
+absent_over_time() · A janela é a […] ao silêncio: escolha > intervalo normal entre dados.,absent_over_time() · A janela é a tolerância ao silêncio: escolha > intervalo normal entre dados.
+absent_over_time() · Mesmas regras de labels do […] (só =; agregação → {} e precisa de subquery [w:]).,absent_over_time() · Mesmas regras de labels do absent (só =; agregação → {} e precisa de subquery [w:]).
+absent_over_time() · vs for: na regra: ?,"efeito parecido, mas a janela fica na própria expressão (serve também para dashboards)."
+absent_over_time() · present_over_time = 1 por série presente; absent_over_time = 1 se […] apareceu.,absent_over_time() · present_over_time = 1 por série presente; absent_over_time = 1 se ninguém apareceu.
+⚠️ absent_over_time(): pegadinha «Só dispara quando TODAS as séries do seletor». O que acontece / por quê?,ficam sem amostras na janela. Filtre até o nível que importa.
+⚠️ absent_over_time(): pegadinha «Janela ≥ silêncio». O que acontece / por quê?,"com janela igual ou maior que o intervalo entre execuções, nunca dispara (query 3, [4m])."
+⚠️ absent_over_time(): pegadinha «Labels deduzidos só de matchers =». O que acontece / por quê?,Labels deduzidos só de matchers =; agregação → {} (e exige subquery).
+⚠️ absent_over_time(): pegadinha «Precisa de range vector». O que acontece / por quê?,"absent_over_time(sum(x)[1h:]), não absent_over_time(sum(x))."
+⚠️ absent_over_time(): pegadinha «Resultado vazio = tudo bem». O que acontece / por quê?,"Painéis mostram ""No data""."
+⚠️ absent_over_time(): pegadinha «Staleness marker não é amostra». O que acontece / por quê?,"ele não ""conta"" como dado dentro da janela."
+"acos() · acos(v): domínio […], saída […] rad.","acos() · acos(v): domínio [-1, 1], saída [0, π] rad."
+"acos() · acos(1) = 0, acos(0) = π/2, acos(-1) = π; fora → ?",NaN.
+acos() · Geometria: ?,"deg(acos(adjacente / hipotenusa)); GPS: 6371 * acos(clamp(..., -1, 1))."
+acos() · Remove […]; histogramas ignorados.,acos() · Remove __name__; histogramas ignorados.
+"⚠️ acos(): pegadinha «Domínio [-1, 1]». O que acontece / por quê?","fora → NaN, sem erro."
+⚠️ acos(): pegadinha «NaN silencia alertas». O que acontece / por quê?,crie um alerta separado para a razão fora do domínio.
+⚠️ acos(): pegadinha «Arredondamento». O que acontece / por quê?,"acos(1.0000000000000002) = NaN. Use clamp(x, -1, 1) em fórmulas geométricas."
+⚠️ acos(): pegadinha «Radianos». O que acontece / por quê?,deg() para ler em graus.
+⚠️ acos(): pegadinha «Constantes sem labels». O que acontece / por quê?,não casam com vetores rotulados: use scalar().
+"acosh() · acosh(x): domínio […] → [0, +∞); acosh(1) = 0.","acosh() · acosh(x): domínio x ≥ 1 → [0, +∞); acosh(1) = 0."
+acosh() · x < 1 → ?,"NaN: proteja com clamp_min(x, 1)."
+"acosh() · Para x grande, ≈ […].","acosh() · Para x grande, ≈ ln(2x)."
+acosh() · Inversa de cosh (lado positivo). Remove […].,acosh() · Inversa de cosh (lado positivo). Remove __name__.
+⚠️ acosh(): pegadinha «Domínio x ≥ 1». O que acontece / por quê?,"0.999 já é NaN. Use clamp_min(x, 1)."
+⚠️ acosh(): pegadinha «NaN silencia alertas». O que acontece / por quê?,e some dos gráficos.
+⚠️ acosh(): pegadinha «Sempre ≥ 0». O que acontece / por quê?,perde o sinal de quem gerou o cosh.
+"acosh() · Não confundir com […] (domínio [-1, 1]).","acosh() · Não confundir com acos() (domínio [-1, 1])."
+acosh() · Remove […]; histogramas ignorados.,acosh() · Remove __name__; histogramas ignorados.
+"asin() · asin(v): domínio […], saída […] rad.","asin() · asin(v): domínio [-1, 1], saída [-π/2, π/2] rad."
+asin() · Fora do domínio → ?,NaN → buraco no gráfico e alerta mudo.
+asin() · Graus: ?,deg(asin(x)). Inclinômetro: deg(asin(a / 9.81)).
+asin() · Remove […]; histogramas ignorados.,asin() · Remove __name__; histogramas ignorados.
+"⚠️ asin(): pegadinha «Domínio [-1, 1]». O que acontece / por quê?","fora disso, NaN (não erro). Normalize antes: x / máximo."
+⚠️ asin(): pegadinha «NaN some do gráfico». O que acontece / por quê?,e nunca dispara alerta (NaN > x é sempre falso).
+⚠️ asin(): pegadinha «Resultado em radianos». O que acontece / por quê?,embrulhe em deg() para ler em graus.
+⚠️ asin(): pegadinha «Só dá -90°..+90°». O que acontece / por quê?,asin não distingue 30° de 150° (ambos têm seno 0.5).
+⚠️ asin(): pegadinha «Divisão entre vetores precisa casar labels». O que acontece / por quê?,use scalar() ou on()/ignoring() para a constante.
+asinh() · asinh(x) = ln(x + √(x²+1)): ?,≈ x perto de 0; ≈ ln(2x) para x grande.
+asinh() · Aceita […] (0 → 0; negativos → negativos).,asinh() · Aceita todos os reais (0 → 0; negativos → negativos).
+"asinh() · Complete: ""Log simétrico"" para gráficos …","""Log simétrico"" para gráficos de métricas com sinal."
+asinh() · Inversa: ?,sinh. Remove __name__.
+"⚠️ asinh(): pegadinha «A unidade vira ""escala asinh""». O que acontece / por quê?",não some/compare os valores transformados como se fossem msgs/s; volte com sinh().
+⚠️ asinh(): pegadinha «Escolha a unidade antes». O que acontece / por quê?,"asinh(x_segundos) e asinh(x_ms) têm formas diferentes (a ""zona linear"" é |x| < 1). Multiplique para colocar o ""ruído normal"" perto de 1."
+⚠️ asinh(): pegadinha «Não é asin()». O que acontece / por quê?,"asin tem domínio [-1, 1]; asinh aceita todos os reais."
+asinh() · Remove […]; histogramas ignorados.,asinh() · Remove __name__; histogramas ignorados.
+atan() · atan(v): qualquer real → ?,"(-π/2, π/2) rad; ±Inf → ±π/2; sem NaN de domínio."
+atan() · Ângulo de inclinação: ?,deg(atan(subida / avanço)).
+atan() · 360°/quadrante: ?,operador y atan2 x (não é função!).
+atan() · Média circular: ?,avg(sin) atan2 avg(cos).
+⚠️ atan(): pegadinha «Resultado em radianos». O que acontece / por quê?,use deg().
+⚠️ atan(): pegadinha «atan(y/x) perde o quadrante». O que acontece / por quê?,"e quebra com x = 0 (divisão por zero → ±Inf → ±90°, ou NaN se 0/0). Prefira y atan2 x."
+⚠️ atan(): pegadinha «Média de ângulos». O que acontece / por quê?,nunca faça avg_over_time de graus que cruzam 0/360.
+⚠️ atan(): pegadinha «atan é função; atan2 é operador binário». O que acontece / por quê?,"atan é função; atan2 é operador binário (como +): a atan2 b, não atan2(a, b)."
+atan() · Remove […]; histogramas ignorados.,atan() · Remove __name__; histogramas ignorados.
+"atanh() · atanh(x): domínio (-1, 1); ±1 → ?",±Inf; |x| > 1 → NaN.
+atanh() · Estresse de utilização: ?,"atanh(clamp_max(ratio, 0.9999))."
+atanh() · Fisher: ?,tanh(avg(atanh(r))).
+atanh() · Inversa de tanh. Remove […].,atanh() · Inversa de tanh. Remove __name__.
+"⚠️ atanh(): pegadinha «Domínio (-1, 1)». O que acontece / por quê?",±1 → ±Inf; fora → NaN.
+⚠️ atanh(): pegadinha «Utilização de 100% é comum». O que acontece / por quê?,"Utilização de 100% é comum (disco cheio, CPU saturada): proteja com clamp_max(x, 0.9999)."
+⚠️ atanh(): pegadinha «Unidade errada». O que acontece / por quê?,"se o dado está em percentual (0..100), divida por 100 antes, senão tudo vira NaN."
+atanh() · Não confundir com […] (que aceita qualquer real).,atanh() · Não confundir com atan() (que aceita qualquer real).
+atanh() · Remove […]; histogramas ignorados.,atanh() · Remove __name__; histogramas ignorados.
+avg_over_time() · avg_over_time(x[j]) = média […] na janela (→ tempo). avg(x) = média […] agora (↓).,avg_over_time() · avg_over_time(x[j]) = média das amostras de cada série na janela (→ tempo). avg(x) = média entre séries agora (↓).
+"avg_over_time() · Entrada […], saída […], sem __name__.","avg_over_time() · Entrada range vector, saída instant vector, sem __name__."
+avg_over_time() · Gauges e 0/1 (disponibilidade = avg_over_time(up[...])). Counter → ?,rate.
+avg_over_time() · Todas as amostras pesam igual; série sem amostra na janela […] (não vira 0).,avg_over_time() · Todas as amostras pesam igual; série sem amostra na janela some (não vira 0).
+avg_over_time() · Média esconde picos: ?,para limites use max_over_time/min_over_time.
+⚠️ avg_over_time(): pegadinha «Média esconde picos». O que acontece / por quê?,"Um pico de 15s numa janela de 5 min pesa só 5% (3 de 60 amostras) na média: 400 MiB com pico de 950 MiB vira uma média de ~430 MiB. Para limites (OOM, disco cheio), use max_over_time/min_over_time."
+⚠️ avg_over_time(): pegadinha «Todas as amostras têm o mesmo peso». O que acontece / por quê?,"Todas as amostras têm o mesmo peso, mesmo se não estiverem igualmente espaçadas (diz a documentação). Se o scrape falhou por 1 min e depois voltou, os pontos antes e depois pesam igual; não há ponderação por tempo."
+"⚠️ avg_over_time(): pegadinha «Janela nunca é ""vazia = 0""». O que acontece / por quê?","Se não há amostra na janela, a série some do resultado (não vira 0). Em SLI, um target que nunca respondeu não aparece com 0%."
+⚠️ avg_over_time(): pegadinha «avg_over_time(sum(x)[5m:]) ≠ sum(avg_over_time(x[5m]))». O que acontece / por quê?,quando séries entram e saem no meio da janela. O primeiro exige subquery ([5m:]) e custa mais.
+⚠️ avg_over_time(): pegadinha «Histogramas». O que acontece / por quê?,"com native histograms, avg_over_time faz a ""média de histogramas"". Se a janela mistura amostras float e histogram, a série é removida do resultado (com aviso)."
+⚠️ avg_over_time(): pegadinha «Range selector é aberto à esquerda». O que acontece / por quê?,"no Prometheus 3: [1m] com scrape de 5s tem 12 amostras, não 13."
+ceil() · ceil(v instant-vector) → ?,"menor inteiro ≥ valor (direção +∞). ceil(-1.5) = -1, ceil(+Inf) = +Inf, ceil(-0.5) = -0."
+"ceil() · ""Quantos eu […]?"" → ceil. ""Quantos […]?"" → floor. ""Mais próximo?"" → round.","ceil() · ""Quantos eu preciso?"" → ceil. ""Quantos completos?"" → floor. ""Mais próximo?"" → round."
+ceil() · Capacity planning: ?,ceil(sum(rate(x[5m])) / capacidade_por_pod).
+ceil() · Escalar literal não vale: ?,ceil(1.2) é erro; ceil(vector(1.2)) = 2.
+ceil() · Complete: Cuidado com ponto flutuante …,Cuidado com ponto flutuante logo acima de um inteiro.
+⚠️ ceil(): pegadinha «Ponto flutuante». O que acontece / por quê?,"valores que ""deveriam"" ser inteiros podem ter lixo na 16ª casa (3.0000000000000004) e o ceil sobe um degrau inteiro. Se necessário, subtraia uma tolerância: ceil(x - 1e-9)."
+⚠️ ceil(): pegadinha «Negativos». O que acontece / por quê?,"ceil(-1.5) = -1 (em direção ao +∞). Para ""arredondar pra longe do zero"", use sgn(x) * ceil(abs(x))."
+⚠️ ceil(): pegadinha «Zero negativo». O que acontece / por quê?,"ceil(-0.5) devolve -0. Numericamente é igual a 0, mas pode aparecer como -0 em tabelas."
+⚠️ ceil(): pegadinha «ceil antes ou depois de agregar». O que acontece / por quê?,"sum(ceil(x)) (arredonda cada série, depois soma) ≥ ceil(sum(x)). Para capacity planning por serviço, arredonde por serviço (cada um tem seus pods)."
+⚠️ ceil(): pegadinha «Não aplique em counter cru». O que acontece / por quê?,"ceil(http_requests_total) não tem sentido; primeiro rate(), depois divida, depois ceil()."
+⚠️ ceil(): pegadinha «Nome da métrica some». O que acontece / por quê?,"e histogramas nativos são ignorados, como em toda função matemática."
+"changes() · changes(v[janela]) = quantas vezes o valor […] (↑ ou ↓), inteiro.","changes() · changes(v[janela]) = quantas vezes o valor mudou (↑ ou ↓), inteiro."
+changes() · resets = só […] (counters). changes = qualquer mudança (gauges de estado).,changes() · resets = só quedas (counters). changes = qualquer mudança (gauges de estado).
+changes() · Flapping: ?,changes(up[10m]) > 4 / changes(probe_success[10m]) > 4.
+changes() · Restarts: ?,changes(process_start_time_seconds[1h]).
+"changes() · Complete: Em counter vivo ou gauge contínuo, changes …","Em counter vivo ou gauge contínuo, changes ≈ nº de amostras − 1 (inútil)."
+⚠️ changes(): pegadinha «Mudanças entre scrapes são invisíveis». O que acontece / por quê?,"se o backend cai e volta em 2s e o scrape é de 15s, o Prometheus pode nunca ver o 0. changes() só conta o que foi amostrado."
+⚠️ changes(): pegadinha «Ida e volta conta 2». O que acontece / por quê?,"1 → 0 → 1 são 2 mudanças. Para ""quantas quedas"", use resets() (conta só descidas) num gauge 0/1 com cuidado, ou count_over_time((x == 0)[10m:])."
+⚠️ changes(): pegadinha «Ruído de ponto flutuante». O que acontece / por quê?,"0.1 + 0.2 vs 0.3 são valores diferentes. Gauges ""contínuos"" mudam em quase todo scrape."
+⚠️ changes(): pegadinha «Série nova não é mudança». O que acontece / por quê?,"se a versão estiver num label (build_info{version=""1.2.3""} 1), cada versão é uma série nova com valor sempre 1, e changes() dá 0. Aí você conta séries: count(count_over_time(build_info[1h]))."
+⚠️ changes(): pegadinha «Sem extrapolação». O que acontece / por quê?,o resultado é inteiro e depende de quantas mudanças caíram dentro da janela.
+"clamp() · clamp(v, min, max): 3 argumentos; min/max são […].","clamp() · clamp(v, min, max): 3 argumentos; min/max são escalares."
+clamp() · min > max → ?,"vazio; min/max NaN → NaN; -Inf, +Inf → inalterado."
+"clamp() · Complete: clamp(v, a, b) …","clamp(v, a, b) = clamp_max(clamp_min(v, a), b)."
+"clamp() · Para […] (gauge 0..100%); para […], use o cru.","clamp() · Para exibir (gauge 0..100%); para alertar, use o cru."
+clamp() · Achatar ≠ filtrar: ?,clamp mantém a série; x > a and x < b remove.
+⚠️ clamp(): pegadinha «min > max → vazio». O que acontece / por quê?,"min > max → vazio, sem erro. Um typo (clamp(x, 100, 0)) faz o painel ficar ""No data""."
+⚠️ clamp(): pegadinha «clamp esconde anomalias». O que acontece / por quê?,108% e 100% viram a mesma coisa. Alerte no cru.
+⚠️ clamp(): pegadinha «min/max são escalares». O que acontece / por quê?,"clamp(x, 0, other_metric) é erro de tipo. Use scalar(...) ou operadores com matching (x < y e min by) para limites por série."
+"⚠️ clamp(): pegadinha «NaN não é ""consertado""». O que acontece / por quê?","clamp(NaN, 0, 1) = NaN."
+⚠️ clamp(): pegadinha «Agregar depois do clamp muda o resultado». O que acontece / por quê?,"avg(clamp(x, 0, 100)) ≠ clamp(avg(x), 0, 100)."
+⚠️ clamp(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+"clamp_max() · clamp_max(v, max): valores > max viram max; max é […].","clamp_max() · clamp_max(v, max): valores > max viram max; max é escalar."
+clamp_max() · Casos: max NaN → ?,NaN; +Inf → inalterado; -Inf → tudo -Inf.
+"clamp_max() · Para […]: cortar outliers (clamp_max(p99, 2)), gauge 0..100% (clamp_max(ratio, 1)).","clamp_max() · Para ver: cortar outliers (clamp_max(p99, 2)), gauge 0..100% (clamp_max(ratio, 1))."
+"clamp_max() · Para […] (SLO, média, alerta): valor […].","clamp_max() · Para medir (SLO, média, alerta): valor cru."
+clamp_max() · clamp_max (por série) ≠ max (entre séries) ≠ […] (no tempo).,clamp_max() · clamp_max (por série) ≠ max (entre séries) ≠ max_over_time (no tempo).
+⚠️ clamp_max(): pegadinha «Médias subestimadas». O que acontece / por quê?,"avg_over_time(clamp_max(x, 2)[…]) ignora quanto os picos passaram do teto (≈0.54 s vs ≈5.2 s no lab)."
+"⚠️ clamp_max(): pegadinha «""100%"" esconde ""240%""». O que acontece / por quê?","num gauge de utilização, o clamp_max(…, 1) apaga o sinal de subdimensionamento."
+⚠️ clamp_max(): pegadinha «max é escalar». O que acontece / por quê?,"clamp_max(x, kube_pod_container_resource_limits) é erro de tipo. Para limitar por série, use x < y or y (para cada série, o menor)."
+"⚠️ clamp_max(): pegadinha «clamp_max(x, -Inf) = tudo -Inf». O que acontece / por quê?","clamp_max(x, -Inf) = tudo -Inf (caso da doc, geralmente um typo)."
+⚠️ clamp_max(): pegadinha «Não confunda com o agregador max». O que acontece / por quê?,"max(x) pega o maior valor entre séries; clamp_max(x, 2) limita cada série."
+⚠️ clamp_max(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+"clamp_min() · clamp_min(v, min): valores < min viram min; min é […].","clamp_min() · clamp_min(v, min): valores < min viram min; min é escalar."
+clamp_min() · Casos: min NaN → ?,NaN; -Inf → inalterado; +Inf → tudo +Inf.
+clamp_min() · Negativos pós-subtração: ?,"clamp_min(a - b, 0). Divisor seguro: x / clamp_min(y, 1)."
+clamp_min() · Previsão impossível: ?,"clamp_min(predict_linear(...), 0)."
+"clamp_min() · […], 0/0 = NaN (sem erro).","clamp_min() · x/0 = ±Inf, 0/0 = NaN (sem erro)."
+"⚠️ clamp_min(): pegadinha «Esconde o ""quanto passou""». O que acontece / por quê?",-6 e -0.1 viram 0. Alerte na conta crua.
+"⚠️ clamp_min(): pegadinha «clamp_min(y, 1) como divisor muda o significado». O que acontece / por quê?","quando y é fracionário legítimo (ex.: 0.5 CPU): x / clamp_min(0.5, 1) = x / 1. Use um piso minúsculo (1e-9) se y pode ser fracionário."
+⚠️ clamp_min(): pegadinha «min é escalar». O que acontece / por quê?,"clamp_min(x, other_metric) é erro de tipo."
+"⚠️ clamp_min(): pegadinha «clamp_min(x, +Inf) = tudo +Inf». O que acontece / por quê?","clamp_min(x, +Inf) = tudo +Inf (caso da doc, geralmente um typo)."
+⚠️ clamp_min(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+cos() · cos(v): radianos → ?,"[-1, 1]; cos(0) = 1, cos(π/2) ≈ 6e-17, cos(π) = -1."
+cos() · Potência solar/projeção: ?,valor * cos(rad(ângulo_graus)).
+cos() · Par: cos(-x) = cos(x). ±Inf → ?,NaN.
+cos() · Remove […]; histogramas ignorados.,cos() · Remove __name__; histogramas ignorados.
+⚠️ cos(): pegadinha «Radianos». O que acontece / por quê?,"cos(60) = -0.95, não 0.5."
+⚠️ cos(): pegadinha «cos(π/2) não é 0». O que acontece / por quê?,use tolerância nas comparações.
+⚠️ cos(): pegadinha «Resultado negativo». O que acontece / por quê?,"quando o ângulo passa de 90°: num painel solar isso significa ""sol atrás do painel""; use clamp_min(..., 0)."
+⚠️ cos(): pegadinha «Escalar não entra». O que acontece / por quê?,cos(pi()) dá erro; use cos(vector(pi())).
+⚠️ cos(): pegadinha «±Inf → NaN». O que acontece / por quê?,e histogramas são ignorados.
+cosh() · cosh(x) = (eˣ + e⁻ˣ)/2; […]; cosh(0) = 1; par.,cosh() · cosh(x) = (eˣ + e⁻ˣ)/2; ≥ 1; cosh(0) = 1; par.
+cosh() · Catenária: ?,flecha = a * (cosh(vão/(2a)) - 1).
+cosh() · ±Inf → ?,+Inf; overflow em |x| ≈ 710.
+cosh() · Inversa (x ≥ 1): ?,acosh. Remove __name__.
+⚠️ cosh(): pegadinha «Nunca menor que 1». O que acontece / por quê?,um cosh(x) < 1 é impossível; cosh(x) - 1 é que começa em 0.
+⚠️ cosh(): pegadinha «Par». O que acontece / por quê?,perde o sinal de x.
+⚠️ cosh(): pegadinha «Overflow». O que acontece / por quê?,|x| ≳ 710 → +Inf (mesmo com x negativo).
+"cosh() · Não confundir com […] (periódica, limitada a ±1).","cosh() · Não confundir com cos() (periódica, limitada a ±1)."
+cosh() · Remove […]; histogramas ignorados.,cosh() · Remove __name__; histogramas ignorados.
+count_over_time() · count_over_time(x[j]) = […] cada série tem na janela; valor ignorado.,count_over_time() · count_over_time(x[j]) = quantas amostras cada série tem na janela; valor ignorado.
+count_over_time() · Esperado = janela / scrape interval (range […] no Prom 3: [1m] / 5s = 12).,count_over_time() · Esperado = janela / scrape interval (range aberto à esquerda no Prom 3: [1m] / 5s = 12).
+count_over_time() · Detecta […] e […]; série totalmente ausente → […] (use absent_over_time).,count_over_time() · Detecta scrapes faltando e flapping; série totalmente ausente → nada (use absent_over_time).
+count_over_time() · Counter?,"Para eventos use increase, não count_over_time."
+count_over_time() · count_over_time((x > L)[j:]) = ?,"quantos pontos acima de L (filtro, sem bool)."
+⚠️ count_over_time(): pegadinha «Série sem amostra na janela não vira 0: some do resultado». O que acontece / por quê?,count_over_time(x[1m]) < 6 não alerta quando a série sumiu totalmente. Combine com absent_over_time() ou use or on() vector(0).
+⚠️ count_over_time(): pegadinha «Depende do scrape interval». O que acontece / por quê?,"""12 por minuto"" só vale para scrape de 5s. Com 15s são 4."
+⚠️ count_over_time(): pegadinha «O valor é ignorado». O que acontece / por quê?,"uma amostra 0, NaN ou -1 conta igual a qualquer outra. Staleness markers não contam."
+⚠️ count_over_time(): pegadinha «Range aberto à esquerda (Prometheus 3)». O que acontece / por quê?,"[1m] contém 12 amostras de 5s, não 13 como em versões antigas."
+"⚠️ count_over_time(): pegadinha «Subquery conta pontos da subquery, não amostras cruas». O que acontece / por quê?","count_over_time((x > 200)[5m:5s]) conta avaliações a cada 5s; se o passo for diferente do scrape (ex.: [5m:1s]), a mesma amostra é contada várias vezes (o lookback ""repete"" o último valor)."
+⚠️ count_over_time(): pegadinha «Histogramas». O que acontece / por quê?,amostras de native histogram contam normalmente (como float).
+day_of_month() · day_of_month(v=vector(time())) → ?,"1-31, UTC."
+day_of_month() · Hoje: ?,day_of_month(); de uma métrica: day_of_month(x_timestamp_seconds).
+day_of_month() · Brasília: ?,day_of_month(vector(time() - 3*3600)) / day_of_month(x - 3*3600).
+day_of_month() · Condicionar alerta: ?,alerta and on() day_of_month() <= 5.
+day_of_month() · ms → ?,/1000; escalar → vector().
+⚠️ day_of_month(): pegadinha «UTC sempre». O que acontece / por quê?,"Brasil: das 21h à meia-noite o Prometheus já está no dia seguinte. Corrija com day_of_month(vector(time() - 3*3600)). (O Brasil não tem mais horário de verão; em países que têm, o offset muda duas vezes por ano e o PromQL não sabe disso.)"
+⚠️ day_of_month(): pegadinha «Argumento em segundos». O que acontece / por quê?,"Timestamps em ms (JavaScript, Java) → / 1000."
+⚠️ day_of_month(): pegadinha «Precisa de instant vector». O que acontece / por quê?,day_of_month(time()) dá erro de tipo; use day_of_month(vector(time())) ou só day_of_month().
+⚠️ day_of_month(): pegadinha «Combinar com outras métricas exige on()». O que acontece / por quê?,"o resultado de day_of_month() não tem labels, então x and day_of_month() <= 5 não casa com nada. Use and on()."
+⚠️ day_of_month(): pegadinha «Remove o nome da métrica». O que acontece / por quê?,"e mantém os labels: day_of_month(x{customer=""acme""}) → {customer=""acme""}."
+day_of_week() · day_of_week() → ?,"0 = domingo ... 6 = sábado, UTC."
+day_of_week() · Dia útil: ?,and on() (day_of_week() > 0 < 6).
+day_of_week() · Brasília: ?,day_of_week(vector(time() - 3*3600)). Sexta 21h BRT = sábado UTC.
+day_of_week() · Notificação por horário → ?,Alertmanager time_intervals (com location).
+⚠️ day_of_week(): pegadinha «0 = domingo». O que acontece / por quê?,"0 = domingo, não segunda. day_of_week() == 7 nunca é verdade."
+⚠️ day_of_week(): pegadinha «UTC». O que acontece / por quê?,"""sexta 21h BRT"" já é sábado. Corrija com day_of_week(vector(time() - 3*3600))."
+"⚠️ day_of_week(): pegadinha «> 0 < 6 é filtro, não booleano». O que acontece / por quê?","Se quiser 1/0, use bool: (day_of_week() > bool 0) * (day_of_week() < bool 6)."
+⚠️ day_of_week(): pegadinha «and on()». O que acontece / por quê?,é obrigatório para combinar com métricas que têm labels.
+⚠️ day_of_week(): pegadinha «Timestamps em ms». O que acontece / por quê?,→ divida por 1000 antes.
+day_of_year() · day_of_year() → ?,"1-365 (366 bissexto), UTC."
+day_of_year() · % do ano: ?,day_of_year() / 365.
+day_of_year() · Projeção anual: ?,acumulado / scalar(day_of_year()) * 365.
+day_of_year() · Vetor com labels ÷ day_of_year() = vazio → ?,use scalar().
+⚠️ day_of_year(): pegadinha «Ano bissexto». O que acontece / por quê?,"366 dias. Um / 365 fixo erra ~0,3% em 2028. Se precisar exato: day_of_year(vector(<timestamp de 31/dez>)) dá 365 ou 366."
+⚠️ day_of_year(): pegadinha «UTC». O que acontece / por quê?,a virada do ano (e de cada dia) acontece às 21h de Brasília.
+⚠️ day_of_year(): pegadinha «scalar() para combinar com métricas com labels». O que acontece / por quê?,"scalar() para combinar com métricas com labels, ou on() group_left."
+⚠️ day_of_year(): pegadinha «É um inteiro». O que acontece / por quê?,o dia 268 às 00:01 e às 23:59 vale igual. Para precisão sub-diária some hour()/24.
+days_in_month() · days_in_month() → ?,"28/29/30/31, UTC."
+days_in_month() · Projeção: ?,acumulado / scalar(dias_corridos) * scalar(days_in_month()).
+days_in_month() · Dias restantes: ?,days_in_month() - day_of_month().
+days_in_month() · Custo/h → ?,mês: sum(custo_hora) * 24 * days_in_month().
+⚠️ days_in_month(): pegadinha «Vetor sem labels + métrica com labels = vazio». O que acontece / por quê?,Use scalar() (ou on() group_left).
+⚠️ days_in_month(): pegadinha «Divisão por day_of_month() subestima». O que acontece / por quê?,no início do mês. Use dias corridos com fração.
+⚠️ days_in_month(): pegadinha «UTC». O que acontece / por quê?,"o mês vira às 21h de Brasília no último dia. O ""custo do mês"" do seu provedor de cloud pode usar outro fuso (a AWS usa UTC; outros podem usar o fuso da conta)."
+⚠️ days_in_month(): pegadinha «Dia 1 às 00h». O que acontece / por quê?,"""dias corridos"" = 0 → divisão por zero → +Inf."
+deg() · deg(x) = x · 180/π: […]. Inverso: rad().,deg() · deg(x) = x · 180/π: rad → graus. Inverso: rad().
+deg() · Não normaliza: ?,use % 360.
+deg() · Embrulha asin/acos/atan/[…] para leitura humana.,deg() · Embrulha asin/acos/atan/atan2 para leitura humana.
+deg() · Remove […]; histogramas ignorados.,deg() · Remove __name__; histogramas ignorados.
+⚠️ deg(): pegadinha «Direção». O que acontece / por quê?,deg = rad → graus. Usar deg antes de sin() é o erro clássico (o certo é rad).
+⚠️ deg(): pegadinha «Sem wrap». O que acontece / por quê?,deg(7) = 401°. Use % 360.
+⚠️ deg(): pegadinha «Negativos». O que acontece / por quê?,-90 % 360 = -90 em PromQL (o sinal segue o dividendo); para 0..360 use (deg(x) % 360 + 360) % 360.
+deg() · Remove […]; histogramas ignorados.,deg() · Remove __name__; histogramas ignorados.
+"delta() · delta(gauge[janela]) ≈ último − primeiro, […]; pode ser negativo.","delta() · delta(gauge[janela]) ≈ último − primeiro, extrapolado; pode ser negativo."
+delta() · Só gauges. Counter → ?,increase.
+"delta() · Só olha as […]: ruído nas pontas e ""ida e volta"" enganam.","delta() · Só olha as pontas: ruído nas pontas e ""ida e volta"" enganam."
+delta() · Gauge ruidoso → ?,deriv; previsão → predict_linear; últimos 2 scrapes → idelta.
+⚠️ delta(): pegadinha «Só olha as pontas». O que acontece / por quê?,um gauge que sobe e volta dentro da janela dá delta ≈ 0.
+⚠️ delta(): pegadinha «Ruído nas pontas». O que acontece / por quê?,vira ruído no resultado.
+⚠️ delta(): pegadinha «Extrapolação». O que acontece / por quê?,"como increase, o resultado é estendido até as bordas da janela, então valores inteiros viram fracionados."
+⚠️ delta(): pegadinha «Em counter». O que acontece / por quê?,"Em counter, resets viram quedas enormes."
+⚠️ delta(): pegadinha «Mistura float + histograma». O que acontece / por quê?,na janela: a série some do resultado (warning).
+deriv() · deriv(gauge[janela]) = inclinação da […] (por […]).,deriv() · deriv(gauge[janela]) = inclinação da reta de regressão (por segundo).
+deriv() · Usa todas as amostras → ?,aguenta ruído melhor que delta.
+"deriv() · Só […] (counter → rate), só floats, ≥ 2 amostras.","deriv() · Só gauges (counter → rate), só floats, ≥ 2 amostras."
+deriv() · Memory leak: ?,deriv(container_memory_working_set_bytes[1h]) > limite.
+deriv() · predict_linear = ?,"mesma reta, projetada t segundos à frente."
+⚠️ deriv(): pegadinha «Mudanças bruscas». O que acontece / por quê?,"Mudanças bruscas (OOM, reinício, limpeza de disco) dentro da janela entortam a régua por um tempo igual à janela (painel 2 logo após o OOM)."
+⚠️ deriv(): pegadinha «Janela curta». O que acontece / por quê?,"com ruído = inclinação instável. Janela longa = estável, mas reage devagar."
+⚠️ deriv(): pegadinha «Em counter». O que acontece / por quê?,"Em counter, cada reset vira uma inclinação muito negativa. Use rate."
+⚠️ deriv(): pegadinha «+Inf/-Inf». O que acontece / por quê?,na janela → resultado NaN.
+⚠️ deriv(): pegadinha «Unidade por segundo». O que acontece / por quê?,multiplique por 60/3600/86400 para ler em min/h/dia.
+"double_exponential_smoothing() · double_exponential_smoothing(gauge[janela], sf, tf) = ?",Holt linear (ex-holt_winters).
+double_exponential_smoothing() · sf ↓ = ?,mais liso/atrasado; sf ↑ = mais nervoso. tf ↑ = segue tendência (e pode dar overshoot).
+"double_exponential_smoothing() · 0 < sf, tf < 1; […] (promql-experimental-functions).","double_exponential_smoothing() · 0 < sf, tf < 1; experimental (promql-experimental-functions)."
+double_exponential_smoothing() · Só gauges; counter → ?,rate + subquery primeiro.
+double_exponential_smoothing() · Suavizar ≠ prever: previsão → ?,predict_linear.
+⚠️ double_exponential_smoothing(): pegadinha «Experimental». O que acontece / por quê?,"sem --enable-feature=promql-experimental-functions a query falha (""function not found""/desabilitada)."
+⚠️ double_exponential_smoothing(): pegadinha «sf e tf devem estar entre 0 e 1 (exclusivo)». O que acontece / por quê?,0 ou 1 geram erro.
+⚠️ double_exponential_smoothing(): pegadinha «Nome antigo». O que acontece / por quê?,holt_winters não existe mais no Prometheus 3.
+⚠️ double_exponential_smoothing(): pegadinha «Só gauges e floats». O que acontece / por quê?,"em counter, você suaviza um número que só cresce (inútil); histogramas são ignorados."
+⚠️ double_exponential_smoothing(): pegadinha «Precisa de amostras». O que acontece / por quê?,"a suavização começa do primeiro ponto da janela; com janela muito curta o ""aquecimento"" domina o resultado (a tendência inicial é x₁ − x₀, que é puro ruído)."
+double_exponential_smoothing() · […] alto + degraus = overshoot.,double_exponential_smoothing() · tf alto + degraus = overshoot.
+end() · end() = borda […] do gráfico; em instant query = time().,end() · end() = borda direita do gráfico; em instant query = time().
+end() · x @ end() → ?,valor atual como linha reta; x - x @ end() → diferença para agora.
+end() · Máx./mín. da tela: ?,max_over_time(x[range()] @ end()) (expressão → subquery [range():]).
+end() · […] só logo após seletor/subquery. Experimental. Nunca em alertas.,end() · @ só logo após seletor/subquery. Experimental. Nunca em alertas.
+⚠️ end(): pegadinha «Experimental». O que acontece / por quê?,precisa de --enable-feature=promql-experimental-functions.
+⚠️ end(): pegadinha «Em instant query end() = time()». O que acontece / por quê?,x - x @ end() = 0 em stat/alerta.
+⚠️ end(): pegadinha «@ só depois de seletor/subquery». O que acontece / por quê?,"@ só depois de seletor/subquery, nunca depois de função."
+⚠️ end(): pegadinha «[range()] em instant query». O que acontece / por quê?,"= [0s] → erro ""duration must be greater than 0""."
+⚠️ end(): pegadinha «Grafana alinha end». O que acontece / por quê?,"ao step; a borda direita pode estar alguns segundos antes de ""agora""."
+exp() · exp(v) = eˣ; inverso de ln: ?,exp(ln(x)) = x.
+"exp() · Complete: exp(0) = 1, exp(-Inf) = 0, exp(+Inf) …","exp(0) = 1, exp(-Inf) = 0, exp(+Inf) = +Inf, exp(NaN) = NaN, exp(>709) = +Inf."
+exp() · Crescimento composto: ?,x * exp(r * t) com r = deriv(ln(x)[janela:passo]).
+exp() · Média geométrica: ?,exp(avg(ln(x))). Sigmoide: 1 / (1 + exp(-x)).
+"exp() · Potência genérica é […], não exp.","exp() · Potência genérica é ^, não exp."
+⚠️ exp(): pegadinha «Overflow». O que acontece / por quê?,exp(x) com x > ~709.78 vira +Inf. Cuidado com unidades: exp(r * t) com r por segundo e t em segundos (não misture dias com segundos).
+⚠️ exp(): pegadinha «exp amplifica erros». O que acontece / por quê?,um erro pequeno na taxa r vira um erro enorme na projeção de longo prazo. Projete horizontes curtos.
+⚠️ exp(): pegadinha «Precisão». O que acontece / por quê?,exp(ln(42)) = 42.00000000000001. Não compare com ==.
+⚠️ exp(): pegadinha «exp não é potência genérica». O que acontece / por quê?,"2ˣ é 2 ^ x, não exp(x). (2 ^ x = exp(x * ln(2)).)"
+⚠️ exp(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+"first_over_time() · first_over_time(x[j]) = […] de (t−j, t]; x offset j = última amostra […] t−j (com lookback).","first_over_time() · first_over_time(x[j]) = 1ª amostra dentro de (t−j, t]; x offset j = última amostra até t−j (com lookback)."
+first_over_time() · Série nova/esparsa: offset → […]; first_over_time → […].,first_over_time() · Série nova/esparsa: offset → vazio; first_over_time → valor.
+"first_over_time() · x - first_over_time(x[j]) = variação […] (≠ delta), […] tratar reset (≠ increase).","first_over_time() · x - first_over_time(x[j]) = variação sem extrapolação (≠ delta), sem tratar reset (≠ increase)."
+first_over_time() · first_over_time(m[step()]) em range queries mantém a amostra […].,first_over_time() · first_over_time(m[step()]) em range queries mantém a amostra dentro do passo.
+first_over_time() · Mantém […].,first_over_time() · Mantém __name__.
+⚠️ first_over_time(): pegadinha «first_over_time(x[1m]) ≠ x offset 1m». O que acontece / por quê?,"O primeiro olha dentro de (t−1m, t]; o segundo, a última amostra em ou antes de t−1m (até 5 min antes, o lookback)."
+⚠️ first_over_time(): pegadinha «Não trata resets». O que acontece / por quê?,"em counters, x - first_over_time(x[1h]) fica negativo após um restart. Use increase()."
+"⚠️ first_over_time(): pegadinha «O ""primeiro"" depende do começo da janela». O que acontece / por quê?","O ""primeiro"" depende do começo da janela, não do começo da série: com a janela deslizando, o ""valor inicial"" muda a cada passo."
+⚠️ first_over_time(): pegadinha «Mantém __name__». O que acontece / por quê?,Mantém __name__ (como last_over_time).
+⚠️ first_over_time(): pegadinha «Custo». O que acontece / por quê?,lê a janela toda; em janelas enormes ([30d]) é mais caro que offset.
+floor() · floor(v instant-vector) → ?,"maior inteiro ≤ valor (direção -∞). floor(-1.5) = -2, floor(+Inf) = +Inf."
+"floor() · ""Quantos […]?"" (lotes, dias de uptime) → floor. ""Quantos […]?"" → ceil.","floor() · ""Quantos completos?"" (lotes, dias de uptime) → floor. ""Quantos preciso?"" → ceil."
+floor() · Uptime: ?,time() - process_start_time_seconds; dias completos: floor(... / 86400).
+floor() · floor(x / n) = ?,"quociente inteiro, x % n = resto."
+floor() · Truncar: ?,sgn(x) * floor(abs(x)).
+⚠️ floor(): pegadinha «Negativos». O que acontece / por quê?,"floor(-1.5) = -2, não -1. floor não é truncar. Para truncar: sgn(x) * floor(abs(x))."
+⚠️ floor(): pegadinha «Ponto flutuante». O que acontece / por quê?,"7.999999999999999 vira 7. Se o valor ""deveria"" ser inteiro, some uma tolerância: floor(x + 1e-9)."
+⚠️ floor(): pegadinha «Ordem das operações». O que acontece / por quê?,"floor(x) / 100 ≠ floor(x / 100). Divida primeiro, arredonde depois."
+⚠️ floor(): pegadinha «Agregação». O que acontece / por quê?,sum(floor(x / 100)) (lotes cheios por fila) ≠ floor(sum(x) / 100) (juntando todas as mensagens). Escolha o que faz sentido fisicamente.
+⚠️ floor(): pegadinha «Nome da métrica some». O que acontece / por quê?,"e histogramas nativos são ignorados, como em toda função matemática."
+histogram_avg() · histogram_avg(rate(x[5m])) = histogram_sum(...)/histogram_count(...) (só […]).,histogram_avg() · histogram_avg(rate(x[5m])) = histogram_sum(...)/histogram_count(...) (só native).
+histogram_avg() · Classic/summary: ?,rate(x_sum[5m]) / rate(x_count[5m]).
+histogram_avg() · Agregue antes de dividir: ?,histogram_avg(sum(rate(x[5m]))). Nunca avg(histogram_avg(...)).
+"histogram_avg() · A média é […] (não é estimativa), mas […]: para SLO use quantis/fração.","histogram_avg() · A média é exata (não é estimativa), mas esconde a cauda: para SLO use quantis/fração."
+histogram_avg() · Sem rate = ?,média desde o start do processo.
+⚠️ histogram_avg(): pegadinha «Só native». O que acontece / por quê?,"em floats o resultado é vazio sem erro. Se o painel ""sumiu"", confira se você não está consultando x_bucket."
+⚠️ histogram_avg(): pegadinha «Média de médias». O que acontece / por quê?,agregue os histogramas com sum antes de histogram_avg.
+histogram_avg() · Esquecer o […].,histogram_avg() · Esquecer o rate().
+histogram_avg() · Complete: A média esconde …,A média esconde a cauda.
+⚠️ histogram_avg(): pegadinha «Não há estimativa aqui». O que acontece / por quê?,"diferente de quantis, a média usa sum e count exatos (não depende da resolução dos buckets)."
+⚠️ histogram_avg(): pegadinha «Janela sem observações». O que acontece / por quê?,→ NaN (0/0).
+histogram_count() · histogram_count(rate(x[5m])) (native) = ?,rate(x_count[5m]) (classic) = eventos por segundo.
+histogram_count() · histogram_count(increase(x[1h])) = ?,eventos na última hora.
+histogram_count() · […] == _count.,"histogram_count() · _bucket{le=""+Inf""} == _count."
+histogram_count() · count() = ?,séries · count_over_time() = amostras · histogram_count() = observações.
+histogram_count() · count × histogram_fraction = ?,quantos eventos numa faixa.
+⚠️ histogram_count(): pegadinha «Só native». O que acontece / por quê?,"histogram_count(x_count) ou histogram_count(x_bucket) dão vazio, sem erro."
+⚠️ histogram_count(): pegadinha «Sem rate/increase». O que acontece / por quê?,é um total acumulado desde o start.
+⚠️ histogram_count(): pegadinha «Confundir com count()». O que acontece / por quê?,count(x) conta séries; histogram_count(x) conta observações dentro de cada histograma.
+⚠️ histogram_count(): pegadinha «Resultado fracionado». O que acontece / por quê?,Resultado fracionado (ex.: 4.27 req/s): rate extrapola e faz média na janela. Normal.
+⚠️ histogram_count(): pegadinha «histogram_count(increase(...)) não é inteiro». O que acontece / por quê?,mesma extrapolação do increase().
+"histogram_fraction() · histogram_fraction(lo, hi, rate(x[5m])) → ?",fração 0..1 entre lo e hi (classic com le ou native).
+"histogram_fraction() · SLO classic: rate(x_bucket{le=""0.2""}[5m]) / rate(x_count[5m]). O bucket do SLO […].","histogram_fraction() · SLO classic: rate(x_bucket{le=""0.2""}[5m]) / rate(x_count[5m]). O bucket do SLO tem que existir."
+histogram_fraction() · Apdex = ?,(F(T) + F(4T)) / 2.
+histogram_fraction() · Fração lenta: ?,"histogram_fraction(T, +Inf, ...). Quantidade: × histogram_count."
+histogram_fraction() · Inverso de histogram_quantile. Limite desalinhado = ?,estimativa.
+⚠️ histogram_fraction(): pegadinha «Limite desalinhado com o bucket». O que acontece / por quê?,Limite desalinhado com o bucket (classic): o resultado é uma estimativa que pode ser bem ruim. Com native o erro é pequeno.
+⚠️ histogram_fraction(): pegadinha «lower = 0 vs -Inf». O que acontece / por quê?,"para durações, 0 basta. Se o histograma tiver valores negativos, use -Inf para incluir ""tudo até o limite""."
+⚠️ histogram_fraction(): pegadinha «Inclusivo/exclusivo». O que acontece / por quê?,"só importa se o limite cai exatamente num limite de bucket. Em schemas exponenciais padrão, o limite superior do bucket é inclusivo."
+⚠️ histogram_fraction(): pegadinha «NaN observados». O que acontece / por quê?,"ficam fora de qualquer bucket no native: histogram_fraction(-Inf, +Inf, b) pode dar menos que 1."
+⚠️ histogram_fraction(): pegadinha «Sem rate()». O que acontece / por quê?,= fração desde que o processo subiu (quase não reage).
+⚠️ histogram_fraction(): pegadinha «Classic: esqueceu o le no by». O que acontece / por quê?,→ vazio.
+histogram_fraction() · Janela sem observações → ?,NaN.
+histogram_quantile() · Classic: ?,"histogram_quantile(φ, sum by (<labels>, le) (rate(x_bucket[5m]))). Native: histogram_quantile(φ, sum by (<labels>) (rate(x[5m])))."
+"histogram_quantile() · φ entre 0 e 1. Resultado é […] (linear no classic, exponencial no native).","histogram_quantile() · φ entre 0 e 1. Resultado é estimativa (linear no classic, exponencial no native)."
+"histogram_quantile() · Agregue […], nunca quantis. Summary não agrega; histogram agrega.","histogram_quantile() · Agregue buckets, nunca quantis. Summary não agrega; histogram agrega."
+histogram_quantile() · Quantil no bucket +Inf → ?,devolve o maior limite finito. Coloque buckets perto do SLO.
+histogram_quantile() · Sem observações → ?,"NaN. Sem rate → ""desde sempre""."
+⚠️ histogram_quantile(): pegadinha «Esquecer o le no by». O que acontece / por quê?,"Esquecer o le no by (classic): sum by (job) (rate(x_bucket[5m])) → resultado vazio. Tem que ser sum by (job, le)."
+⚠️ histogram_quantile(): pegadinha «Colocar le com native». O que acontece / por quê?,native não tem le; use sum by (job) (rate(x[5m])).
+⚠️ histogram_quantile(): pegadinha «Sem rate()». O que acontece / por quê?,"vira o quantil ""desde sempre""."
+⚠️ histogram_quantile(): pegadinha «Média de quantis». O que acontece / por quê?,matematicamente errado.
+⚠️ histogram_quantile(): pegadinha «Quantil no bucket +Inf». O que acontece / por quê?,"Quantil no bucket +Inf (classic): a função devolve o limite do penúltimo bucket (ex.: 5). Se o seu p99 fica ""grudado"" num número redondo, seus buckets são curtos demais."
+⚠️ histogram_quantile(): pegadinha «Resultado é estimativa». O que acontece / por quê?,classic interpola linearmente; native interpola exponencialmente (bem mais preciso). Nenhum dos dois é o valor exato.
+⚠️ histogram_quantile(): pegadinha «Sem observações na janela». O que acontece / por quê?,→ NaN (ex.: rota sem tráfego). No Grafana aparece como buraco.
+⚠️ histogram_quantile(): pegadinha «φ fora de 0..1». O que acontece / por quê?,"φ < 0 → -Inf, φ > 1 → +Inf. Use 0.99, não 99!"
+⚠️ histogram_quantile(): pegadinha «Mensagem input to histogram_quantile needed to be fixed for monotonicity». O que acontece / por quê?,"buckets classic não cumulativos, geralmente por mistura de séries diferentes. Investigue a origem."
+"histogram_quantiles() · histogram_quantiles(v, ""label"", φ1, ..., φ10): ?","até 10 quantis, uma série por φ."
+histogram_quantiles() · Experimental: ?,precisa de promql-experimental-functions.
+histogram_quantiles() · Mesmas regras do singular: ?,"rate dentro, le no by (classic), sem le (native)."
+histogram_quantiles() · Valor do label é texto ([…]); não use um nome de label que já exista no resultado.,"histogram_quantiles() · Valor do label é texto (""0.99""); não use um nome de label que já exista no resultado."
+"histogram_quantiles() · Olhe p50 […] p99: mediana = típico, p99 = cauda.","histogram_quantiles() · Olhe p50 e p99: mediana = típico, p99 = cauda."
+⚠️ histogram_quantiles(): pegadinha «É experimental». O que acontece / por quê?,"pode mudar de nome/comportamento em versões futuras. Em alertas críticos, prefira histogram_quantile()."
+⚠️ histogram_quantiles(): pegadinha «Máximo de 10 quantis». O que acontece / por quê?,por chamada.
+⚠️ histogram_quantiles(): pegadinha «O nome do label não pode colidir». O que acontece / por quê?,"com um label que já existe no resultado (ex.: não use ""service"" se você fez sum by (service)). Prefira ""quantile"" ou algo único como ""pct""."
+⚠️ histogram_quantiles(): pegadinha «O valor do label é texto». O que acontece / por quê?,"quantile=""0.5"", não ""0.50"". Filtre depois com {quantile=""0.99""} exatamente como aparece."
+⚠️ histogram_quantiles(): pegadinha «Classic: le no by». O que acontece / por quê?,"Classic: le no by, native: sem le. Mesma regra do histogram_quantile()."
+⚠️ histogram_quantiles(): pegadinha «Sem rate()». O que acontece / por quê?,"= quantis ""desde que o processo subiu""."
+histogram_quantiles() · Todas as pegadinhas de interpolação de […] valem aqui também.,histogram_quantiles() · Todas as pegadinhas de interpolação de histogram_quantile() valem aqui também.
+histogram_stddev() · histogram_stddev(rate(x[5m])) → ?,σ estimado das observações (só native; floats → vazio).
+histogram_stddev() · Estimativa: ?,cada observação = meio do seu bucket (geométrico nos exponenciais).
+histogram_stddev() · Mesma média ≠ mesmo comportamento. CV = ?,σ / média.
+histogram_stddev() · Latência é assimétrica: ?,média ± 2σ pode dar negativo. Para limites use quantis.
+histogram_stddev() · stddev() (entre séries) · […] (no tempo) · histogram_stddev() (dentro do histograma).,histogram_stddev() · stddev() (entre séries) · stddev_over_time() (no tempo) · histogram_stddev() (dentro do histograma).
+⚠️ histogram_stddev(): pegadinha «É estimativa». O que acontece / por quê?,todas as observações de um bucket são tratadas como se valessem o meio dele. Com native (buckets de ~9%) o erro é pequeno; no stable o valor sai ≈ 10.3ms em vez de 10.0ms.
+⚠️ histogram_stddev(): pegadinha «Só native». O que acontece / por quê?,"em floats → vazio, sem erro."
+⚠️ histogram_stddev(): pegadinha «Média ± kσ em dados assimétricos». O que acontece / por quê?,gera limites absurdos.
+⚠️ histogram_stddev(): pegadinha «Sem rate()». O que acontece / por quê?,= desvio de tudo desde o start do processo.
+⚠️ histogram_stddev(): pegadinha «Agregação». O que acontece / por quê?,"histogram_stddev(sum(rate(x[1m]))) é o desvio do conjunto de observações (misturando serviços, o desvio cresce se as médias forem diferentes). avg(histogram_stddev(...)) é outra coisa."
+⚠️ histogram_stddev(): pegadinha «Não confunda». O que acontece / por quê?,com stddev() (entre séries) e stddev_over_time() (ao longo do tempo de uma série float).
+"histogram_stdvar() · histogram_stdvar(rate(x[5m])) = variância estimada, unidade², só […].","histogram_stdvar() · histogram_stdvar(rate(x[5m])) = variância estimada, unidade², só native."
+histogram_stdvar() · Complete: sqrt(histogram_stdvar(x)) == histogram_stddev(x). …,sqrt(histogram_stdvar(x)) == histogram_stddev(x).
+histogram_stdvar() · Complete: Variância amplifica diferenças (quadrado); boa …,"Variância amplifica diferenças (quadrado); boa para detecção/estatística, ruim para leitura humana."
+histogram_stdvar() · Complete: Variâncias de partes independentes …,Variâncias de partes independentes se somam; desvios não.
+histogram_stdvar() · stdvar() (entre séries) · […] (no tempo) · histogram_stdvar() (dentro do histograma).,histogram_stdvar() · stdvar() (entre séries) · stdvar_over_time() (no tempo) · histogram_stdvar() (dentro do histograma).
+⚠️ histogram_stdvar(): pegadinha «Unidade ao quadrado». O que acontece / por quê?,"0.108 s² não é ""108ms"". Tire a raiz antes de comparar com latências."
+⚠️ histogram_stdvar(): pegadinha «Escala esmagada». O que acontece / por quê?,valores pequenos somem no gráfico; considere escala log no Grafana ou use stddev.
+⚠️ histogram_stdvar(): pegadinha «É estimativa». O que acontece / por quê?,"É estimativa (valores no meio do bucket), igual ao stddev."
+⚠️ histogram_stdvar(): pegadinha «Só native». O que acontece / por quê?,"em floats → vazio, sem erro."
+⚠️ histogram_stdvar(): pegadinha «Sem rate()». O que acontece / por quê?,= variância desde o start do processo.
+⚠️ histogram_stdvar(): pegadinha «Variância do conjunto ≠ média das variâncias». O que acontece / por quê?,quando as médias ou os tráfegos diferem.
+histogram_sum() · histogram_sum(rate(x[5m])) (native) = ?,rate(x_sum[5m]) (classic) = unidade/s.
+histogram_sum() · Bytes → ?,throughput. Durações → concorrência média (Lei de Little).
+histogram_sum() · Média = ?,sum ÷ count (= histogram_avg).
+histogram_sum() · sum() ≠ histogram_sum() ≠ […].,histogram_sum() · sum() ≠ histogram_sum() ≠ sum_over_time().
+histogram_sum() · Soma é exata (não depende de buckets). Só native; em floats → ?,vazio.
+⚠️ histogram_sum(): pegadinha «Só native». O que acontece / por quê?,"histogram_sum(x_sum) → vazio, sem erro."
+⚠️ histogram_sum(): pegadinha «Sem rate/increase». O que acontece / por quê?,é o total desde o start do processo.
+⚠️ histogram_sum(): pegadinha «Observações negativas». O que acontece / por quê?,"reduzem a soma (histogramas podem ter valores negativos, ex.: diferença de temperatura). Aí a soma não é mais ""total de trabalho""."
+⚠️ histogram_sum(): pegadinha «Lei de Little conta jobs que terminaram». O que acontece / por quê?,"jobs longos em andamento só entram quando acabam, então o número atrasa e fica ruidoso com pouco tráfego."
+⚠️ histogram_sum(): pegadinha «Não é estimativa». O que acontece / por quê?,"o sum é exato (não depende dos buckets), diferente de quantis e desvio padrão."
+⚠️ histogram_sum(): pegadinha «Não confunda». O que acontece / por quê?,histogram_sum (soma dentro do histograma) com sum (soma entre séries).
+hour() · hour() → ?,0-23 UTC. 09-18h BRT = hour() >= 12 < 21.
+hour() · Brasília: ?,hour(vector(time() - 3*3600)) (nunca hour() - 3).
+hour() · Condição: ?,alerta and on() (hour() >= 12 < 21).
+hour() · Intervalo que cruza 0h → ?,dois ramos com or.
+hour() · Notificar por horário (com fuso/DST) → ?,Alertmanager time_intervals.
+⚠️ hour(): pegadinha «UTC sempre». O que acontece / por quê?,09-18h BRT = 12-21h UTC.
+⚠️ hour(): pegadinha «hour() - 3 fica negativo». O que acontece / por quê?,entre 00h-02h UTC. Use hour(vector(time() - 3*3600)) ou (hour() + 21) % 24.
+⚠️ hour(): pegadinha «Horário de verão». O que acontece / por quê?,PromQL não sabe. Um offset fixo erra 1 h em metade do ano nos países com DST.
+⚠️ hour(): pegadinha «Intervalos que cruzam a meia-noite UTC». O que acontece / por quê?,Intervalos que cruzam a meia-noite UTC (ex.: 22h-02h) não cabem numa única cadeia >= 22 < 2; use or.
+⚠️ hour(): pegadinha «and on()». O que acontece / por quê?,para combinar com métricas com labels.
+⚠️ hour(): pegadinha «Grafana mostra o eixo X no fuso do navegador». O que acontece / por quê?,"Grafana mostra o eixo X no fuso do navegador, mas hour() devolve UTC: num gráfico, às ""19:00"" do eixo o valor de hour() é 22."
+"idelta() · idelta(gauge[janela]) = […] amostra (unidade do gauge, […]).","idelta() · idelta(gauge[janela]) = última − penúltima amostra (unidade do gauge, por scrape)."
+idelta() · Janela = ?,"só ""até onde procurar""."
+idelta() · Gauge ↔ idelta; counter ↔ […].,idelta() · Gauge ↔ idelta; counter ↔ irate.
+"idelta() · Complete: Não trata reset, não …","Não trata reset, não extrapola, não divide pelo tempo."
+idelta() · Complete: Ótimo para ver …,Ótimo para ver saltos; ruim para alertas.
+"⚠️ idelta(): pegadinha «Unidade = ""por scrape""». O que acontece / por quê?",o número muda se o scrape interval mudar. Não compare idelta entre jobs com intervalos diferentes.
+⚠️ idelta(): pegadinha «Não trata resets». O que acontece / por quê?,"em counters, cada reset vira um valor negativo enorme."
+⚠️ idelta(): pegadinha «Zoom out esconde tudo». O que acontece / por quê?,"com step do gráfico maior que o scrape, cada ponto só mostra o par de amostras antes do step; saltos no meio somem (mesmo problema do irate)."
+⚠️ idelta(): pegadinha «Mistura float/histograma». O que acontece / por quê?,nas 2 últimas amostras: série omitida (warning).
+⚠️ idelta(): pegadinha «Janela sem 2 amostras». O que acontece / por quê?,→ sem resultado.
+increase() · increase(counter[janela]) = ?,aumento total na janela = rate × segundos.
+increase() · Compensa […]; […] (resultado fracionado é normal).,increase() · Compensa resets; extrapola (resultado fracionado é normal).
+increase() · Só counters. Gauge → ?,delta.
+increase() · Humano/dashboards → ?,increase; recording rules/alertas por taxa → rate.
+increase() · Restarts no k8s: ?,increase(kube_pod_container_status_restarts_total[15m]) > 3.
+⚠️ increase(): pegadinha «Resultado fracionado». O que acontece / por quê?,extrapolação. Normal.
+⚠️ increase(): pegadinha «Janela curta demais». O que acontece / por quê?,"com menos de 2 amostras, nenhum resultado. Use janela ≥ 4× o scrape interval."
+⚠️ increase(): pegadinha «increase(sum(...)) é errado». O que acontece / por quê?,"primeiro increase, depois sum (mesma regra do rate)."
+⚠️ increase(): pegadinha «Somar increase de janelas coladas». O que acontece / por quê?,não bate exatamente com o increase da janela inteira (cada janela extrapola por conta própria).
+⚠️ increase(): pegadinha «Counter que nasce no meio da janela». O que acontece / por quê?,"o Prometheus não extrapola para antes do ""zero"" provável da série, mas o primeiro incremento (de ""não existe"" para o 1º valor) não é contado. Um counter que já nasce com 1 pode ""sumir"" com esse evento."
+⚠️ increase(): pegadinha «Usar em gauge». O que acontece / por quê?,"qualquer queda vira ""reset"" e o número fica inflado."
+info() · info(v) = ?,"v * on(job, instance) group_left(<todos data labels>) target_info, só que mais curto e robusto."
+info() · 2º argumento {...}: ?,"escolhe data labels ({k8s_cluster_name=~"".+""}) e info metrics ({__name__=~""target_info|build_info""})."
+info() · Sem info: sem seletor → ?,"mantém; com =~"".+"" → descarta."
+info() · Identificadores fixos job + instance; padrão só target_info; […].,info() · Identificadores fixos job + instance; padrão só target_info; experimental.
+info() · Info metric = ?,gauge valor 1 com metadados nos labels.
+⚠️ info(): pegadinha «Experimental». O que acontece / por quê?,o comportamento pode mudar e a função pode até ser removida.
+⚠️ info(): pegadinha «Identificadores fixos». O que acontece / por quê?,"só job e instance. Não dá para dizer ""use pod""."
+⚠️ info(): pegadinha «Só target_info por padrão». O que acontece / por quê?,"outros info metrics só com {__name__=~""...""}."
+⚠️ info(): pegadinha «Matcher negado sozinho». O que acontece / por quê?,"Matcher negado sozinho ({__name__!=""target_info""}) faz o info() considerar todas as métricas terminadas em _info (menos a negada). Em ambientes grandes isso pode trazer labels inesperados, e dois info metrics com o mesmo data label (ex.: dois version) entram em conflito."
+⚠️ info(): pegadinha «Mantém ou descarta». O que acontece / por quê?,"sem seletor → séries sem info são mantidas sem enriquecimento; com =~"".+"" → descartadas. Escolha de propósito."
+⚠️ info(): pegadinha «Séries de v que casam com o seletor». O que acontece / por quê?,Séries de v que casam com o seletor (ex.: você passou o próprio target_info em v) são tratadas como info series e voltam inalteradas.
+"irate() · irate(counter[janela]) = (última − penúltima) / Δt, […], compensa reset.","irate() · irate(counter[janela]) = (última − penúltima) / Δt, por segundo, compensa reset."
+irate() · Janela = ?,"só ""até onde procurar""; use [1m] ou $__rate_interval."
+irate() · Gráfico de counter nervoso → irate. Alerta / recording rule / counter lento → […].,irate() · Gráfico de counter nervoso → irate. Alerta / recording rule / counter lento → rate.
+irate() · Zoom out (step > scrape) […] com irate.,irate() · Zoom out (step > scrape) perde picos com irate.
+"irate() · Sempre […], nunca irate(sum(...)).","irate() · Sempre sum(irate(...)), nunca irate(sum(...))."
+⚠️ irate(): pegadinha «Zoom out esconde picos». O que acontece / por quê?,"num gráfico de 24h, o Grafana calcula um ponto a cada ~minutos (step). O irate só olha os 2 últimos scrapes antes de cada step, então tudo o que aconteceu entre um step e outro é ignorado (aliasing). O rate com janela ≥ step não tem esse problema."
+⚠️ irate(): pegadinha «Alertas com for:». O que acontece / por quê?,ficam piscando: basta um intervalo calmo para a condição virar falsa e o contador do for recomeçar.
+⚠️ irate(): pegadinha «irate(sum(...)) é errado». O que acontece / por quê?,"como no rate, primeiro irate, depois sum. Senão o restart de um pod vira um ""reset"" da soma inteira."
+⚠️ irate(): pegadinha «Janela sem 2 amostras = sem resultado». O que acontece / por quê?,irate(x[5s]) com scrape de 5s frequentemente não acha 2 pontos. Use pelo menos 2-4× o scrape interval.
+"⚠️ irate(): pegadinha «Não é ""mais preciso"" que o rate». O que acontece / por quê?","é mais recente, não mais correto. Ele descarta todas as amostras menos duas."
+"label_join() · label_join(v, DESTINO, SEPARADOR, ORIGEM1, ORIGEM2, ...): ?","sem regex, só concatena."
+"label_join() · Label ausente = """" → ?",separador sobrando (staging/).
+label_join() · Destino existente é […]; ordem das origens importa.,label_join() · Destino existente é sobrescrito; ordem das origens importa.
+label_join() · Uso nº 1: […] para on (key) com dados externos.,label_join() · Uso nº 1: chave composta para on (key) com dados externos.
+label_join() · Recebe […]: aplique depois de rate/sum.,label_join() · Recebe instant vector: aplique depois de rate/sum.
+"⚠️ label_join(): pegadinha «Label ausente = """"». O que acontece / por quê?","Label ausente = """", com o separador sobrando (staging/). Filtre antes ({region!=""""}) ou trate depois com label_replace(..., ""where"", ""$1"", ""where"", ""(.*)/"")."
+⚠️ label_join(): pegadinha «A ordem das origens importa». O que acontece / por quê?,"service, environment ≠ environment, service."
+⚠️ label_join(): pegadinha «Colisão». O que acontece / por quê?,"se, depois de sobrescrever um label, duas séries ficarem idênticas, a query falha com vector cannot contain metrics with the same labelset."
+⚠️ label_join(): pegadinha «Separador ambíguo». O que acontece / por quê?,"se os valores podem conter o separador (a/b + c e a + b/c dão a/b/c), escolha um separador que não aparece nos dados (|, ::)."
+⚠️ label_join(): pegadinha «Só instant vector». O que acontece / por quê?,"label_join(x[5m], ...) é erro de tipo. Aplique depois do rate/sum."
+"label_replace() · label_replace(v, DESTINO, SUBSTITUIÇÃO, ORIGEM, REGEX): ?",destino primeiro!
+label_replace() · Regex […]; não casou → série […] (sem erro).,label_replace() · Regex ancorada; não casou → série inalterada (sem erro).
+"label_replace() · $1, $nome, ${1}_x; substituição vazia […] o label.","label_replace() · $1, $nome, ${1}_x; substituição vazia remove o label."
+label_replace() · Uso nº 1: alinhar labels para […] (on (...) group_left (...)); uso nº 2: sum by de algo escondido num label.,label_replace() · Uso nº 1: alinhar labels para join (on (...) group_left (...)); uso nº 2: sum by de algo escondido num label.
+"label_replace() · Se é sempre necessário, faça no […] (ingestão), não na query.","label_replace() · Se é sempre necessário, faça no relabel_configs (ingestão), não na query."
+⚠️ label_replace(): pegadinha «Regex ancorada». O que acontece / por quê?,"""checkout"" só casa com o valor exato checkout. Use .* nas pontas quando quiser ""contém""."
+⚠️ label_replace(): pegadinha «Não casou = volta igual». O que acontece / por quê?,"não dá erro e não some. As séries que ""escaparam"" (como o redis-0) aparecem sem o label e bagunçam agrupamentos."
+⚠️ label_replace(): pegadinha «$1_suffix vira vazio». O que acontece / por quê?,use ${1}_suffix / ${name}_suffix.
+⚠️ label_replace(): pegadinha «Escape em strings PromQL». O que acontece / por quê?,"dentro de ""..."", \d precisa ser escrito \\d. Alternativas: usar classes ([0-9]) ou crases: `(\d+)`."
+⚠️ label_replace(): pegadinha «Colisão de séries». O que acontece / por quê?,"se o label_replace sobrescrever um label e duas séries ficarem com o mesmo conjunto de labels, a query falha com vector cannot contain metrics with the same labelset."
+⚠️ label_replace(): pegadinha «Custo». O que acontece / por quê?,"roda em cada avaliação e em cada série. Em dashboards com milhares de séries, prefira resolver no relabeling do scrape."
+⚠️ label_replace(): pegadinha «O nome da métrica é mantido». O que acontece / por quê?,"diferente das funções matemáticas, label_replace preserva o __name__ (e você pode até mexer nele com dst_label=""__name__"")."
+"last_over_time() · last_over_time(x[j]) = […] de cada série dentro de (agora − j, agora].","last_over_time() · last_over_time(x[j]) = última amostra de cada série dentro de (agora − j, agora]."
+last_over_time() · Serve para séries […] e […] com info metrics; janela […] maior intervalo entre amostras.,last_over_time() · Serve para séries esparsas e joins com info metrics; janela > maior intervalo entre amostras.
+"last_over_time() · Seletor puro já tem lookback de […], mas […] cortam na hora.","last_over_time() · Seletor puro já tem lookback de 5 min, mas staleness markers cortam na hora."
+last_over_time() · […] (junto com first_over_time).,last_over_time() · Mantém __name__ (junto com first_over_time).
+last_over_time() · Esconde dados velhos: ?,combine com absent_over_time ou com a idade (time() - ts_of_last_over_time(...)).
+⚠️ last_over_time(): pegadinha «Esconde dados velhos». O que acontece / por quê?,"com [1d], um exporter que morreu há 23h ainda aparece ""vivo"" com o último valor. Combine com a idade (ts_of_last_over_time) ou com absent_over_time."
+⚠️ last_over_time(): pegadinha «Janela menor que o intervalo entre amostras = buracos». O que acontece / por quê?,Veja os painéis 3 e 4.
+⚠️ last_over_time(): pegadinha «O timestamp do resultado é o da avaliação». O que acontece / por quê?,"O timestamp do resultado é o da avaliação, não o da amostra. timestamp(last_over_time(x[5m])) devolve o horário da consulta; para o horário da amostra use ts_of_last_over_time (experimental) ou timestamp(x) no seletor puro."
+⚠️ last_over_time(): pegadinha «Mantém __name__». O que acontece / por quê?,"Mantém __name__ (como first_over_time), então last_over_time(a[5m]) or last_over_time(b[5m]) preserva os nomes. As outras *_over_time removem."
+⚠️ last_over_time(): pegadinha «Staleness vs lookback». O que acontece / por quê?,o seletor puro preenche até 5 min somente se não houve staleness marker. Séries que somem do target (como aqui) cortam na hora; por isso o last_over_time é necessário.
+ln() · ln(v) = ?,"log base e; inverso do exp. ln(1) = 0, ln(0) = -Inf, ln(<0) = NaN, ln(+Inf) = +Inf."
+ln() · Exponencial vira reta: ?,deriv(ln(x)[janela:passo]) = taxa contínua r; tempo de dobra = 0.6931 / r.
+ln() · Média geométrica: ?,exp(avg(ln(x))).
+ln() · ln(2) literal = ?,erro de parse; funções matemáticas só aceitam instant vector.
+ln() · Filtre zeros antes: ?,ln(x > 0).
+⚠️ ln(): pegadinha «Zero vira -Inf». O que acontece / por quê?,e quebra médias (avg com um -Inf = -Inf) e gráficos. Filtre: ln(x > 0).
+⚠️ ln(): pegadinha «Negativo vira NaN». O que acontece / por quê?,"Negativo vira NaN, que ""contamina"" qualquer conta em que entrar."
+⚠️ ln(): pegadinha «ln(2) com escalar é erro de parse». O que acontece / por quê?,Use ln(vector(2)) ou o literal 0.6931.
+⚠️ ln(): pegadinha «Base errada». O que acontece / por quê?,"ln é base e. Para base 10 use log10, para base 2 log2. Conversão: log10(x) = ln(x) / 2.302585."
+⚠️ ln(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+"log10() · log10(v) ""conta os zeros"": ?","log10(1000) = 3, log10(0.001) = -3, log10(1) = 0."
+"log10() · log10(0) = -Inf, log10(<0) = NaN (iguais ao ln); filtre […] dentro.","log10() · log10(0) = -Inf, log10(<0) = NaN (iguais ao ln); filtre x > 0 dentro."
+log10() · Ordem de grandeza: ?,"floor(log10(x)); ""10× pior"": Δlog10 > 1."
+log10() · Decibéis: ?,"potência 10 * log10(P/Pref), amplitude 20 * log10(A/Aref)."
+log10() · Só pra enxergar?,Eixo log do Grafana.
+⚠️ log10(): pegadinha «Zero vira -Inf». O que acontece / por quê?,"Zero vira -Inf (endpoint sem tráfego, link caído) e negativo vira NaN. Filtre com x > 0 dentro do log10."
+⚠️ log10(): pegadinha «Unidade importa». O que acontece / por quê?,log10 de segundos ≠ log10 de milissegundos (diferença de 3). Documente a unidade.
+⚠️ log10(): pegadinha «Médias no espaço log». O que acontece / por quê?,"são médias geométricas (10 ^ avg(log10(x))), não aritméticas."
+⚠️ log10(): pegadinha «10× vs 20×». O que acontece / por quê?,"em decibéis: potência → 10, amplitude → 20."
+⚠️ log10(): pegadinha «floor(log10(x)) perto de potências de 10». O que acontece / por quê?,oscila: um valor em torno de 1 ms (0.00098 ↔ 0.00102) fica pulando entre -4 e -3. Por isso o /health do lab está em 1.5 ms.
+⚠️ log10(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+log2() · log2(v): ?,"""2 elevado a quanto?""; log2(1024) = 10, log2(1) = 0, log2(0.5) = -1, log2(0) = -Inf, log2(<0) = NaN."
+log2() · Dobras desde a base: ?,log2(atual / base).
+log2() · Próxima potência de 2: ?,2 ^ ceil(log2(x)).
+log2() · Referências: ?,"2¹⁰ = Ki, 2²⁰ = Mi, 2³⁰ = Gi."
+log2() · Native histograms: fator 2^(2^-schema); schema 0 → ?,fronteiras em potências de 2.
+⚠️ log2(): pegadinha «Zero vira -Inf». O que acontece / por quê?,"Zero vira -Inf (ex.: 0 réplicas, 0 bytes) e negativo vira NaN. Filtre com x > 0."
+⚠️ log2(): pegadinha «Divisão por zero no ratio». O que acontece / por quê?,log2(a / b) com b = 0 → log2(+Inf) = +Inf. Filtre o denominador.
+⚠️ log2(): pegadinha «2 ^ ceil(log2(x)) numa potência exata». O que acontece / por quê?,"log2(1024) = 10 exato, então fica 1024. Mas ponto flutuante pode dar 10.000000000000002 e pular para 2048. Use ceil(log2(x) - 1e-9) se precisar de exatidão."
+⚠️ log2(): pegadinha «Precedência». O que acontece / por quê?,2 ^ ceil(log2(x)) precisa do ^ fora; ^ é associativo à direita (2 ^ 3 ^ 2 = 2 ^ 9 = 512).
+⚠️ log2(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados (o log2 não mexe em buckets; ele age em valores float).
+mad_over_time() · mad_over_time(x[w]) = mediana de |xᵢ − mediana(x)|; […] (flag promql-experimental-functions).,mad_over_time() · mad_over_time(x[w]) = mediana de |xᵢ − mediana(x)|; experimental (flag promql-experimental-functions).
+mad_over_time() · Robusto a outliers (até ~50%); […].,"mad_over_time() · Robusto a outliers (até ~50%); σ ≈ 1,4826 × MAD."
+mad_over_time() · z-score robusto: ?,"(x − quantile_over_time(0.5, x[w])) / (1.4826 * mad_over_time(x[w]))."
+mad_over_time() · MAD = 0 quando a maioria das amostras é igual → ?,proteja a divisão com > 0.
+mad_over_time() · Quer que picos pesem?,Então não use MAD: stddev_over_time/max_over_time.
+⚠️ mad_over_time(): pegadinha «Experimental». O que acontece / por quê?,sem --enable-feature=promql-experimental-functions a query dá erro de função desconhecida. O nome/comportamento pode mudar entre versões.
+⚠️ mad_over_time(): pegadinha «MAD ≠ σ». O que acontece / por quê?,"para comparar com o desvio padrão, multiplique por 1,4826 (vale para distribuição normal)."
+⚠️ mad_over_time(): pegadinha «MAD = 0». O que acontece / por quê?,quando mais da metade das amostras é igual (ex.: gauge que fica parado): o z-score robusto vira ±Inf/NaN. Proteja com (... > 0).
+⚠️ mad_over_time(): pegadinha «Robusto até ~50% de outliers». O que acontece / por quê?,"se mais da metade das amostras forem ""estranhas"", elas passam a ser o ""normal""."
+⚠️ mad_over_time(): pegadinha «Histogramas nativos são ignorados». O que acontece / por quê?,Histogramas nativos são ignorados (só amostras float).
+"max_of() · max_of(a, b) = maior de […] → […].","max_of() · max_of(a, b) = maior de 2 escalares → piso."
+max_of() · Vetor?,clamp_min. Várias séries? max. No tempo? max_over_time.
+max_of() · scalar(max(...)) antes: NaN contamina e o piso […] salva.,max_of() · scalar(max(...)) antes: NaN contamina e o piso não salva.
+max_of() · Escalar → ?,vector(...) para gravar em regra.
+max_of() · Complete: Experimental. …,Experimental.
+⚠️ max_of(): pegadinha «Só escalares». O que acontece / por quê?,"max_of(node_load1, 1) é erro de parse (expected type scalar ... got instant vector)."
+⚠️ max_of(): pegadinha «NaN contamina». O que acontece / por quê?,"max_of(NaN, 80) = NaN, então o piso não protege contra scalar() de 0 ou 2+ séries."
+⚠️ max_of(): pegadinha «Resultado sem labels». O que acontece / por quê?,"não dá para usar em by (...); para gravar, use vector(...)."
+⚠️ max_of(): pegadinha «Experimental». O que acontece / por quê?,"pode mudar; a alternativa estável é clamp_min(vector(a), b)."
+"⚠️ max_of(): pegadinha «max(a, b) não existe». O que acontece / por quê?",o agregador max recebe um vetor.
+⚠️ max_of(): pegadinha «A ordem do scalar() importa». O que acontece / por quê?,"funções como ceil(), round(), abs() só aceitam vetor. ceil(scalar(fila) / 100) é erro de parse (expected type instant vector in call to function ""ceil"", got scalar). Faça a conta no vetor e converta no fim: scalar(ceil(fila / 100))."
+max_over_time() · max_over_time(x[j]) = maior amostra […] na janela; max(x) = maior […] agora.,max_over_time() · max_over_time(x[j]) = maior amostra de cada série na janela; max(x) = maior entre séries agora.
+max_over_time() · Pega […] que gráficos de baixa resolução escondem; use para memória/latência/fila e limits.,max_over_time() · Pega picos que gráficos de baixa resolução escondem; use para memória/latência/fila e limits.
+max_over_time() · Counter?,max_over_time(rate(x[5m])[1h:]) (subquery).
+max_over_time() · Ignora amostras de histograma; resultado sem […].,max_over_time() · Ignora amostras de histograma; resultado sem __name__.
+max_over_time() · Quando foi o pico: ?,ts_of_max_over_time (experimental).
+⚠️ max_over_time(): pegadinha «Um único scrape estranho domina». O que acontece / por quê?,"O max é sensível a outliers; às vezes o quantile_over_time(0.99, ...) é mais honesto."
+⚠️ max_over_time(): pegadinha «Picos menores que o scrape interval não existem para o Prometheus». O que acontece / por quê?,"Se a memória subiu e desceu entre dois scrapes de 15s, nenhuma função recupera isso."
+⚠️ max_over_time(): pegadinha «Subquery sem passo». O que acontece / por quê?,"Subquery sem passo ([10m:]) usa o evaluation_interval global. Em janelas longas ([1d:]), defina o passo ([1d:1m]) para não custar caro."
+⚠️ max_over_time(): pegadinha «Resultado não tem __name__». O que acontece / por quê?,"Em joins/regras, lembre que o nome foi removido."
+⚠️ max_over_time(): pegadinha «Histograms». O que acontece / por quê?,max_over_time ignora amostras de histograma (só floats).
+"⚠️ max_over_time(): pegadinha «O resultado ""lembra"" do pico pela janela inteira». O que acontece / por quê?","Com [5m], um alerta max_over_time(x[5m]) > limite continua disparado por até 5 min depois que o valor normalizou."
+"min_of() · min_of(a, b) = menor de […] → […].","min_of() · min_of(a, b) = menor de 2 escalares → teto."
+min_of() · Vetor?,"clamp_max(v, x). Várias séries? min. No tempo? min_over_time."
+"min_of() · scalar(max(...)) antes, senão NaN; NaN […].","min_of() · scalar(max(...)) antes, senão NaN; NaN contamina."
+min_of() · Resultado escalar → ?,vector(...) para recording rule.
+min_of() · Complete: Experimental. …,Experimental.
+⚠️ min_of(): pegadinha «Só escalares». O que acontece / por quê?,"min_of(up, 1) → parse error: expected type scalar in call to function ""min_of"", got instant vector. Use scalar(...) ou clamp_max."
+⚠️ min_of(): pegadinha «NaN contamina». O que acontece / por quê?,"min_of(NaN, 500) = NaN. E scalar() de 0 ou 2+ séries é NaN (painel 5a)."
+⚠️ min_of(): pegadinha «Resultado é escalar». O que acontece / por quê?,"não tem labels; para gravar em recording rule, embrulhe com vector(...)."
+⚠️ min_of(): pegadinha «Experimental». O que acontece / por quê?,"pode mudar/sumir; em Prometheus sem a flag, use clamp_max(vector(a), b)."
+⚠️ min_of(): pegadinha «Não confunda com min()». O que acontece / por quê?,"min(a, b) não é válido (o agregador recebe um vetor)."
+⚠️ min_of(): pegadinha «A ordem do scalar() importa». O que acontece / por quê?,"funções como ceil(), round(), abs() só aceitam vetor. ceil(scalar(fila) / 100) é erro de parse (expected type instant vector in call to function ""ceil"", got scalar). Faça a conta no vetor e converta no fim: scalar(ceil(fila / 100))."
+min_over_time() · min_over_time(x[j]) = menor amostra […] na janela; min(x) = menor […] agora.,min_over_time() · min_over_time(x[j]) = menor amostra de cada série na janela; min(x) = menor entre séries agora.
+"min_over_time() · Para recursos que […]: conexões livres, disco livre, réplicas disponíveis.","min_over_time() · Para recursos que acabam: conexões livres, disco livre, réplicas disponíveis."
+min_over_time() · 0/1: ?,"min_over_time(up[10m]) == 0 = ""falhou alguma vez"" (E lógico no tempo)."
+min_over_time() · Ausência ≠ 0: ?,série sumida não vira mínimo 0.
+min_over_time() · Ignora histogramas; resultado sem […].,min_over_time() · Ignora histogramas; resultado sem __name__.
+⚠️ min_over_time(): pegadinha «min_over_time(up[5m]) == 0 não pega scrape faltando». O que acontece / por quê?,"Se o target some (sem amostra), não há 0 para achar: a amostra simplesmente não existe. up resolve porque o Prometheus grava up=0 em falhas; para métricas de aplicação, use count_over_time."
+⚠️ min_over_time(): pegadinha «Counter cru». O que acontece / por quê?,o mínimo é a amostra mais antiga (ou o valor logo após um reset). Não significa nada.
+⚠️ min_over_time(): pegadinha «Outlier domina». O que acontece / por quê?,"Outlier domina (mesma pegadinha do max): um único scrape 0 por bug de coleta vira ""o mínimo""."
+"⚠️ min_over_time(): pegadinha «O vale ""gruda"" pela janela inteira». O que acontece / por quê?","com [5m], o alerta segue ativo por até 5 min depois da recuperação."
+⚠️ min_over_time(): pegadinha «Resultado sem __name__». O que acontece / por quê?,e histogramas ignorados (só amostras float entram).
+minute() · minute() → ?,0-59 (UTC; igual ao local em fusos de hora cheia).
+"minute() · ""Cron"": ?","minute() % N == k, minute() % 10 < 3."
+minute() · Ignorar janela: ?,x unless on() (minute() < 3).
+minute() · 1/0 em vez de filtro: ?,bool.
+⚠️ minute(): pegadinha «Fuso quase não importa... mas importa às vezes». O que acontece / por quê?,"Brasília (UTC-3) tem offset de hora cheia: minute() é igual em UTC e BRT. Na Índia (UTC+5:30), Nepal (+5:45) ou Terra Nova (-3:30), o minuto local é diferente!"
+⚠️ minute(): pegadinha «unless / and precisam de on()». O que acontece / por quê?,para combinar com métricas que têm labels.
+⚠️ minute(): pegadinha «Filtro vs bool». O que acontece / por quê?,minute() < 3 some fora da janela; minute() < bool 3 devolve 0/1.
+⚠️ minute(): pegadinha «Borda da janela + lookback». O que acontece / por quê?,"logo depois que a janela fecha, o valor avaliado ainda é o da última amostra (raspada antes). Dê uma folga de 1 min e use for:."
+⚠️ minute(): pegadinha «Resolução do gráfico». O que acontece / por quê?,"com step de 1 min ou mais, janelas de 1-2 min podem ""pular"" pontos."
+⚠️ minute(): pegadinha «Timestamps em ms». O que acontece / por quê?,→ / 1000.
+month() · month() → ?,"1-12 (1 = jan), UTC."
+month() · Trimestre: ?,ceil(month() / 3).
+"month() · ""Vence este mês"": mês […] ano iguais, com scalar().","month() · ""Vence este mês"": mês e ano iguais, com scalar()."
+month() · Alerta de expiração: ?,"x - time(), não month()."
+⚠️ month(): pegadinha «1 = janeiro». O que acontece / por quê?,1 = janeiro (não 0 como no JavaScript).
+⚠️ month(): pegadinha «Mês sem ano é ambíguo». O que acontece / por quê?,fevereiro de 2027 ≠ fevereiro de 2026. Combine com year().
+⚠️ month(): pegadinha «UTC». O que acontece / por quê?,a virada do mês é às 21h de Brasília no último dia.
+⚠️ month(): pegadinha «scalar() / on()». O que acontece / por quê?,para comparar com métricas que têm labels.
+⚠️ month(): pegadinha «Argumento em segundos». O que acontece / por quê?,Argumento em segundos; ms → / 1000.
+pi() · pi() → ?,"scalar 3.141592653589793, sem argumentos."
+pi() · Em funções: ?,sin(vector(pi())); em aritmética: 2 * pi() * metric.
+pi() · rpm → ?,m/s: 2 * pi() * r * rpm / 60; área: pi() * r ^ 2.
+pi() · Onda: ?,sin(vector(2 * pi() * time() / P)).
+⚠️ pi(): pegadinha «É escalar». O que acontece / por quê?,"sin(pi()), deg(pi()) dão erro de tipo. Use vector(pi())."
+⚠️ pi(): pegadinha «Não aceita argumentos». O que acontece / por quê?,pi(3) é erro.
+⚠️ pi(): pegadinha «Float». O que acontece / por quê?,"sin(π) = 1.22e-16, cos(π/2) = 6.1e-17. Nunca compare com == 0."
+⚠️ pi(): pegadinha «Escalar em range query». O que acontece / por quê?,pi() num painel vira uma linha reta em 3.14159.
+"predict_linear() · predict_linear(gauge[janela], t_segundos) = valor da […] daqui a t s.","predict_linear() · predict_linear(gauge[janela], t_segundos) = valor da reta de regressão daqui a t s."
+predict_linear() · Clássico: ?,"predict_linear(node_filesystem_avail_bytes[6h], 4*3600) < 0."
+predict_linear() · Janela proporcional ao horizonte (6h → 4h); janela curta + ruído = ?,falso positivo.
+predict_linear() · Mesma reta do deriv; só […] e floats.,predict_linear() · Mesma reta do deriv; só gauges e floats.
+predict_linear() · t é […] (não 4h).,predict_linear() · t é scalar em segundos (não 4h).
+⚠️ predict_linear(): pegadinha «Janela curta». O que acontece / por quê?,para horizonte longo = alarmes falsos.
+⚠️ predict_linear(): pegadinha «Saltos». O que acontece / por quê?,"Saltos (limpeza de disco, logrotate, restart) entortam a reta por um tempo igual à janela."
+⚠️ predict_linear(): pegadinha «t em segundos». O que acontece / por quê?,"predict_linear(x[1h], 4) prevê 4 segundos, não 4 horas. Use 4*3600 ou 4 * 60 * 60."
+⚠️ predict_linear(): pegadinha «Só floats». O que acontece / por quê?,native histograms são ignorados; +Inf/-Inf na janela → NaN.
+⚠️ predict_linear(): pegadinha «Série nova». O que acontece / por quê?,com menos de 2 amostras → sem resultado (disco recém-montado não alerta).
+present_over_time() · present_over_time(x[j]) = […] por série que teve ≥ 1 amostra na janela. […],present_over_time() · present_over_time(x[j]) = 1 por série que teve ≥ 1 amostra na janela. Nunca 0.
+present_over_time() · Complete: Valor ignorado. Staleness …,Valor ignorado. Staleness markers não contam.
+present_over_time() · count(present_over_time(x[j])) = séries […] no período.,present_over_time() · count(present_over_time(x[j])) = séries distintas no período.
+present_over_time() · present_over_time(x[j]) unless x = séries que […].,present_over_time() · present_over_time(x[j]) unless x = séries que sumiram.
+present_over_time() · Oposto: absent_over_time (1 quando […] existe).,present_over_time() · Oposto: absent_over_time (1 quando nada existe).
+⚠️ present_over_time(): pegadinha «Nunca devolve 0». O que acontece / por quê?,Série ausente = série fora do resultado. present_over_time(x[5m]) == 0 nunca retorna nada.
+⚠️ present_over_time(): pegadinha «Valor ignorado». O que acontece / por quê?,"uma amostra com valor 0 ou NaN conta como ""presente""."
+⚠️ present_over_time(): pegadinha «Staleness markers não contam». O que acontece / por quê?,como presença.
+⚠️ present_over_time(): pegadinha «Janela vs intervalo». O que acontece / por quê?,"para algo que aparece a cada N min, use janela > N senão haverá ""buracos"" de presença."
+⚠️ present_over_time(): pegadinha «Resultado sem __name__». O que acontece / por quê?,"com um seletor que pega várias métricas (ex.: present_over_time({job=""api""}[1h])), séries de métricas diferentes com os mesmos labels colidem e a consulta falha com vector cannot contain metrics with the same labelset. Use um nome de métrica no seletor."
+⚠️ present_over_time(): pegadinha «Custo». O que acontece / por quê?,count(present_over_time(kube_pod_info[30d])) lê todas as séries (e amostras) do mês: em clusters grandes é uma consulta cara. Prefira recording rules ou janelas menores.
+"quantile_over_time() · quantile_over_time(φ, gauge[janela]): […], range vector depois, retorna instant vector (uma saída […]).","quantile_over_time() · quantile_over_time(φ, gauge[janela]): φ primeiro, range vector depois, retorna instant vector (uma saída por série)."
+"quantile_over_time() · Percentil das amostras raspadas, não dos eventos. Latência de requisições → ?",histogram + histogram_quantile.
+quantile_over_time() · quantile (operador) = ?,entre séries; quantile_over_time = ao longo do tempo; histogram_quantile = buckets.
+"quantile_over_time() · φ fora de [0,1] → ?",±Inf. Poucas amostras → interpolação estranha.
+quantile_over_time() · Complete: Use para alertas robustos a agulhas (p90/p95) e …,"Use para alertas robustos a agulhas (p90/p95) e capacity planning (p99 em janelas longas, via recording rule)."
+"⚠️ quantile_over_time(): pegadinha «É o percentil das AMOSTRAS, não dos eventos». O que acontece / por quê?","Um gauge de ""latência da última requisição"" raspado a cada 5s ignora todas as requisições entre um scrape e outro. Um p99 de verdade de requisições só vem de histogram (ou summary)."
+⚠️ quantile_over_time(): pegadinha «Poucas amostras». O que acontece / por quê?,→ interpolação gera valores que nunca existiram.
+"⚠️ quantile_over_time(): pegadinha «φ fora de [0,1]». O que acontece / por quê?","→ ±Inf, sem erro, só um warning."
+⚠️ quantile_over_time(): pegadinha «O argumento φ vem PRIMEIRO». O que acontece / por quê?,"quantile_over_time(0.95, x[5m]), não quantile_over_time(x[5m], 0.95)."
+⚠️ quantile_over_time(): pegadinha «Todas as amostras têm o mesmo peso». O que acontece / por quê?,"Todas as amostras têm o mesmo peso, mesmo que não estejam igualmente espaçadas (ex.: buraco de scrape)."
+⚠️ quantile_over_time(): pegadinha «Histogramas nativos são ignorados». O que acontece / por quê?,só amostras float entram no cálculo.
+⚠️ quantile_over_time(): pegadinha «Percentis não se somam nem se tiram média». O que acontece / por quê?,"avg(quantile_over_time(0.95, ...)) entre pods não é o p95 do serviço."
+rad() · rad(x) = x · π/180: […]. Inverso: deg().,rad() · rad(x) = x · π/180: graus → rad. Inverso: deg().
+rad() · Padrão: ?,"sin(rad(x_degrees)), cos(rad(...)), tan(rad(...))."
+"rad() · Esquecer não dá erro, dá […].","rad() · Esquecer não dá erro, dá lixo plausível."
+rad() · Remove […]; histogramas ignorados.,rad() · Remove __name__; histogramas ignorados.
+"⚠️ rad(): pegadinha «Sem erro, só resultado errado». O que acontece / por quê?",sin(30) é válido e dá -0.988.
+⚠️ rad(): pegadinha «Verifique a unidade do exporter». O que acontece / por quê?,"Verifique a unidade do exporter (nome _degrees vs _radians, e o HELP da métrica)."
+⚠️ rad(): pegadinha «Arredondamento». O que acontece / por quê?,sin(rad(30)) = 0.49999999999999994; não compare com == 0.5.
+rad() · Remove […]; histogramas ignorados.,rad() · Remove __name__; histogramas ignorados.
+range() · range() = end() - start() = duração do gráfico; […] em instant query.,range() · range() = end() - start() = duração do gráfico; 0 em instant query.
+range() · Total do período visível: ?,increase(x[range()] @ end()).
+range() · Média/máx. da tela: ?,avg_over_time(x[range()] @ end()).
+range() · Em stat: ?,instant: false (ou $__range). Em alerta: janela fixa.
+⚠️ range(): pegadinha «Instant query → range() = 0». O que acontece / por quê?,"→ x[range()] dá erro ""duration must be greater than 0""."
+⚠️ range(): pegadinha «Sem @ end()». O que acontece / por quê?,"Sem @ end(), increase(x[range()]) num gráfico calcula, em cada ponto, a janela de 15 min terminando naquele ponto (uma curva, não uma constante; e a borda esquerda olha 15 min para trás, antes do gráfico)."
+⚠️ range(): pegadinha «Experimental». O que acontece / por quê?,precisa da feature flag.
+⚠️ range(): pegadinha «Janelas grandes são caras». O que acontece / por quê?,"[range()] num gráfico de 30 dias lê 30 dias de amostras em cada ponto (com @ end(), uma vez só; o Prometheus otimiza @ para avaliar uma vez)."
+rate() · rate(counter[janela]) → ?,"média por segundo na janela, compensa resets, extrapola as bordas."
+rate() · Janela ≥ 4× scrape interval. No Grafana use […].,rate() · Janela ≥ 4× scrape interval. No Grafana use $__rate_interval.
+rate() · […] (nunca o contrário).,rate() · rate → depois sum/avg (nunca o contrário).
+rate() · Alertas e recording rules: ?,"rate. Gráfico nervoso: irate. ""Quantos no total?"": increase."
+rate() · Gauge?,Não. Use deriv / delta.
+⚠️ rate(): pegadinha «Janela curta demais». O que acontece / por quê?,"Janela curta demais ([10s] com scrape de 15s): se houver < 2 amostras na janela, nenhum resultado."
+⚠️ rate(): pegadinha «Extrapolação». O que acontece / por quê?,"rate e increase extrapolam até as bordas da janela, então valores inteiros viram fracionados. Não é bug."
+⚠️ rate(): pegadinha «rate(sum(...))». O que acontece / por quê?,"errado, ver query 4."
+⚠️ rate(): pegadinha «Usar em gauge». O que acontece / por quê?,"qualquer queda do gauge vira ""reset"" e o número fica sem sentido."
+⚠️ rate(): pegadinha «$__rate_interval no Grafana». O que acontece / por quê?,"em dashboards, prefira rate(x[$__rate_interval]), que ajusta a janela ao zoom e ao scrape interval automaticamente."
+"resets() · resets(counter[janela]) = nº de […] entre amostras consecutivas (inteiro, sem extrapolação).","resets() · resets(counter[janela]) = nº de quedas entre amostras consecutivas (inteiro, sem extrapolação)."
+resets() · Sinal de […] do processo; alerta de crashloop: resets(x[15m]) > 3.,resets() · Sinal de restart do processo; alerta de crashloop: resets(x[15m]) > 3.
+resets() · Não use em gauge. Para gauges: ?,changes (quantas mudanças) / delta (quanto mudou).
+resets() · rate/[…] já compensam resets sozinhos.,resets() · rate/increase já compensam resets sozinhos.
+resets() · k8s: counter de restarts → ?,increase(kube_pod_container_status_restarts_total[...]).
+"⚠️ resets(): pegadinha «Restart entre dois scrapes que ""volta alto""». O que acontece / por quê?","se o processo reinicia e, antes do próximo scrape, o counter já passou do valor anterior, a queda nunca é vista. Com counters lentos e scrape espaçado isso é raro; com counters rápidos pode acontecer."
+⚠️ resets(): pegadinha «Série nova ≠ reset». O que acontece / por quê?,"se o restart muda algum label (ex.: pod=""api-7f9c"" → pod=""api-8a1b""), são duas séries diferentes; nenhuma delas tem queda, resets() = 0. Em Kubernetes isso é comum: agregue por algo estável ou use kube_pod_container_status_restarts_total."
+⚠️ resets(): pegadinha «Não tem extrapolação». O que acontece / por quê?,"Não tem extrapolação (diferente de increase), então janelas diferentes dão resultados proporcionais só ""em média""."
+⚠️ resets(): pegadinha «Qualquer queda conta». O que acontece / por quê?,"1000 → 999 é um reset. Em gauges, isso vira lixo."
+⚠️ resets(): pegadinha «Troca float ↔ histogram». O que acontece / por quê?,também conta como reset.
+"round() · round(v, to_nearest=1): múltiplo de to_nearest mais próximo; to_nearest é […], pode ser fração.","round() · round(v, to_nearest=1): múltiplo de to_nearest mais próximo; to_nearest é escalar, pode ser fração."
+"round() · Empate […] (para +∞): round(2.5) = 3, round(-2.5) = -2, round(-0.5) = 0.","round() · Empate sobe (para +∞): round(2.5) = 3, round(-2.5) = -2, round(-0.5) = 0."
+round() · to_nearest = 0 → ?,NaN; não use valores ≤ 0.
+round() · Bucketing de gauge: ?,"count_values(""faixa"", round(x, passo))."
+"round() · Para alertas e capacity: compare o valor […] (ou use ceil), não o arredondado.","round() · Para alertas e capacity: compare o valor cru (ou use ceil), não o arredondado."
+"⚠️ round(): pegadinha «Empate sobe, sempre em direção ao +∞». O que acontece / por quê?","round(-2.5) = -2. Não é o ""arredondamento bancário"" nem o ""pra longe do zero""."
+⚠️ round(): pegadinha «Ponto flutuante». O que acontece / por quê?,"round(1.005, 0.01) = 1. Valores ""exatos"" em decimal nem sempre são exatos em binário."
+⚠️ round(): pegadinha «to_nearest precisa ser > 0». O que acontece / por quê?,0 dá NaN; negativos dão resultados sem sentido.
+⚠️ round(): pegadinha «Arredondar antes de somar acumula erro». O que acontece / por quê?,sum(round(x)) pode diferir bastante de round(sum(x)) com muitas séries. Arredonde no final.
+"⚠️ round(): pegadinha «Alertas com round ficam ""pulando""». O que acontece / por quê?","um valor oscilando perto do meio (62.5) alterna 60/65 a cada scrape. Para alertas, compare o valor cru com o limite."
+⚠️ round(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+scalar() · scalar(v): […] → valor; […] → NaN (sem erro).,scalar() · scalar(v): 1 elemento → valor; 0 ou 2+ → NaN (sem erro).
+"scalar() · Sempre […]: scalar(sum(...)), scalar(max(...)).","scalar() · Sempre agregue antes: scalar(sum(...)), scalar(max(...))."
+"scalar() · Uso nº 1: ""% do total"" → ?",x / scalar(sum(x)).
+scalar() · NaN em comparação = falso → ?,alerta que nunca dispara.
+scalar() · Inverso: ?,vector(s).
+⚠️ scalar(): pegadinha «NaN silencioso». O que acontece / por quê?,"0 ou 2+ elementos → NaN, sem erro nem warning. Em alertas, isso vira ""nunca dispara""."
+⚠️ scalar(): pegadinha «Agregue antes». O que acontece / por quê?,"scalar(sum(...)), scalar(max(...)). Nunca scalar(metrica_crua) se ela pode ganhar uma segunda série (novo pod, nova réplica, label novo)."
+⚠️ scalar(): pegadinha «Perde os labels». O que acontece / por quê?,"o resultado não tem labels, então não dá para usá-lo em by (...), on (...) ou legenda."
+⚠️ scalar(): pegadinha «Histograms ignorados». O que acontece / por quê?,um vetor com 1 histograma → NaN.
+⚠️ scalar(): pegadinha «Escalar em range query». O que acontece / por quê?,"no gráfico, o scalar() é recalculado a cada passo; se em algum passo houver 2 séries (ex.: durante um rollout), aquele ponto é NaN (um ""buraco"" na linha)."
+⚠️ scalar(): pegadinha «Nem toda função aceita escalar calculado». O que acontece / por quê?,"parâmetros como o t de predict_linear e o φ de histogram_quantile aceitam expressões escalares, mas o tamanho da janela [5m] não (tem de ser literal)."
+sgn() · sgn(v instant-vector) → ?,"1 (positivo), -1 (negativo), 0 (zero), NaN (NaN)."
+sgn() · Tendência de gauge: ?,sgn(deriv(x[5m])). Comparação com o passado: sgn(rate(x[1h]) - rate(x[1h] offset 1w)).
+sgn() · sgn amplifica ruído → ?,zona morta com * (abs(d) > bool limite).
+sgn() · x > 0 filtra; […] devolve 0/1.,sgn() · x > 0 filtra; x > bool 0 devolve 0/1.
+sgn() · Tamanho sem sinal → ?,abs(); sinal sem tamanho → sgn(); x = sgn(x) * abs(x).
+⚠️ sgn(): pegadinha «sgn amplifica ruído». O que acontece / por quê?,+0.001 vira +1. Use zona morta (abs(x) > bool limite) ou janelas maiores no deriv.
+⚠️ sgn(): pegadinha «Zero exato é raro com floats». O que acontece / por quê?,"uma série ""estável"" com ruído quase nunca dá 0. Na prática, 0 só aparece em séries realmente constantes (como emails)."
+⚠️ sgn(): pegadinha «sgn(NaN) = NaN». O que acontece / por quê?,"sgn(NaN) = NaN, não 0. Se a divisão de origem pode dar NaN (0/0), trate antes."
+⚠️ sgn(): pegadinha «Não use em counter cru». O que acontece / por quê?,"o counter é sempre ≥ 0, então sgn() dá 1 (ou 0). Para tendência de tráfego, compare taxas (rate) como no painel 6."
+⚠️ sgn(): pegadinha «deriv × rate». O que acontece / por quê?,"tendência de gauge (lag, disco, fila) é com deriv(); rate() é só para counters."
+⚠️ sgn(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+"sin() · sin(v instant-vector): radianos entram, valor em […] sai; nome da métrica é removido.","sin() · sin(v instant-vector): radianos entram, valor em [-1, 1] sai; nome da métrica é removido."
+sin() · Graus?,sin(rad(x)). Escalar? sin(vector(x)).
+sin() · sin(±Inf) = ?,NaN; sin(π) = 1.22e-16 (não 0).
+sin() · Onda periódica sem métrica: ?,sin(vector(2*pi()*time()/período)).
+sin() · Complete: Histogramas são ignorados. …,Histogramas são ignorados.
+"⚠️ sin(): pegadinha «Radianos, sempre». O que acontece / por quê?",sin(90) ≠ 1.
+⚠️ sin(): pegadinha «Escalar não entra». O que acontece / por quê?,sin(pi()) dá erro; use sin(vector(pi())).
+⚠️ sin(): pegadinha «Ponto flutuante». O que acontece / por quê?,"sin(π) = 1.22e-16, não 0."
+⚠️ sin(): pegadinha «±Inf vira NaN». O que acontece / por quê?,"±Inf vira NaN, e NaN ""some"" do gráfico (vira buraco)."
+⚠️ sin(): pegadinha «Histogramas são ignorados». O que acontece / por quê?,amostras de native histogram não geram saída.
+⚠️ sin(): pegadinha «O nome da métrica é removido». O que acontece / por quê?,do resultado (como em toda função matemática).
+sinh() · Complete: sinh(x) = (eˣ − e⁻ˣ)/2; …,sinh(x) = (eˣ − e⁻ˣ)/2; sinh(0) = 0; ímpar; ilimitada.
+sinh() · Perto de 0 ≈ x; longe explode; |x| ≳ 710 → ?,±Inf.
+sinh() · Inversa: ?,asinh. Não é ângulo!
+sinh() · Remove […]; histogramas ignorados.,sinh() · Remove __name__; histogramas ignorados.
+⚠️ sinh(): pegadinha «Não confunda com sin()». O que acontece / por quê?,"o ""h"" muda tudo; sinh não é periódica nem limitada."
+⚠️ sinh(): pegadinha «Overflow». O que acontece / por quê?,a partir de |x| ≈ 710 o resultado é ±Inf.
+⚠️ sinh(): pegadinha «Escala». O que acontece / por quê?,"multiplicar x por 10 multiplica o resultado por muito mais que 10. Normalize x antes (z-score, x/referência)."
+sinh() · Remove […]; histogramas ignorados.,sinh() · Remove __name__; histogramas ignorados.
+sort() · sort(v) = crescente pelo […]; sort_desc(v) = decrescente.,sort() · sort(v) = crescente pelo valor; sort_desc(v) = decrescente.
+"sort() · […] (tabela, bar gauge, API). Gráfico = ignorado.","sort() · Só instant query (tabela, bar gauge, API). Gráfico = ignorado."
+sort() · […]; histogramas são descartados.,sort() · NaN no fim; histogramas são descartados.
+sort() · Não limita: ?,"combine sort(bottomk(N, ...)) / sort_desc(topk(N, ...))."
+sort() · Complete: Não serve para …,Não serve para alertas/recording rules.
+⚠️ sort(): pegadinha «Range query ignora». O que acontece / por quê?,"colocar sort() em gráfico não quebra nada, mas também não faz nada."
+⚠️ sort(): pegadinha «NaN vai para o fim». O que acontece / por quê?,"NaN vai para o fim, mesmo no sort crescente. Para escondê-lo: sort(v == v) (só o NaN é diferente de si mesmo)."
+⚠️ sort(): pegadinha «Histograms somem». O que acontece / por quê?,amostras de native histogram são ignoradas silenciosamente (removidas do resultado).
+⚠️ sort(): pegadinha «Empates». O que acontece / por quê?,"séries com o mesmo valor não têm ordem garantida entre si. Se precisa de estabilidade, use sort_by_label()."
+⚠️ sort(): pegadinha «O Grafana pode reordenar». O que acontece / por quê?,"algumas transformações (Join by field, Reduce...) ou um clique no cabeçalho da tabela mudam a ordem depois que o Prometheus respondeu."
+⚠️ sort(): pegadinha «topk/bottomk não ordenam». O que acontece / por quê?,de forma garantida: sempre combine com sort/sort_desc quando a ordem importa.
+"sort_by_label() · sort_by_label(v, ""l1"", ""l2"", ...): crescente por […], […] (2 < 10).","sort_by_label() · sort_by_label(v, ""l1"", ""l2"", ...): crescente por label, ordem natural (2 < 10)."
+sort_by_label() · Desempate: ?,"próximo label da lista, depois o conjunto completo de labels."
+sort_by_label() · […] (feature flag) e […].,sort_by_label() · Experimental (feature flag) e só instant query.
+sort_by_label() · Natural ≠ semver ([…] > final).,sort_by_label() · Natural ≠ semver (-rc.1 > final).
+⚠️ sort_by_label(): pegadinha «É experimental». O que acontece / por quê?,sem --enable-feature=promql-experimental-functions a query falha com erro de parse (função desconhecida). Pode mudar ou sumir em versões futuras.
+⚠️ sort_by_label(): pegadinha «Só instant query». O que acontece / por quê?,"em gráfico, nada acontece."
+⚠️ sort_by_label(): pegadinha «Label inexistente». O que acontece / por quê?,vai para o fim na ordem crescente (testado no v3.15.0: sort_by_label coloca as séries sem o label depois de todas as outras; no _desc elas vão para o começo).
+⚠️ sort_by_label(): pegadinha «Natural ≠ semver». O que acontece / por quê?,"2.11.0-rc.1 é considerado maior que 2.11.0 (o prefixo igual + ""mais caracteres"")."
+⚠️ sort_by_label(): pegadinha «Maiúsculas vêm antes». O que acontece / por quê?,"a comparação diferencia maiúsculas de minúsculas (Node-4 aparece antes de node-3, porque N < n na tabela ASCII)."
+"⚠️ sort_by_label(): pegadinha «Ao contrário do sort, histogramas NÃO são descartados». O que acontece / por quê?",a documentação diz que float e histogram são tratados do mesmo jeito.
+"sort_by_label_desc() · sort_by_label_desc(v, ""l1"", ...): […] por label, […].","sort_by_label_desc() · sort_by_label_desc(v, ""l1"", ...): decrescente por label, ordem natural."
+sort_by_label_desc() · Datas ISO + _desc = ?,"""mais recente primeiro""."
+sort_by_label_desc() · -rc.1 fica […] da versão final (natural ≠ semver).,sort_by_label_desc() · -rc.1 fica acima da versão final (natural ≠ semver).
+"sort_by_label_desc() · Complete: Experimental, só instant …","Experimental, só instant query."
+⚠️ sort_by_label_desc(): pegadinha «Experimental». O que acontece / por quê?,precisa da feature flag; pode mudar/sumir.
+sort_by_label_desc() · Complete: Só instant query. …,Só instant query.
+⚠️ sort_by_label_desc(): pegadinha «Natural ≠ semver». O que acontece / por quê?,2.11.0-rc.1 > 2.11.0.
+⚠️ sort_by_label_desc(): pegadinha «Séries sem o label». O que acontece / por quê?,vão para o começo na ordem decrescente (testado no v3.15.0).
+⚠️ sort_by_label_desc(): pegadinha «Maiúsculas/minúsculas». O que acontece / por quê?,comparação sensível a caixa (a > Z em ASCII).
+sort_desc() · sort_desc(v) = maior primeiro; […].,sort_desc() · sort_desc(v) = maior primeiro; só instant query.
+sort_desc() · Top N correto: ?,"sort_desc(topk(N, sum by (...) (rate(...))))."
+sort_desc() · NaN […]; para removê-lo: v == v ou v > 0.,sort_desc() · NaN no fim; para removê-lo: v == v ou v > 0.
+sort_desc() · Complete: Não corta séries …,Não corta séries e não altera valores.
+⚠️ sort_desc(): pegadinha «Range query ignora». O que acontece / por quê?,o sort_desc.
+⚠️ sort_desc(): pegadinha «NaN vai para o fim». O que acontece / por quê?,"NaN vai para o fim, não para o topo. Um serviço com 0 tráfego não aparece como ""o pior""."
+⚠️ sort_desc(): pegadinha «topk não garante ordem». O que acontece / por quê?,use sort_desc(topk(...)).
+⚠️ sort_desc(): pegadinha «topk em gráfico». O que acontece / por quê?,"é traiçoeiro (outro assunto, mas cai junto): em range query, topk é calculado em cada passo, então a legenda pode ter mais de N séries."
+⚠️ sort_desc(): pegadinha «Histogramas são descartados». O que acontece / por quê?,do resultado.
+"sqrt() · Complete: sqrt(v instant-vector); sqrt(-x) = NaN, sqrt(+Inf) = +Inf, sqrt(0.25) …","sqrt(v instant-vector); sqrt(-x) = NaN, sqrt(+Inf) = +Inf, sqrt(0.25) = 0.5 (entre 0 e 1 a raiz cresce)."
+"sqrt() · stddev = sqrt(stdvar). Some/tire média de […], e só no fim aplique sqrt.","sqrt() · stddev = sqrt(stdvar). Some/tire média de variâncias, e só no fim aplique sqrt."
+sqrt() · RMS = ?,sqrt(avg_over_time((x ^ 2)[janela:passo])) (subquery porque x ^ 2 é expressão).
+sqrt() · Magnitude: ?,sqrt(sum by (grupo) (x ^ 2)).
+sqrt() · Ruído de Poisson: ?,"sqrt(N); com poucos eventos, taxas são instáveis."
+⚠️ sqrt(): pegadinha «Negativos viram NaN». O que acontece / por quê?,"Uma ""variância"" calculada à mão com cancelamento numérico pode dar -0.0000001 e o sqrt devolve NaN. Use sqrt(clamp_min(x, 0))."
+⚠️ sqrt(): pegadinha «Entre 0 e 1 a raiz aumenta». O que acontece / por quê?,sqrt(0.25) = 0.5. Cuidado ao aplicar em razões (0..1).
+⚠️ sqrt(): pegadinha «Não some desvios padrão». O que acontece / por quê?,stddev_a + stddev_b está errado. Some as variâncias e tire a raiz: sqrt(var_a + var_b).
+⚠️ sqrt(): pegadinha «Média de raízes ≠ raiz da média». O que acontece / por quê?,"avg(sqrt(x)) ≠ sqrt(avg(x)). Para RMS, a ordem é quadrado → média → raiz."
+⚠️ sqrt(): pegadinha «Nome da métrica some». O que acontece / por quê?,e histogramas nativos são ignorados.
+start() · start() = borda […] do gráfico (range query); em instant query = time().,start() · start() = borda esquerda do gráfico (range query); em instant query = time().
+start() · x @ start() = ?,valor no início da janela (linha reta).
+start() · x - x @ start() = ?,variação desde o início (só para gauges ou counters sem reset).
+start() · Experimental: ?,--enable-feature=promql-experimental-functions.
+start() · Complete: Nunca em alertas. …,Nunca em alertas.
+⚠️ start(): pegadinha «Experimental». O que acontece / por quê?,sem --enable-feature=promql-experimental-functions → erro de parse dizendo que a função experimental não está habilitada.
+⚠️ start(): pegadinha «Instantânea = time()». O que acontece / por quê?,"em stat/tabela/alerta, x - x @ start() = 0."
+⚠️ start(): pegadinha «@ start() e o lookback». O que acontece / por quê?,"x @ start() precisa de uma amostra nos 5 min anteriores à borda esquerda. Se a série nasceu depois, fica vazio."
+⚠️ start(): pegadinha «Grafana alinha o start». O que acontece / por quê?,"a múltiplos do step, então pode ser uns segundos antes da borda visível."
+⚠️ start(): pegadinha «@ só vale para seletores e subqueries». O que acontece / por quê?,rate(x[5m]) @ start() dá erro; escreva rate(x[5m] @ start()).
+start_timestamp() · start_timestamp(v) → ?,"quando o counter começou do zero (created timestamp), em segundos Unix."
+start_timestamp() · Uptime: ?,time() - start_timestamp(x); restarts: changes(start_timestamp(x)[10m:]).
+start_timestamp() · Precisa de […] (+ st-storage) e scrape em protobuf/OpenMetrics.,start_timestamp() · Precisa de use-start-timestamps (+ st-storage) e scrape em protobuf/OpenMetrics.
+start_timestamp() · Sem created → […] (filtre > 0); sobre expressão → […].,start_timestamp() · Sem created → 0 (filtre > 0); sobre expressão → vazio.
+start_timestamp() · Plano B clássico: ?,time() - process_start_time_seconds.
+"start_timestamp() · legacy → […], não vazio! time() - 0 daria um ""uptime"" de […].","start_timestamp() · legacy → 0, não vazio! time() - 0 daria um ""uptime"" de 56 anos."
+start_timestamp() · em expressão → ?,"vazio (a doc: ""only works when used directly on an instant vector"")."
+start_timestamp() · o filtro > 0 descarta o legacy: ?,sobra só worker-a e worker-b com uptime válido.
+stddev_over_time() · stddev_over_time(gauge[janela]) → ?,"desvio padrão populacional por série, na unidade da métrica."
+stddev_over_time() · […] = (x − avg_over_time(x[w])) / stddev_over_time(x[w]); |z| > 3 = anômalo.,stddev_over_time() · z-score = (x − avg_over_time(x[w])) / stddev_over_time(x[w]); |z| > 3 = anômalo.
+stddev_over_time() · Counter?,"rate primeiro (subquery ou recording rule), depois stddev_over_time."
+stddev_over_time() · stddev(x) = ?,entre séries; stddev_over_time(x[w]) = no tempo. stdvar = stddev².
+stddev_over_time() · Outliers?,Prefira mad_over_time. Proteja divisão por σ = 0.
+⚠️ stddev_over_time(): pegadinha «A anomalia contamina a própria linha de base». O que acontece / por quê?,o z-score cai conforme ela fica na janela. Alternativa: base com offset (avg_over_time(x[1h] offset 5m)) ou janela bem maior que o evento.
+⚠️ stddev_over_time(): pegadinha «σ = 0 ⇒ divisão por zero». O que acontece / por quê?,"se a série ficou constante na janela (ex.: um gauge parado), o z-score vira +Inf, -Inf ou NaN. Proteja com ... / (stddev_over_time(x[5m]) > 0)."
+"⚠️ stddev_over_time(): pegadinha «Populacional, não amostral». O que acontece / por quê?","divide por N, não por N−1. Com poucas amostras, o valor é um pouco menor que o de planilhas (DESVPAD.A)."
+"⚠️ stddev_over_time(): pegadinha «Pressupõe distribuição ""em sino""». O que acontece / por quê?","com dados bimodais ou cauda longa, ""3σ"" não significa 0,3%."
+⚠️ stddev_over_time(): pegadinha «Poucas amostras». O que acontece / por quê?,"Poucas amostras (janela curta) → σ instável, z-scores exagerados."
+⚠️ stddev_over_time(): pegadinha «Histogramas nativos são ignorados». O que acontece / por quê?,Histogramas nativos são ignorados (só amostras float entram).
+stdvar_over_time() · stdvar_over_time(gauge[janela]) = variância […] por série = stddev_over_time².,stdvar_over_time() · stdvar_over_time(gauge[janela]) = variância populacional por série = stddev_over_time².
+"stdvar_over_time() · Unidade […] (s², V²): limiares de alerta também ao quadrado.","stdvar_over_time() · Unidade ao quadrado (s², V²): limiares de alerta também ao quadrado."
+"stdvar_over_time() · Variâncias de fontes independentes […]; desvios padrão não. Some variâncias, depois sqrt().","stdvar_over_time() · Variâncias de fontes independentes somam; desvios padrão não. Some variâncias, depois sqrt()."
+stdvar_over_time() · stdvar(x) operador = ?,entre séries; stdvar_over_time(x[w]) = no tempo.
+stdvar_over_time() · Série constante → ?,0; janela sem amostras → sem resultado.
+⚠️ stdvar_over_time(): pegadinha «Unidade ao quadrado». O que acontece / por quê?,"100 V² não é ""100 volts"". No Grafana, não use unidade volt no painel de variância."
+⚠️ stdvar_over_time(): pegadinha «Populacional (÷N)». O que acontece / por quê?,"Populacional (÷N), não amostral (÷N−1)."
+⚠️ stdvar_over_time(): pegadinha «Outliers dominam». O que acontece / por quê?,um único ponto a 100 da média contribui 10.000 para a soma.
+⚠️ stdvar_over_time(): pegadinha «Janela curta». O que acontece / por quê?,→ resultado dependente de fase.
+stdvar_over_time() · Complete: Variâncias só se somam …,Variâncias só se somam se as fontes forem independentes.
+⚠️ stdvar_over_time(): pegadinha «Histogramas nativos são ignorados». O que acontece / por quê?,Histogramas nativos são ignorados (só amostras float).
+step() · step() = distância entre pontos (s) da range query; […] em instant query.,step() · step() = distância entre pontos (s) da range query; 0 em instant query.
+step() · Zoom out → ?,step maior → picos somem → max_over_time(x[step()]).
+step() · […] precisa de step ≥ 2 scrapes (ou [step() + folga]).,step() · increase(x[step()]) precisa de step ≥ 2 scrapes (ou [step() + folga]).
+step() · Grafana: ?,$__interval ≈ step; $__rate_interval = versão segura para rate.
+⚠️ step(): pegadinha «step() = 0 em instant query». O que acontece / por quê?,x[step()] → erro.
+⚠️ step(): pegadinha «rate/increase com [step()] pequeno». O que acontece / por quê?,→ vazio (menos de 2 amostras).
+⚠️ step(): pegadinha «Experimental». O que acontece / por quê?,"Experimental; e o valor depende de quem faz a consulta (Grafana, largura do painel, Min interval, Max data points)."
+⚠️ step(): pegadinha «Picos invisíveis». O que acontece / por quê?,"num gráfico cru com step grande: a amostra desenhada é a última antes do ponto, não uma média nem um máximo."
+⚠️ step(): pegadinha «Duration expressions». O que acontece / por quê?,"aceitam aritmética (step() * 2, step() + 10s), não funções como max()."
+sum_over_time() · sum_over_time(x[j]) = soma das amostras […] na janela; depende do […].,sum_over_time() · sum_over_time(x[j]) = soma das amostras de cada série na janela; depende do número de scrapes.
+"sum_over_time() · Só para gauges de […] (""desde o último scrape"") ou condições 0/1 (> bool).","sum_over_time() · Só para gauges de lote (""desde o último scrape"") ou condições 0/1 (> bool)."
+sum_over_time() · Counter → ?,increase(). Gauge de nível → avg/max_over_time.
+sum_over_time() · Complete: sum_over_time = avg_over_time …,sum_over_time = avg_over_time × count_over_time.
+sum_over_time() · sum_over_time((cond > bool X)[j:passo]) * passo = ?,tempo em que a condição foi verdadeira.
+⚠️ sum_over_time(): pegadinha «Depende do scrape interval». O que acontece / por quê?,"O resultado é ""soma de N amostras""; mudou o scrape, mudou o número. Counters + increase() não têm esse problema."
+⚠️ sum_over_time(): pegadinha «Scrape perdido = moedas perdidas». O que acontece / por quê?,"Se um scrape falhar, aquele lote não é contado. Um counter guardaria o total e o próximo scrape recuperaria a diferença. (Neste lab, quando alguém roda tools/deploy.sh o gerador reinicia e você vê pequenos ""buracos"" na soma.)"
+"⚠️ sum_over_time(): pegadinha «Dois Prometheus raspando o mesmo ""desde o último scrape""». O que acontece / por quê?",dividem os lotes entre si: cada um vê só metade. Mais um motivo para preferir counters.
+⚠️ sum_over_time(): pegadinha «x > 80 sem bool». O que acontece / por quê?,"filtra em vez de zerar: sum_over_time((x > 80)[8m:5s]) soma os valores de CPU acima de 80 (ex.: 85 + 88 + ...), não conta pontos."
+⚠️ sum_over_time(): pegadinha «Histogramas». O que acontece / por quê?,"se a janela mistura amostras float e histogram, a série é removida do resultado (com aviso)."
+sum_over_time() · Resultado sem […].,sum_over_time() · Resultado sem __name__.
+tan() · tan(v): radianos → ?,"(-∞, +∞); tan(45°) = 1."
+tan() · Grade %: ?,100 * tan(rad(graus)).
+tan() · Complete: Perto de 90° explode (1.6e16 …,Perto de 90° explode (1.6e16 em 90°); gráfico em escala log.
+tan() · Inversa: atan(). ±Inf → ?,NaN. Remove __name__.
+⚠️ tan(): pegadinha «Radianos». O que acontece / por quê?,"tan(45) = 1.62, não 1. Use tan(rad(45))."
+⚠️ tan(): pegadinha «Assíntota». O que acontece / por quê?,"perto de ±90° o valor explode; tan(90°) dá 1.6e16, não +Inf. Um alerta > 1e10 pega isso."
+⚠️ tan(): pegadinha «Escala do gráfico». O que acontece / por quê?,"use escala log ou limite o eixo, senão o pico esconde tudo."
+⚠️ tan(): pegadinha «Sinal troca». O que acontece / por quê?,ao passar de 90°: tan(91°) = -57.3.
+⚠️ tan(): pegadinha «±Inf → NaN». O que acontece / por quê?,e histogramas são ignorados.
+tanh() · tanh(x): ℝ → ?,"(-1, 1); tanh(1) ≈ 0.76, tanh(3) ≈ 0.995; ±Inf → ±1."
+tanh() · Receita: ?,"tanh(sinal / referência) = ""clamp suave""."
+tanh() · Score: ?,1 - avg(tanh(sinal_i / ref_i)).
+tanh() · Inversa: ?,atanh. Remove __name__.
+⚠️ tanh(): pegadinha «Escolha da referência». O que acontece / por quê?,manda em tudo: tanh(x) com x em milhares satura sempre em 1. Divida antes.
+⚠️ tanh(): pegadinha «Satura cedo». O que acontece / por quê?,"acima de x ≈ 3 tudo vira ~1: diferenças entre ""ruim"" e ""catastrófico"" somem."
+⚠️ tanh(): pegadinha «Não é tan()». O que acontece / por quê?,tangente trigonométrica explode; tanh é limitada.
+"tanh() · Em float64, tanh(20) = 1 exato: ?","não use == 1 como ""infinito""."
+tanh() · Remove […]; histogramas ignorados.,tanh() · Remove __name__; histogramas ignorados.
+"time() · time() → […], segundos Unix (UTC) […].","time() · time() → scalar, segundos Unix (UTC) do instante avaliado."
+time() · Idade: ?,time() - x_timestamp_seconds · Quanto falta: x_expiry - time() · Dias: / 86400.
+time() · Uptime: ?,time() - process_start_time_seconds.
+"time() · Complete: Num gráfico, time() é uma …","Num gráfico, time() é uma rampa (1 por segundo), não ""agora""."
+time() · ms → ?,/ 1000. Métrica sumiu → time() - x fica vazio: combine com up/absent().
+"⚠️ time(): pegadinha «time() é o instante AVALIADO, não o ""agora"" do servidor». O que acontece / por quê?","Num gráfico, cada ponto tem o seu time(); numa regra, é o horário da avaliação da regra; com @, o que o @ mandar."
+⚠️ time(): pegadinha «É um escalar». O que acontece / por quê?,"É um escalar, não um vetor: sum(time()) dá erro. Para virar vetor: vector(time())."
+⚠️ time(): pegadinha «Unidade». O que acontece / por quê?,"segundos. Métricas vindas de JavaScript/Java (Date.now(), System.currentTimeMillis()) estão em ms → divida por 1000."
+⚠️ time(): pegadinha «Sempre UTC». O que acontece / por quê?,por definição (época Unix). O fuso só vira problema quando você extrai hora/dia com as funções de calendário.
+⚠️ time(): pegadinha «Não use o label job nas suas métricas». O que acontece / por quê?,"o Prometheus já coloca job (do scrape) e renomeia o seu para exported_job (a não ser com honor_labels: true). Por isso o cenário usa backup=""...""."
+"⚠️ time(): pegadinha «Gauge ""timestamp"" parado vs alvo fora do ar». O que acontece / por quê?","se o exporter cair, a série some e time() - x fica vazio (o alerta não dispara!). Combine com up == 0 ou absent()."
+"timestamp() · timestamp(v) → horário da […] (segundos Unix, UTC); time() → horário da […].","timestamp() · timestamp(v) → horário da coleta (segundos Unix, UTC); time() → horário da avaliação."
+timestamp() · Idade do dado: ?,time() - timestamp(x).
+timestamp() · Só vale sobre […]; sobre expressão = hora da avaliação.,timestamp() · Só vale sobre seletor; sobre expressão = hora da avaliação.
+timestamp() · Lookback 5 min: ?,dado mais velho some. Para lembrar mais: max_over_time(timestamp(x)[1h:]).
+timestamp() · Útil com timestamps explícitos: ?,"Pushgateway, federation, IoT, exporters de cloud."
+"⚠️ timestamp(): pegadinha «Só funciona ""de verdade"" sobre um seletor». O que acontece / por quê?","timestamp(rate(x[1m])), timestamp(sum(x)), timestamp(last_over_time(x[5m])) devolvem o instante da avaliação."
+⚠️ timestamp(): pegadinha «Lookback de 5 min». O que acontece / por quê?,"amostras mais velhas que 5 min somem da consulta, e time() - timestamp(x) > 600 nunca dispara. Use max_over_time(timestamp(x)[1h:]) ou absent_over_time."
+⚠️ timestamp(): pegadinha «Target normal (sem timestamp explícito)». O que acontece / por quê?,"o timestamp é o do scrape, então a idade fica sempre entre 0 e scrape_interval. timestamp() só é interessante com timestamps explícitos (Pushgateway, federation, gateways, exporters de cloud) ou para ver jitter de scrape."
+⚠️ timestamp(): pegadinha «Series com timestamp explícito não recebem staleness markers». O que acontece / por quê?,"quando o exporter para, elas continuam visíveis até o lookback acabar."
+⚠️ timestamp(): pegadinha «Resultado com ms». O que acontece / por quê?,1790374320.123. Na maioria dos usos isso não importa.
+ts_of_first_over_time() · ts_of_first_over_time(x[w]) = timestamp (s) da amostra […] na janela; […].,ts_of_first_over_time() · ts_of_first_over_time(x[w]) = timestamp (s) da amostra mais antiga na janela; experimental.
+"ts_of_first_over_time() · Resultado […] no início da janela: ""idade"" ≤ tamanho da janela.","ts_of_first_over_time() · Resultado cortado no início da janela: ""idade"" ≤ tamanho da janela."
+ts_of_first_over_time() · *_build_info + ts_of_first_over_time = ?,horário de deploys. Filtre a versão atual com and on(version) metrica.
+ts_of_first_over_time() · Uptime de processo: ?,time() - process_start_time_seconds (não esta função).
+"ts_of_first_over_time() · […] (valor, estável) ≠ ts_of_first_over_time (timestamp, experimental).","ts_of_first_over_time() · first_over_time (valor, estável) ≠ ts_of_first_over_time (timestamp, experimental)."
+⚠️ ts_of_first_over_time(): pegadinha «Experimental». O que acontece / por quê?,"sem a feature flag, erro de função desconhecida."
+⚠️ ts_of_first_over_time(): pegadinha «Cortado na janela». O que acontece / por quê?,"""idade"" nunca passa do tamanho da janela."
+⚠️ ts_of_first_over_time(): pegadinha «Séries que já morreram continuam no resultado». O que acontece / por quê?,enquanto tiverem amostras na janela: filtre com and on(...) metrica.
+⚠️ ts_of_first_over_time(): pegadinha «Timestamp do 1º scrape». O que acontece / por quê?,"Timestamp do 1º scrape, não do evento real: pode atrasar até 1 scrape interval."
+⚠️ ts_of_first_over_time(): pegadinha «Janelas longas ([7d]) são caras». O que acontece / por quê?,leem todas as amostras do período. Use recording rules ou janelas curtas em dashboards.
+ts_of_first_over_time() · Parecido com first_over_time(m[1m]) vs m offset 1m na doc: as funções _over_time olham […] da janela; offset pega a amostra mais recente […] do ponto deslocado.,ts_of_first_over_time() · Parecido com first_over_time(m[1m]) vs m offset 1m na doc: as funções _over_time olham dentro da janela; offset pega a amostra mais recente antes do ponto deslocado.
+ts_of_last_over_time() · ts_of_last_over_time(x[w]) = timestamp (s) da amostra mais recente […]; […].,ts_of_last_over_time() · ts_of_last_over_time(x[w]) = timestamp (s) da amostra mais recente na janela; experimental.
+ts_of_last_over_time() · time() - ts_of_last_over_time(x[w]) = idade do último dado; mantém os […] (bom para alertas por série).,ts_of_last_over_time() · time() - ts_of_last_over_time(x[w]) = idade do último dado; mantém os labels (bom para alertas por série).
+"ts_of_last_over_time() · […] some quando a série fica stale; a versão _over_time ""lembra"" até o tamanho da janela.","ts_of_last_over_time() · timestamp(x) some quando a série fica stale; a versão _over_time ""lembra"" até o tamanho da janela."
+ts_of_last_over_time() · Série mais velha que a janela → ?,some do resultado. Nenhuma série → use absent/absent_over_time.
+ts_of_last_over_time() · Pushgateway: ?,use push_time_seconds.
+⚠️ ts_of_last_over_time(): pegadinha «Experimental». O que acontece / por quê?,"sem a feature flag, erro de função desconhecida."
+⚠️ ts_of_last_over_time(): pegadinha «A janela é o limite da memória». O que acontece / por quê?,"se a última amostra é mais velha que a janela, a série some do resultado (não aparece ""idade infinita"")."
+⚠️ ts_of_last_over_time(): pegadinha «Timestamp do scrape». O que acontece / por quê?,"com scrape de 5s, uma série saudável tem idade de 0 a 5s, nunca exatamente 0."
+"⚠️ ts_of_last_over_time(): pegadinha «Pushgateway/exporters que ""congelam"" valores». O que acontece / por quê?","continuam gerando amostras novas a cada scrape, então a idade fica sempre ~0."
+⚠️ ts_of_last_over_time(): pegadinha «Segundos Unix». O que acontece / por quê?,* 1000 para o Grafana formatar como data.
+ts_of_max_over_time() · ts_of_max_over_time(x[w]) = […] (timestamp Unix em s) foi o máximo da janela; […].,ts_of_max_over_time() · ts_of_max_over_time(x[w]) = quando (timestamp Unix em s) foi o máximo da janela; experimental.
+ts_of_max_over_time() · Empate/platô → ?,última amostra com o valor máximo.
+ts_of_max_over_time() · time() - ts_of_max_over_time(x[w]) = ?,"""o pico foi há N segundos""."
+ts_of_max_over_time() · Grafana: ?,* 1000 + dateTimeAsIso.
+ts_of_max_over_time() · Counter?,rate primeiro. Par natural: max_over_time (o quê) + ts_of_max_over_time (quando).
+⚠️ ts_of_max_over_time(): pegadinha «Experimental». O que acontece / por quê?,"sem a feature flag, erro de função desconhecida."
+⚠️ ts_of_max_over_time(): pegadinha «Empate = ÚLTIMA amostra». O que acontece / por quê?,"num platô, a resposta acompanha o fim do platô (query 3, web-2)."
+⚠️ ts_of_max_over_time(): pegadinha «Segundos Unix». O que acontece / por quê?,* 1000 para o Grafana formatar como data.
+⚠️ ts_of_max_over_time(): pegadinha «Timestamp do scrape». O que acontece / por quê?,"Timestamp do scrape, não do evento real: com scrape de 30s, o pico ""real"" pode ter sido até 30s antes."
+⚠️ ts_of_max_over_time(): pegadinha «Só dentro da janela». O que acontece / por quê?,um pico maior 1 segundo antes do início da janela é ignorado.
+⚠️ ts_of_max_over_time(): pegadinha «Counter cru». O que acontece / por quê?,o máximo de um counter é a última amostra (salvo reset). Aplique rate antes.
+ts_of_min_over_time() · ts_of_min_over_time(x[w]) = […] (timestamp Unix em s) foi o mínimo da janela; […].,ts_of_min_over_time() · ts_of_min_over_time(x[w]) = quando (timestamp Unix em s) foi o mínimo da janela; experimental.
+ts_of_min_over_time() · Empate → ?,a última amostra com o valor mínimo.
+ts_of_min_over_time() · time() - ts_of_min_over_time(x[w]) = ?,há quantos segundos foi o mínimo.
+ts_of_min_over_time() · Grafana: ?,* 1000 + unidade dateTimeAsIso.
+ts_of_min_over_time() · Par natural: ?,min_over_time (o quê) + ts_of_min_over_time (quando).
+⚠️ ts_of_min_over_time(): pegadinha «Experimental». O que acontece / por quê?,"sem a feature flag, erro de função desconhecida."
+⚠️ ts_of_min_over_time(): pegadinha «Empate = ÚLTIMA amostra». O que acontece / por quê?,"com o valor mínimo, não a primeira (query 3, platô do BAT0)."
+"⚠️ ts_of_min_over_time(): pegadinha «Segundos, não milissegundos». O que acontece / por quê?",Grafana precisa de * 1000 para formatar data.
+⚠️ ts_of_min_over_time(): pegadinha «É o timestamp da AMOSTRA». O que acontece / por quê?,"É o timestamp da AMOSTRA (hora do scrape), não do evento real: com scrape de 60s, erro de até 60s."
+⚠️ ts_of_min_over_time(): pegadinha «Só enxerga dentro da janela». O que acontece / por quê?,"se o mínimo ""de verdade"" foi antes da janela, você recebe o mínimo da janela."
+ts_of_min_over_time() · Complete: Histogramas são ignorados. …,Histogramas são ignorados.
+vector() · vector(s) → ?,"{} s (1 elemento, sem labels). Inverso de scalar()."
+"vector() · ... or vector(0): ""No data"" vira 0. Só funciona bem […] by.","vector() · ... or vector(0): ""No data"" vira 0. Só funciona bem sem by."
+vector() · Fallback por label: ?,or 0 * sum by (x) (<métrica que sempre existe>).
+vector() · or/and/unless só entre […] (x or 0 é erro).,vector() · or/and/unless só entre vetores (x or 0 é erro).
+vector() · Cuidado: 0 pode esconder um scrape quebrado → ?,tenha absent()/up.
+⚠️ vector(): pegadinha «vector(0) não tem labels». O que acontece / por quê?,"sum by (x) (...) or vector(0) adiciona uma série {}, não um 0 por x."
+⚠️ vector(): pegadinha «Em divisões com by». O que acontece / por quê?,"o {} do vector(0) não casa com {job=""...""} do denominador → resultado vazio. Use o ""molde"" com 0 * ...."
+⚠️ vector(): pegadinha «Pode mascarar problemas». O que acontece / por quê?,"se o scrape falhou e a métrica sumiu, or vector(0) mostra ""0 erros"" (tudo verde!). Tenha um alerta de up == 0 / absent() em paralelo."
+⚠️ vector(): pegadinha «Escalar vs vetor». O que acontece / por quê?,"vector(time()) é um vetor; time() é escalar. Operadores de conjunto (or, and, unless) só funcionam entre vetores: x or 0 é erro de parse."
+⚠️ vector(): pegadinha «Nome da métrica». O que acontece / por quê?,"vector(...) não tem __name__, então legendas {{__name__}} ficam vazias."
+year() · year() → ?,ano em UTC. Réveillon do Prometheus = 21h BRT.
+year() · Brasília: ?,year(x - 3*3600) / year(vector(time() - 3*3600)).
+year() · Idade real: ?,"(time() - x) / (365.25*86400), não year() - year(x)."
+year() · Mês sem ano é ambíguo → ?,combine month() + year().
+⚠️ year(): pegadinha «UTC». O que acontece / por quê?,o ano vira às 21h de 31/12 em Brasília. Relatórios fiscais brasileiros precisam de year(x - 3*3600).
+⚠️ year(): pegadinha «year() - year(x) não é idade». O que acontece / por quê?,"de 31/12 para 01/01 já dá 1 ""ano""."
+⚠️ year(): pegadinha «ms em vez de s». O que acontece / por quê?,→ ano ~58 000. Divida por 1000.
+⚠️ year(): pegadinha «Vetor sem labels vs com labels». O que acontece / por quê?,→ scalar(year()) para subtrair.
+"year() · year() devolve o ano como […], não como label; agrupar por ano exige que o ano seja label na origem.","year() · year() devolve o ano como valor, não como label; agrupar por ano exige que o ano seja label na origem."
+lab promql-operators · Tipos: ?,"instant vector · range vector ([5m], não vai para gráfico) · scalar · string. Range query = instant query repetida por step."
+lab promql-operators · Matchers: ?,"= != =~ !~; regex RE2 ancorada; {l=""""} = label ausente; precisa de 1 matcher que não case com vazio."
+lab promql-operators · Tempo: ?,x offset 1h · x @ 1609746000 · @ start()/@ end() · subquery expr[30m:1m] (sem resolução = evaluation_interval).
+lab promql-operators · Comparação: ?,filtra (valor da esquerda) · bool → 0/1 sem nome · escalar/escalar exige bool.
+lab promql-operators · Matching: ?,chave = todos os labels − __name__ · on(l) / ignoring(l) · many-to-one → group_left(labels a copiar) · many-to-many → erro · INNER JOIN.
+lab promql-operators · Lógicos: ?,"and (semi-join) · or (união) · unless (anti-join) — só labels, nunca valores."
+lab promql-operators · Agregações: ?,"sum avg min max count group stddev stdvar quantile(φ) topk(k) bottomk(k) count_values(""l"") limitk🧪 limit_ratio🧪 + by/without, antes ou depois."
+lab promql-operators · NaN: ?,sum/avg → NaN · max/min/topk ignoram · quantile = menor · x == x remove NaN.
+⚠️ lab promql-operators: pegadinha «Regex é ancorada». O que acontece / por quê?,"=~""api"" ≠ ""contém api"". Use .*api.*."
+⚠️ lab promql-operators: pegadinha «Label vazio = label ausente». O que acontece / por quê?,"{region=""""} seleciona quem não tem region."
+⚠️ lab promql-operators: pegadinha «offset/@ colados no seletor». O que acontece / por quê?,"offset/@ colados no seletor, nunca depois de função/agregação (sum(x offset 5m))."
+⚠️ lab promql-operators: pegadinha «Escalar vs escalar precisa de bool». O que acontece / por quê?,"Escalar vs escalar precisa de bool (1 > bool 2); sem bool, é erro de parse."
+⚠️ lab promql-operators: pegadinha «Comparação sem bool filtra». O que acontece / por quê?,"Comparação sem bool filtra, com bool devolve 0/1 e perde o nome."
+⚠️ lab promql-operators: pegadinha «NaN». O que acontece / por quê?,"NaN == NaN é falso, NaN != x é verdadeiro, sum/avg viram NaN, max/min/topk ignoram, quantile trata como o menor valor."
+⚠️ lab promql-operators: pegadinha «Vector matching é INNER JOIN». O que acontece / por quê?,séries sem par somem sem erro. Resultado vazio? Compare os labels dos dois lados.
+⚠️ lab promql-operators: pegadinha «on() em one-to-one descarta os outros labels». O que acontece / por quê?,on() em one-to-one descarta os outros labels; ignoring() mantém.
+⚠️ lab promql-operators: pegadinha «many-to-one sem group_left = erro». O que acontece / por quê?,many-to-one sem group_left = erro; many-to-many = sempre erro.
+lab promql-operators · group_left/group_right […] valem para and/or/unless.,lab promql-operators · group_left/group_right não valem para and/or/unless.
+⚠️ lab promql-operators: pegadinha «and/or/unless olham só labels». O que acontece / por quê?,"and/or/unless olham só labels, nunca valores. a and b devolve o valor de a."
+⚠️ lab promql-operators: pegadinha «^ é associativo à direita». O que acontece / por quê?,e and tem precedência maior que or.
+⚠️ lab promql-operators: pegadinha «Média de médias». O que acontece / por quê?,some numerador e denominador separadamente e só então divida.
+lab promql-operators · topk numa […] é recalculado a cada ponto (a legenda tem mais que k séries) — use @ end().,lab promql-operators · topk numa range query é recalculado a cada ponto (a legenda tem mais que k séries) — use @ end().
+lab promql-operators · […] só funciona sem by; com by(service) o vector(0) (sem labels) vira uma série extra.,lab promql-operators · sum(x) or vector(0) só funciona sem by; com by(service) o vector(0) (sem labels) vira uma série extra.
+Quais são os 4 tipos de métrica e um exemplo de cada?,"• Counter: só sobe (http_requests_total)
+• Gauge: sobe e desce (memory_usage_bytes, fila)
+• Histogram: buckets + _sum + _count (http_request_duration_seconds)
+• Summary: quantis calculados no cliente + _sum + _count"
+Um counter pode diminuir?,"Não. Ele só volta a 0 quando o processo reinicia (reset). Em Go, Add() com valor negativo causa panic. Se o valor desce, é gauge."
+Quais séries um histograma clássico http_request_duration_seconds expõe?,"_bucket{le=""...""} (cumulativos, incluindo le=""+Inf""), _sum e _count. O _bucket{le=""+Inf""} é igual ao _count."
+Histogram vs Summary: qual pode ser agregado entre instâncias?,"Histogram (somam-se os buckets e depois aplica-se histogram_quantile). Os quantis do summary não podem ser somados nem ter média calculada. O summary tem quantil exato por instância, mas é mais caro no cliente e os quantis são fixos."
+Buckets padrão dos client libraries (segundos): […].,"Buckets padrão dos client libraries (segundos): .005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10."
+Quais são as convenções de nome de métricas?,"• snake_case, prefixo do domínio/app (myapp_)
+• Counter termina em _total
+• Unidade base no nome: _seconds, _bytes, _meters
+• _ratio para 0..1; _info para metadados"
+O que está errado em http_request_duration_milliseconds?,Use unidades base: segundos (float). O certo é http_request_duration_seconds.
+Quando não usar um label?,"Quando os valores não têm limite (alta cardinalidade): user ID, email, request ID, URL com IDs, timestamps. Cada combinação de valores é uma série nova."
+Como criar e incrementar um counter com labels em Go (client_golang)?,"var reqs = promauto.NewCounterVec(
+  prometheus.CounterOpts{Name: ""myapp_requests_total"", Help: ""...""},
+  []string{""code""})
+reqs.WithLabelValues(""200"").Inc()
+http.Handle(""/metrics"", promhttp.Handler())"
+Como instrumentar em Python (prometheus_client)?,"from prometheus_client import Counter, Histogram, start_http_server
+JOBS = Counter(""jobs"", ""Jobs processados"", [""queue""])   # exposto como jobs_total
+LAT = Histogram(""job_duration_seconds"", ""Duração"")
+start_http_server(8000)
+JOBS.labels(""emails"").inc()
+with LAT.time(): work()"
+Como é o formato de exposição em texto?,"# HELP http_requests_total Total de requisições.
+# TYPE http_requests_total counter
+http_requests_total{method=""get"",code=""200""} 1027Timestamp (ms) opcional no fim da linha; quase nunca deve ser usado."
+O que o OpenMetrics acrescenta ao formato de texto clássico?,"Termina com # EOF, # UNIT, counters com sufixo _total obrigatório, séries _created e exemplars. Content-Type application/openmetrics-text."
+O que é o padrão info metric?,"Um gauge com valor 1 e os metadados em labels: myapp_build_info{version=""1.2.3"",revision=""abc""} 1. Faça join com * on(instance) group_left(version) myapp_build_info."
+"node_exporter: porta, métricas típicas e textfile collector?","Porta 9100: node_cpu_seconds_total, node_memory_MemAvailable_bytes, node_filesystem_avail_bytes, node_network_receive_bytes_total. Textfile collector: --collector.textfile.directory com arquivos *.prom (métricas de cron/scripts)."
+Como configurar o blackbox_exporter (padrão multi-target)?,Raspe /probe com params: {module: [http_2xx]} e faça relabel: __address__ → __param_target; __param_target → instance; __address__ = blackbox:9115. Métrica-chave: probe_success.
+Quais são as pegadinhas do Pushgateway?,"• As métricas não expiram (ficam até um DELETE)
+• O up reflete o Pushgateway, não o job
+• É um ponto único de falha
+• Exige honor_labels: true no scrape
+• Uso correto: jobs batch service-level"
+Como enviar uma métrica para o Pushgateway com curl?,"echo ""backup_last_success_timestamp_seconds $(date +%s)"" | curl --data-binary @- http://pushgateway:9091/metrics/job/backup/instance/db1. O grouping key é job + os labels do path."
+Pushgateway: PUT vs POST vs DELETE?,PUT substitui todas as métricas do grupo; POST substitui só as métricas com o mesmo nome; DELETE apaga o grupo.
+Como alertar que um job batch não roda há muito tempo?,O job expõe um gauge com timestamp: backup_last_success_timestamp_seconds. Alerta: time() - backup_last_success_timestamp_seconds > 26*3600. O Pushgateway também expõe push_time_seconds por grupo.
+Exporter vs instrumentação direta?,"Instrumentação direta: seu código usa um client library. Exporter: traduz métricas de um sistema de terceiros que você não pode alterar (MySQL, HAProxy, hardware, SNMP) para o formato Prometheus."
+Cite exporters comuns e o que monitoram.,"node_exporter (hosts Linux), windows_exporter, blackbox (probes HTTP/TCP/ICMP/DNS), mysqld/postgres/redis exporters, snmp_exporter (rede), JMX exporter (JVM), cAdvisor (containers), kube-state-metrics (objetos do Kubernetes)."
+kube-state-metrics vs cAdvisor?,"kube-state-metrics: estado dos objetos da API do k8s (kube_pod_container_status_restarts_total, kube_deployment_status_replicas). cAdvisor (no kubelet): uso de recursos dos containers (container_cpu_usage_seconds_total)."
+Que métricas os client libraries expõem por padrão?,"Métricas do processo (process_cpu_seconds_total, process_resident_memory_bytes, process_open_fds) e do runtime (go_goroutines, go_gc_*, python_gc_*)."
+O que são native histograms?,"Histogramas com buckets exponenciais esparsos numa única série (o schema define a resolução). São mais precisos e baratos, e não têm le: histogram_quantile(0.9, sum(rate(x[5m])))."
+Métodos de um Gauge e exemplos de uso?,"Set, Inc, Dec, Add, Sub, SetToCurrentTime. Exemplos: requisições em andamento (in-flight), tamanho de fila, memória, temperatura, timestamp do último sucesso."
+Qual tipo de métrica usar para contar requisições em andamento (in-flight)?,Gauge: Inc() ao começar e Dec() ao terminar. Em Go: promhttp.InstrumentHandlerInFlight.
+Onde deve ficar o /metrics de uma aplicação instrumentada e quem o chama?,"Num endpoint HTTP da própria app (ex.: :8080/metrics), servido pelo handler do client library. O Prometheus faz o GET a cada scrape_interval; a app não empurra nada."
+"Por que inicializar as séries com labels conhecidos (ex.: code=""500"") com 0?","Uma série que nunca foi incrementada não existe. Aí rate de erros some (em vez de dar 0) e queries/alertas com divisão quebram. Chame WithLabelValues(""500"") no startup."
+lab exporters-pushgateway · Exporter = tradutor para sistemas que você não controla. Código seu → ?,instrumentação direta.
+lab exporters-pushgateway · node_exporter :9100: ?,"node_cpu_seconds_total (counter, rate), node_memory_MemAvailable_bytes, node_filesystem_avail_bytes, node_network_*_bytes_total, node_load1. Textfile: --collector.textfile.directory, *.prom, escrita atômica, sem timestamp."
+lab exporters-pushgateway · blackbox :9115: ?,"/probe?module=X&target=Y; probe_success, probe_duration_seconds, probe_http_status_code, probe_ssl_earliest_cert_expiry. Relabel: __address__→__param_target→instance, __address__=blackbox:9115."
+lab exporters-pushgateway · Pushgateway :9091: ?,só batch de serviço de vida curta. /metrics/job/<j>/<label>/<valor>. POST (mesmo nome) · PUT (grupo todo) · DELETE. push_time_seconds. honor_labels: true. Nunca expira.
+lab exporters-pushgateway · up = ?,"o alvo raspado respondeu (o exporter), não o sistema por trás."
+lab exporters-pushgateway · Portas: ?,9090 Prometheus · 9091 Pushgateway · 9093 Alertmanager · 9100 node · 9115 blackbox.
+⚠️ lab exporters-pushgateway: pegadinha «up do blackbox é 1 mesmo com o site fora do ar». O que acontece / por quê?,"up = ""o blackbox respondeu"". Alerta em probe_success == 0."
+⚠️ lab exporters-pushgateway: pegadinha «Esquecer o passo 2 do relabel». O que acontece / por quê?,"Esquecer o passo 2 do relabel (__param_target → instance): todas as sondas ficam com instance=""blackbox:9115"" e colidem."
+⚠️ lab exporters-pushgateway: pegadinha «honor_labels faltando». O que acontece / por quê?,no job do Pushgateway: exported_job / exported_instance.
+⚠️ lab exporters-pushgateway: pegadinha «Pushgateway nunca expira nada». O que acontece / por quê?,Job descomissionado = DELETE explícito. Monitore time() - push_time_seconds.
+⚠️ lab exporters-pushgateway: pegadinha «Grouping key com valor único por execução». O que acontece / por quê?,"Grouping key com valor único por execução (pod name, run id) = um grupo novo a cada execução, acumulando para sempre."
+⚠️ lab exporters-pushgateway: pegadinha «push_time_seconds recente ≠ job com sucesso». O que acontece / por quê?,Empurre um *_last_success_timestamp_seconds e alerte nele.
+⚠️ lab exporters-pushgateway: pegadinha «Textfile». O que acontece / por quê?,"só *.prom, sem timestamp, escrita atômica, e node_textfile_scrape_error para pegar erro de sintaxe."
+⚠️ lab exporters-pushgateway: pegadinha «node_exporter em container». O que acontece / por quê?,"sem --path.rootfs e sem os volumes mede o container, não o host."
+⚠️ lab exporters-pushgateway: pegadinha «MemFree ≠ memória disponível». O que acontece / por quê?,Use MemAvailable.
+⚠️ lab exporters-pushgateway: pegadinha «rate() no node_cpu_seconds_total». O que acontece / por quê?,"é counter; node_cpu_seconds_total{mode=""idle""} cru não diz nada."
+"lab instrumentation · […] só sobe → rate/increase. […] sobe e desce → valor direto. […] → histogram_quantile(φ, sum by (le) (rate(x_bucket[5m]))). […] → {quantile} pronto, […].","lab instrumentation · Counter só sobe → rate/increase. Gauge sobe e desce → valor direto. Histogram → histogram_quantile(φ, sum by (le) (rate(x_bucket[5m]))). Summary → {quantile} pronto, não agregável."
+"lab instrumentation · Nomes: snake_case, <o_que>_<unidade>_total, unidades […] (_seconds, _bytes, _ratio), _info com valor 1, nada de label no nome, nada de tipo no nome.","lab instrumentation · Nomes: snake_case, <o_que>_<unidade>_total, unidades base (_seconds, _bytes, _ratio), _info com valor 1, nada de label no nome, nada de tipo no nome."
+lab instrumentation · Buckets: um […] em cada limiar de SLO; poucos; native histograms (NativeHistogramBucketFactor) dispensam a escolha.,lab instrumentation · Buckets: um exatamente em cada limiar de SLO; poucos; native histograms (NativeHistogramBucketFactor) dispensam a escolha.
+lab instrumentation · Cardinalidade = ?,"produto dos valores dos labels. Nunca IDs, e-mails, URLs cruas."
+lab instrumentation · promtool check metrics = ?,linter de nomes/HELP/unidades (exit ≠ 0). --extended = cardinalidade.
+lab instrumentation · Formatos: ?,"text 0.0.4 · OpenMetrics (# EOF, exemplars, _created) · protobuf (native histograms)."
+lab instrumentation · Exemplars: ?,--enable-feature=exemplar-storage + OpenMetrics/protobuf + /api/v1/query_exemplars.
+"lab instrumentation · Complete: Golden signals (Latency, Traffic, Errors, Saturation) …","Golden signals (Latency, Traffic, Errors, Saturation) · RED (serviços) · USE (recursos)."
+lab instrumentation · Coletores padrão: ?,"process_* (CPU, RSS, FDs), go_* (goroutines, GC, heap), python_* (gc, info)."
+⚠️ lab instrumentation: pegadinha «Gauge para contar coisas». O que acontece / por quê?,"orders_processed como gauge com Inc() funciona até o restart, e aí rate() não compensa o reset (e delta numa gauge que só sobe vira lixo). Se só sobe, é counter."
+⚠️ lab instrumentation: pegadinha «Milissegundos». O que acontece / por quê?,"o Prometheus usa segundos em tudo (rate é por segundo, histogram_quantile devolve na unidade dos buckets). Misturar ms e s obriga o dashboard a adivinhar."
+⚠️ lab instrumentation: pegadinha «Média de percentis». O que acontece / por quê?,"avg(x{quantile=""0.99""}) é estatisticamente sem sentido. Some buckets, não quantis."
+⚠️ lab instrumentation: pegadinha «sum by (job) sem le». O que acontece / por quê?,antes do histogram_quantile clássico: você perde o le e o resultado é vazio/NaN.
+⚠️ lab instrumentation: pegadinha «Série ausente ≠ zero». O que acontece / por quê?,counters com label só aparecem no primeiro Inc(). Inicialize com WithLabelValues(...).
+⚠️ lab instrumentation: pegadinha «promtool check metrics não vê cardinalidade». O que acontece / por quê?,"use --extended, o TSDB Status ou count by (__name__)."
+⚠️ lab instrumentation: pegadinha «Python força _total». O que acontece / por quê?,"em counters (Counter(""requests"") → requests_total) e expõe _created. No Go, o nome é exatamente o que você escreveu."
+lab instrumentation · Complete: Summary do Python …,Summary do Python não tem quantis.
+⚠️ lab instrumentation: pegadinha «Metadata no OpenMetrics». O que acontece / por quê?,"a família do counter não tem _total (# TYPE http_requests counter), então /api/v1/metadata?metric=http_requests_total pode vir vazio para alvos raspados via OpenMetrics."
+⚠️ lab instrumentation: pegadinha «Mudar buckets». O que acontece / por quê?,muda as séries _bucket: comparar antes/depois no mesmo gráfico dá degraus estranhos.
+⚠️ lab instrumentation: pegadinha «Timestamps nas métricas». O que acontece / por quê?,não exponha timestamp nas amostras; o Prometheus põe o do scrape. Timestamp como valor (*_timestamp_seconds) é ok.
+Quais são os campos de uma alerting rule?,"alert, expr, for, keep_firing_for, labels, annotations."
+Estados de um alerta no Prometheus: […] → […] (enquanto o for não completou) → […].,Estados de um alerta no Prometheus: inactive → pending (enquanto o for não completou) → firing.
+Um alerta sem for: passa pelo estado pending?,Não. Vai direto para firing na primeira avaliação em que a expr retorna resultado.
+Para que serve keep_firing_for?,"Mantém o alerta firing por um tempo depois que a expr para de retornar. Evita flapping e ""resolved"" falso por uma falha de scrape."
+Como usar os labels e o valor do alerta numa annotation?,"{{ $labels.instance }}, {{ $value }}, {{ $value | humanizePercentage }}, {{ $externalLabels.cluster }} (templates Go)."
+Labels vs annotations num alerta?,"Labels identificam o alerta e são usados no roteamento, agrupamento e silences (severity, team). Annotations são informação para humanos (summary, description, runbook_url) e não roteiam."
+"Convenção de nome de recording rule: […], ex.: job:http_requests:rate5m.","Convenção de nome de recording rule: level:metric:operations, ex.: job:http_requests:rate5m."
+Para que servem recording rules?,"Pré-calcular queries caras ou muito usadas (dashboards, alertas, SLOs) e gravar o resultado como série nova; também para federar só agregados."
+Como são avaliados os grupos de regras?,"Grupos rodam em paralelo, cada um no seu interval. As regras dentro de um grupo rodam em sequência, então uma regra pode usar o resultado da anterior na mesma avaliação."
+Como fazer testes unitários de regras?,"promtool test rules tests.yml, com input_series (notação 0+10x5), alert_rule_test (alertas esperados em eval_time) e promql_expr_test."
+Que série o Prometheus grava para os alertas ativos?,"ALERTS{alertname, alertstate=""pending|firing"", ...labels} (e ALERTS_FOR_STATE, usado para restaurar o for após um restart)."
+"Quem faz grouping, deduplicação, silences, inibição e roteamento?",O Alertmanager. O Prometheus só avalia as regras e envia (e reenvia periodicamente) os alertas ativos.
+"Defaults do Alertmanager: group_wait […], group_interval […], repeat_interval […].","Defaults do Alertmanager: group_wait 30s, group_interval 5m, repeat_interval 4h."
+"Diferença entre group_wait, group_interval e repeat_interval?","• group_wait: espera antes da 1ª notificação de um grupo novo (para juntar alertas)
+• group_interval: espera antes de notificar mudanças (alertas novos/resolvidos) num grupo já notificado
+• repeat_interval: reenvio de um grupo que não mudou e continua firing"
+Como o routing tree do Alertmanager escolhe a rota?,"Começa na raiz (que casa tudo e precisa de receiver) e desce (depth-first) pelo primeiro filho que casa; para ali, a menos que a rota tenha continue: true. Os filhos herdam os parâmetros do pai."
+O que faz group_by: ['...']?,Desliga o agrupamento: cada conjunto único de labels vira um grupo próprio (uma notificação por alerta).
+Como funciona uma inhibition rule?,"inhibit_rules com source_matchers, target_matchers e equal: enquanto um alerta source está firing, os alertas target com os mesmos valores nos labels de equal são suprimidos. Ex.: critical inibe warning do mesmo cluster."
+Silence vs inhibition?,"Silence: manual, temporário (tem expiração), definido por matchers na UI/amtool. Inhibition: automática e configurada; depende de outro alerta estar firing."
+Onde se cria um silence?,"No Alertmanager (UI :9093 ou amtool silence add alertname=X --duration=2h -c ""motivo""). O Prometheus não sabe de silences."
+Como funciona a alta disponibilidade do Alertmanager?,"Várias réplicas em cluster via gossip (--cluster.peer, porta 9094). Cada Prometheus envia para todas as réplicas (sem load balancer); o cluster deduplica notificações e replica silences."
+Como validar a config do Alertmanager e testar para qual receiver um alerta iria?,amtool check-config alertmanager.yml e amtool config routes test --config.file=alertmanager.yml severity=critical team=db.
+Cite receivers do Alertmanager.,"email_configs, slack_configs, pagerduty_configs, opsgenie_configs, msteams_configs, webhook_configs (integração genérica via HTTP POST com JSON)..."
+Como silenciar notificações fora do horário comercial de forma recorrente?,Defina time_intervals e use mute_time_intervals (ou active_time_intervals) na rota. Não é silence: é configuração da rota.
+O que é $__rate_interval no Grafana?,"Janela automática para rate: pelo menos 4× o scrape interval configurado no data source, ajustada ao step do painel. Use rate(x[$__rate_interval])."
+Como criar uma variável de dashboard no Grafana com a lista de jobs?,"Variável do tipo query: label_values(up, job). No painel: {job=~""$job""} (regex, por causa do multi-select/All)."
+Como o Prometheus sabe para onde enviar os alertas?,Pela seção alerting.alertmanagers do prometheus.yml (static ou via service discovery). Os alertas vão via POST /api/v2/alerts.
+O que são console templates?,Páginas HTML em Go templates servidas pelo próprio Prometheus em /consoles (flags --web.console.templates e --web.console.libraries). Hoje o padrão de mercado para dashboards é o Grafana.
+Como adicionar o Prometheus como data source no Grafana?,"Connections → Data sources → Prometheus → URL do servidor (ex.: http://prometheus:9090), acesso pelo backend do Grafana (server/proxy). Configure o scrape interval para o $__rate_interval ficar correto."
+Por que quase todo alerta deve ter for:?,Para não disparar com picos transitórios (flapping). O alerta só vai para firing se a condição se mantiver durante todo o for.
+Qual é o erro de colocar um counter cru num gráfico?,Ele só sobe (e despenca em restarts): não mostra nada útil. Mostre rate() (por segundo) ou increase() (total no período).
+lab alertmanager · Estados: inactive → ?,pending (for) → firing. Só firing/resolved vão ao AM. keep_firing_for segura o firing depois que a condição some.
+lab alertmanager · […] e ALERTS_FOR_STATE (valor = activeAt).,lab alertmanager · ALERTS{alertstate} e ALERTS_FOR_STATE (valor = activeAt).
+lab alertmanager · Templates na regra: ?,"{{ $labels.x }}, {{ $value | humanizePercentage }}. No AM: .CommonLabels, .Alerts.Firing, .Status."
+lab alertmanager · Timers: ?,group_wait (grupo novo) · group_interval (mudança no grupo) · repeat_interval (reenvio) · resolve_timeout (sem endsAt).
+lab alertmanager · Roteamento: ?,raiz casa tudo; filhas em ordem; primeira ganha; continue: true para seguir; herança de config; regex ancorada.
+lab alertmanager · Inibição: ?,source_matchers inibe target_matchers quando equal bate.
+lab alertmanager · Silence: ?,"ad hoc, por matchers, com fim; amtool silence add|query|expire."
+lab alertmanager · time_intervals + mute_time_intervals (não notifica dentro) / […] (só notifica dentro).,lab alertmanager · time_intervals + mute_time_intervals (não notifica dentro) / active_time_intervals (só notifica dentro).
+lab alertmanager · HA: Prometheus → ?,todos os AMs; gossip replica silences + nflog.
+lab alertmanager · amtool check-config · […] · amtool alert query [-s|-i].,lab alertmanager · amtool check-config · amtool config routes [test --verify.receivers=...] · amtool alert query [-s|-i].
+⚠️ lab alertmanager: pegadinha «for fica no Prometheus». O que acontece / por quê?,"for fica no Prometheus, group_wait no Alertmanager. Tempo mínimo até a primeira notificação ≈ scrape + avaliação + for + group_wait."
+⚠️ lab alertmanager: pegadinha «Filhas: primeira que casa ganha». O que acontece / por quê?,"Sem continue: true, as irmãs de baixo nunca são avaliadas."
+⚠️ lab alertmanager: pegadinha «Regex ancorada». O que acontece / por quê?,"severity=~""crit"" não casa com critical."
+⚠️ lab alertmanager: pegadinha «group_by: ['...']». O que acontece / por quê?,desliga o agrupamento. Omitido = tudo num grupo.
+⚠️ lab alertmanager: pegadinha «$value em label». O que acontece / por quê?,cria um alerta novo a cada avaliação. Use em annotation.
+⚠️ lab alertmanager: pegadinha «Label inexistente». O que acontece / por quê?,"em template vira string vazia, sem erro."
+lab alertmanager · Slack e e-mail têm […] por padrão.,lab alertmanager · Slack e e-mail têm send_resolved: false por padrão.
+⚠️ lab alertmanager: pegadinha «Inibição e silence não apagam alertas». O que acontece / por quê?,eles continuam visíveis como suppressed.
+⚠️ lab alertmanager: pegadinha «Não coloque load balancer». O que acontece / por quê?,entre Prometheus e Alertmanagers em HA.
+"⚠️ lab alertmanager: pegadinha «weekdays: [""monday:sunday""] é inválido». O que acontece / por quê?","o intervalo não ""dá a volta""; use sunday:saturday ou monday:friday."
+lab alertmanager · […] curto demais gera fadiga; mas ele nunca reenvia antes do group_interval.,lab alertmanager · repeat_interval curto demais gera fadiga; mas ele nunca reenvia antes do group_interval.
+lab alertmanager · Editar arquivo não basta: ?,"POST /-/reload (ou SIGHUP). No Prometheus, só com --web.enable-lifecycle."
+lab recording-rules-testing · Nome: ?,nível:métrica:operações · tira _total após rate · nível = labels que sobram.
+lab recording-rules-testing · Grupo: ?,"interval, limit, query_offset, labels; regras do grupo em sequência, grupos em paralelo."
+lab recording-rules-testing · Recording: ?,"record + expr (+ labels). Alerta: alert, expr, for, keep_firing_for, labels, annotations."
+lab recording-rules-testing · promtool check rules [--lint-fatal] arq.yml · […].,lab recording-rules-testing · promtool check rules [--lint-fatal] arq.yml · promtool test rules [--debug] [--run re] [--junit f.xml] t.yml.
+lab recording-rules-testing · Teste: ?,"rule_files, evaluation_interval, tests[].interval, input_series, promql_expr_test (expr, eval_time, exp_samples), alert_rule_test (eval_time, alertname, exp_alerts com exp_labels/exp_annotations)."
+lab recording-rules-testing · Valores: ?,a+bxn (n+1 amostras) · a-bxn · axn · _ · stale.
+lab recording-rules-testing · exp_alerts = ?,só firing. exp_samples: [] = vazio. got: nil = série não existe.
+lab recording-rules-testing · CI: check rules --lint-fatal + test rules --junit + amtool check-config + […].,lab recording-rules-testing · CI: check rules --lint-fatal + test rules --junit + amtool check-config + amtool config routes test --verify.receivers.
+⚠️ lab recording-rules-testing: pegadinha «exp_alerts só vê firing». O que acontece / por quê?,"Pending testa-se com ALERTS{alertstate=""pending""}."
+⚠️ lab recording-rules-testing: pegadinha «'0+60x5' são 6 amostras». O que acontece / por quê?,"'0+60x5' são 6 amostras, não 5."
+⚠️ lab recording-rules-testing: pegadinha «rule_files é relativo ao arquivo de teste». O que acontece / por quê?,"rule_files é relativo ao arquivo de teste, não ao diretório atual."
+⚠️ lab recording-rules-testing: pegadinha «Recording rule não tem for». O que acontece / por quê?,nem annotations.
+⚠️ lab recording-rules-testing: pegadinha «check rules sem --lint-fatal». O que acontece / por quê?,deixa regra duplicada passar com exit 0.
+⚠️ lab recording-rules-testing: pegadinha «Nome fora da convenção passa no promtool». O que acontece / por quê?,Nome fora da convenção passa no promtool (UTF-8 no Prometheus 3).
+⚠️ lab recording-rules-testing: pegadinha «sum antes de rate». O que acontece / por quê?,quebra na hora do reset (exercício 04).
+⚠️ lab recording-rules-testing: pegadinha «Regras do mesmo grupo». O que acontece / por quê?,"são sequenciais; entre grupos não há ordem garantida. Se a regra B usa o resultado de A, coloque as duas no mesmo grupo, A antes."
+⚠️ lab recording-rules-testing: pegadinha «_ vs stale». O que acontece / por quê?,"sem amostra a série ainda ""existe"" por 5m (lookback delta); com staleness marker ela some na hora."
+lab recording-rules-testing · evaluation_interval do teste ≠ interval das amostras: ?,"um controla a avaliação das regras, o outro o espaçamento dos dados."

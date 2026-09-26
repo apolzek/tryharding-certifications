@@ -1,0 +1,26 @@
+id: '237'
+title: Consertando o erro many-to-many
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  Esta query dá erro `many-to-many matching not allowed`:
+
+      rate(sort_desc_http_requests_total[5m]) / on(service) rate(sort_desc_http_requests_total[5m])
+
+  O objetivo era: dividir **cada série** (service × code) pela taxa de **200 do mesmo serviço**.
+  Conserte.
+hints:
+- 'O lado direito tem 2 séries por service (200 e 500): restrinja a 1'
+- Filtre code="200" e use group_left
+solution: rate(sort_desc_http_requests_total[5m]) / on(service) group_left rate(sort_desc_http_requests_total{code="200"}[5m])
+accepted_answers:
+- rate(sort_desc_http_requests_total[5m]) / ignoring(code) group_left rate(sort_desc_http_requests_total{code="200"}[5m])
+wrong_answers:
+- rate(sort_desc_http_requests_total[5m]) / on(service) rate(sort_desc_http_requests_total{code="200"}[5m])
+- rate(sort_desc_http_requests_total[5m]) / on(service) group_left sum by(service)(rate(sort_desc_http_requests_total[5m]))
+explanation: |
+  Many-to-many é **sempre** erro: pelo menos um lado precisa ter séries únicas para a chave de
+  casamento. Filtrando `{code="200"}` o lado direito vira "one" e aí `group_left` resolve o
+  many-to-one. Resultado: 200 → 1, 500 → 1/99, 5/95, 12/88; recommendations → NaN.

@@ -1,0 +1,17 @@
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="host-1", mountpoint="/"}'
+        values: '5368709120x10'      # 5 GiB
+      - series: 'node_filesystem_size_bytes{instance="host-1", mountpoint="/"}'
+        values: '107374182400x10'    # 100 GiB  -> 5% livre
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: DiskAlmostFull
+        exp_alerts:
+          - exp_labels: { severity: warning, instance: host-1, mountpoint: / }
+            exp_annotations:
+              summary: "disco / de host-1 com 5% livre"
+              description: "restam 5GiB"

@@ -1,0 +1,26 @@
+id: "125"
+title: "Quantos workers distintos em 10 min"
+topic: absence-and-staleness
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/present_over_time/
+prompt: |
+  Quantos **workers distintos** de `present_over_time_worker_active_tasks` estiveram vivos em algum momento
+  dos **últimos 10 minutos**? (um número só)
+hints:
+  - "Primeiro 'quem apareceu' (present_over_time), depois conte as séries."
+  - "count(present_over_time(...[10m]))"
+  - "count(present_over_time(present_over_time_worker_active_tasks[10m]))"
+solution: 'count(present_over_time(present_over_time_worker_active_tasks[10m]))'
+accepted_answers:
+  - 'count(count_over_time(present_over_time_worker_active_tasks[10m]))'
+  - 'sum(present_over_time(present_over_time_worker_active_tasks[10m]))'
+wrong_answers:
+  - 'present_over_time(present_over_time_worker_active_tasks[10m])'
+  - 'sum(count_over_time(present_over_time_worker_active_tasks[10m]))'
+  - 'count(present_over_time(present_over_time_worker_active_tasks[10m])) by (worker)'
+explanation: |
+  Resposta: 3. O padrão `count(present_over_time(x[janela]))` responde "quantas séries distintas existiram
+  na janela" — ótimo para cardinalidade e para pods efêmeros.
+
+  Pegadinha: `sum(count_over_time(...))` conta AMOSTRAS, não séries.

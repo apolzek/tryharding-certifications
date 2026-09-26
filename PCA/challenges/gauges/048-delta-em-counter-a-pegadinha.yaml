@@ -1,0 +1,25 @@
+id: "048"
+title: "delta() em counter: a pegadinha"
+topic: gauges
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/delta/
+prompt: |
+  `delta_http_requests_total` é um **counter** (+4 req/s) que zera a cada 3 minutos.
+  Um dashboard usa `delta(delta_http_requests_total[5m])` e às vezes mostra valores negativos.
+  Escreva a query correta de **quantas requisições chegaram nos últimos 5 minutos**.
+hints:
+  - "delta() é para gauges."
+  - "Para counters, a função equivalente compensa resets."
+  - "increase(delta_http_requests_total[5m])"
+solution: 'increase(delta_http_requests_total[5m])'
+accepted_answers:
+  - 'rate(delta_http_requests_total[5m]) * 300'
+wrong_answers:
+  - 'delta(delta_http_requests_total[5m])'
+  - 'idelta(delta_http_requests_total[5m])'
+  - 'delta_http_requests_total - delta_http_requests_total offset 5m'
+explanation: |
+  ≈ 1200 requisições (4 × 300). `increase()` entende o reset; `delta()` só faz último − primeiro.
+
+  Regra: counter → `rate`/`irate`/`increase`/`resets`; gauge → `delta`/`idelta`/`deriv`/`predict_linear`/`changes`.

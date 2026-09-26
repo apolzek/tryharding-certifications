@@ -1,0 +1,29 @@
+id: "122"
+title: "O job inteiro sumiu do Prometheus"
+topic: absence-and-staleness
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/absent/
+prompt: |
+  Se alguém apagar o job `checkout-api` do `prometheus.yml`, **não existirá** `up{job="checkout-api"} == 0`
+  — as séries simplesmente somem, e o alerta `up == 0` fica em silêncio.
+  Escreva a expressão que **dispara quando não houver nenhuma série `up` do job `checkout-api`**.
+  (Neste lab esse job realmente não existe, então o alerta deve estar disparando.)
+hints:
+  - "Pense em 'o vetor está vazio'."
+  - "absent() com um matcher de igualdade no job."
+  - "absent(up{job=\"checkout-api\"})"
+solution: 'absent(up{job="checkout-api"})'
+accepted_answers:
+  - 'absent_over_time(up{job="checkout-api"}[1m])'
+wrong_answers:
+  - 'up{job="checkout-api"} == 0'
+  - 'absent(up)'
+  - 'absent(up{job=~"checkout-api"})'
+explanation: |
+  `up == 0` cobre 'alvo fora'; `absent(up{job="x"})` cobre 'job sumiu / service discovery não acha nada'.
+  Em produção você quer os dois.
+
+  Pegadinha: `absent(up{job="x"} == 1)` também devolve `{}`: o argumento deixou de ser um seletor
+  simples. E com matcher de REGEX (`job=~"checkout-api"`), `absent()` não consegue deduzir os labels
+  e devolve `{}` — o alerta perde o label `job`.

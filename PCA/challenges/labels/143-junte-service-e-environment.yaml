@@ -1,0 +1,23 @@
+id: "143"
+title: "Junte service e environment"
+topic: labels
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_join/
+prompt: |
+  Crie o label **`key`** no formato `service/environment` (ex.: `checkout/prod`) para cada série de
+  `label_join_http_requests_total` (labels `service`, `environment`, `region`).
+hints:
+  - "label_join(v, \"destino\", \"separador\", \"origem1\", \"origem2\", ...)"
+  - "O separador é \"/\"."
+  - "label_join(label_join_http_requests_total, \"key\", \"/\", \"service\", \"environment\")"
+solution: 'label_join(label_join_http_requests_total, "key", "/", "service", "environment")'
+wrong_answers:
+  - 'label_join(label_join_http_requests_total, "key", "-", "service", "environment")'
+  - 'label_join(label_join_http_requests_total, "key", "/", "environment", "service")'
+  - 'label_join(label_join_http_requests_total, "key", "/", "service")'
+explanation: |
+  `label_join` concatena os valores na ORDEM dos labels de origem, com o separador. Útil para casar com
+  chaves compostas vindas de CMDB/planilhas.
+
+  Pegadinha: a ordem importa (`prod/checkout` ≠ `checkout/prod`).

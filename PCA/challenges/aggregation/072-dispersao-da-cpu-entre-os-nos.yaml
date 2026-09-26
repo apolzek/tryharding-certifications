@@ -1,0 +1,25 @@
+id: "072"
+title: "Dispersão da CPU entre os nós"
+topic: aggregation
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/stddev_over_time/
+prompt: |
+  O balanceamento de carga está ruim? Calcule o **desvio padrão da CPU entre os nós**, agora,
+  com `scalar_node_cpu_usage_percent`.
+hints:
+  - "Existe um operador de agregação para desvio padrão."
+  - "stddev(v)"
+  - "stddev(scalar_node_cpu_usage_percent)"
+solution: 'stddev(scalar_node_cpu_usage_percent)'
+accepted_answers:
+  - 'sqrt(stdvar(scalar_node_cpu_usage_percent))'
+wrong_answers:
+  - 'stddev_over_time(scalar_node_cpu_usage_percent[5m])'
+  - 'stdvar(scalar_node_cpu_usage_percent)'
+  - 'avg(scalar_node_cpu_usage_percent)'
+explanation: |
+  `stddev`/`stdvar` são operadores de agregação (entre séries). `stddev = sqrt(stdvar)`.
+  Desvio alto entre nós = carga mal distribuída.
+
+  Pegadinha: `stddev_over_time` mede a oscilação de CADA nó no tempo, outra pergunta.

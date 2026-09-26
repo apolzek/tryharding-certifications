@@ -1,0 +1,27 @@
+id: "042"
+title: "Espaço livre daqui a 4 horas"
+topic: gauges
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/predict_linear/
+prompt: |
+  O disco `/data` está enchendo. Usando a tendência dos **últimos 10 minutos** de
+  `predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}`, **quanto espaço livre (bytes)
+  ele terá daqui a 4 horas?**
+hints:
+  - "Há uma função que extrapola a reta para o futuro."
+  - "O 2º argumento é em SEGUNDOS."
+  - "predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint=\"/data\"}[10m], 4 * 3600)"
+solution: 'predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m], 4 * 3600)'
+accepted_answers:
+  - 'predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m], 14400)'
+wrong_answers:
+  - 'predict_linear(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m], 4)'
+  - 'deriv(predict_linear_node_filesystem_avail_bytes{mountpoint="/data"}[10m]) * 4 * 3600'
+  - 'predict_linear(predict_linear_node_filesystem_avail_bytes[10m], 4 * 3600)'
+explanation: |
+  `predict_linear(v[janela], t)` = valor da regressão linear no instante atual + inclinação × t.
+  Um valor NEGATIVO significa 'vai encher antes disso'.
+
+  Pegadinha: `t` é em **segundos** (4 = 4 segundos!). E `deriv() * t` sozinho é só a variação,
+  falta somar o valor atual.

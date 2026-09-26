@@ -1,0 +1,28 @@
+id: '231'
+title: '`ignoring(code)`: 500 dividido por 200'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#8-vector-matching
+prompt: |
+  Para cada serviço, divida a taxa (`rate` 5m) de `sort_desc_http_requests_total{code="500"}`
+  pela taxa de `sort_desc_http_requests_total{code="200"}` do **mesmo serviço**.
+hints:
+- 'Sem modificador nada casa: code difere'
+- ignoring(code) ou on(service)
+solution: rate(sort_desc_http_requests_total{code="500"}[5m]) / ignoring(code) rate(sort_desc_http_requests_total{code="200"}[5m])
+accepted_answers:
+- rate(sort_desc_http_requests_total{code="500"}[5m]) / on(service) rate(sort_desc_http_requests_total{code="200"}[5m])
+wrong_answers:
+- rate(sort_desc_http_requests_total{code="500"}[5m]) / rate(sort_desc_http_requests_total{code="200"}[5m])
+- rate(sort_desc_http_requests_total{code="200"}[5m]) / ignoring(code) rate(sort_desc_http_requests_total{code="500"}[5m])
+ignore_labels:
+- job
+- instance
+- env
+- code
+explanation: |
+  `ignoring(code)` diz: "case as séries por todos os labels **menos** `code`". `on(service)` diria:
+  "case **só** por `service`". Com `on`, o resultado one-to-one fica **só com os labels do on**.
+  Resultado: cart 1/99 ≈ 0.0101, checkout 5/95 ≈ 0.0526, payments 12/88 ≈ 0.136,
+  recommendations 0/0 = **NaN**.

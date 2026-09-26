@@ -1,0 +1,26 @@
+id: "026"
+title: "Quantos erros 500 nos últimos 5 minutos"
+topic: counters
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/increase/
+prompt: |
+  O gerente pergunta: "**quantos erros 500 tivemos nos últimos 5 minutos?**"
+  Responda com o counter `increase_http_requests_total{code="500"}`.
+hints:
+  - "Quantidade na janela, não por segundo."
+  - "increase(x[5m])"
+  - "increase(increase_http_requests_total{code=\"500\"}[5m])"
+solution: 'increase(increase_http_requests_total{code="500"}[5m])'
+accepted_answers:
+  - 'rate(increase_http_requests_total{code="500"}[5m]) * 300'
+  - 'sum(increase(increase_http_requests_total{code="500"}[5m])) by (code, env, instance, job)'
+wrong_answers:
+  - 'rate(increase_http_requests_total{code="500"}[5m])'
+  - 'increase(increase_http_requests_total[5m])'
+  - 'increase(increase_http_requests_total{code="500"}[1m])'
+explanation: |
+  ~30 erros (1 a cada 10 s). `increase()` é só `rate() × segundos da janela`.
+
+  Pegadinha: o resultado raramente é inteiro, porque o Prometheus **extrapola** até as bordas
+  da janela (as amostras não caem exatamente no início/fim). Isso é esperado.

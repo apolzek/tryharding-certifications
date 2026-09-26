@@ -1,0 +1,24 @@
+receivers:
+  - name: default
+    webhook_configs: [{ url: http://receiver:8080/hook/default, send_resolved: true }]
+  - name: pager
+    webhook_configs: [{ url: http://receiver:8080/hook/pager, send_resolved: true }]
+  - name: slack
+    webhook_configs: [{ url: http://receiver:8080/hook/slack, send_resolved: true }]
+  - name: dba
+    webhook_configs: [{ url: http://receiver:8080/hook/dba, send_resolved: true }]
+
+route:
+  receiver: slack
+  group_by: [alertname, cluster]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+  routes:
+    - matchers: [severity="critical"]
+      receiver: pager
+
+inhibit_rules:
+  - source_matchers: [severity="critical"]   # quem inibe (a causa)
+    target_matchers: [severity="warning"]    # quem é inibido (o sintoma)
+    equal: [cluster]                         # só se o valor de cluster for o mesmo nos dois

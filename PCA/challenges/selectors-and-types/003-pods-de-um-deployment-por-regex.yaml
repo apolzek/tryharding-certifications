@@ -1,0 +1,27 @@
+id: "003"
+title: "Pods de um Deployment por regex"
+topic: selectors-and-types
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_replace/
+prompt: |
+  Os pods do Deployment `checkout` se chamam `checkout-<hash>-<id>` (ex.: `checkout-7d9f8b6c4-m3n4b`).
+  Usando `label_replace_container_memory_working_set_bytes` (label `pod`), retorne a memória
+  de **todos os pods do checkout**, sem citar os nomes completos.
+hints:
+  - "Nomes que 'começam com' pedem um matcher de regex: `=~`."
+  - "No Prometheus a regex é ANCORADA: ela precisa casar com o valor INTEIRO."
+  - "pod=~\"checkout-.*\""
+solution: 'label_replace_container_memory_working_set_bytes{pod=~"checkout-.*"}'
+accepted_answers:
+  - 'label_replace_container_memory_working_set_bytes{pod=~"checkout.+"}'
+  - 'label_replace_container_memory_working_set_bytes{pod=~"checkout-[a-z0-9]+-[a-z0-9]+"}'
+wrong_answers:
+  - 'label_replace_container_memory_working_set_bytes{pod=~"checkout"}'
+  - 'label_replace_container_memory_working_set_bytes{pod="checkout-.*"}'
+  - 'label_replace_container_memory_working_set_bytes'
+explanation: |
+  Regex em PromQL é RE2 e **ancorada** (`^...$` implícito). Por isso `=~"checkout"` só casaria
+  um pod chamado exatamente `checkout`; você precisa do `.*` no fim.
+
+  Pegadinha: `="checkout-.*"` (igualdade) procura o texto literal `checkout-.*` e volta vazio.

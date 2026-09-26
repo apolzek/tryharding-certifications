@@ -1,0 +1,21 @@
+groups:
+  - name: payments
+    rules:
+      - alert: CheckoutDown
+        expr: up{job="checkout"} == 0
+        for: 10s
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "checkout fora do ar ({{ $labels.instance }})"
+
+  - name: data
+    rules:
+      - alert: DatalakeEmManutencao
+        expr: maintenance_mode{system="datalake"} == 1
+        labels:
+          severity: info
+          team: data
+        annotations:
+          summary: "datalake em janela de manutenção"

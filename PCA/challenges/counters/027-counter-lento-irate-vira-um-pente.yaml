@@ -1,0 +1,26 @@
+id: "027"
+title: "Counter lento: irate vira um pente"
+topic: counters
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/irate/
+prompt: |
+  `irate_node_network_transmit_errs_total{device="eth0"}` é um counter LENTO (+1 erro a cada 40 s).
+  O gráfico com irate() fica um 'pente' de zeros e picos. Mostre a **média honesta de erros por
+  segundo nos últimos 5 minutos**.
+hints:
+  - "Para counters lentos e para alertas, prefira a média na janela."
+  - "rate() com [5m]."
+  - "rate(irate_node_network_transmit_errs_total[5m])"
+solution: 'rate(irate_node_network_transmit_errs_total[5m])'
+accepted_answers:
+  - 'increase(irate_node_network_transmit_errs_total[5m]) / 300'
+wrong_answers:
+  - 'irate(irate_node_network_transmit_errs_total[5m])'
+  - 'increase(irate_node_network_transmit_errs_total[5m])'
+  - 'rate(irate_node_network_transmit_errs_total[5m]) * 60'
+explanation: |
+  Resultado ≈ 0,025 erros/s (1/40). `irate()` só olha as 2 últimas amostras: ou elas são iguais
+  (0) ou houve +1 em 5 s (0,2/s). Nenhum dos dois é a verdade.
+
+  Regra: `rate()` para alertas e counters lentos; `irate()` só para gráficos de counters rápidos.

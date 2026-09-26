@@ -1,0 +1,12 @@
+# EXERCÍCIO 07 (parte 1): o time quer saber quando o problema ACABOU.
+route:
+  receiver: slack
+  group_by: [alertname, cluster]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+receivers:
+  - name: slack
+    webhook_configs:
+      - url: http://receiver:8080/hook/slack
+        send_resolved: false

@@ -1,0 +1,25 @@
+id: "100"
+title: "p99 por rota (histograma clássico)"
+topic: histograms
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_quantile/
+prompt: |
+  Calcule o **p99 da latência de cada rota** (juntando os pods), com janela de 5 minutos, usando os
+  buckets clássicos `histogram_quantile_http_request_duration_seconds_bucket` (labels `route`, `pod`, `le`).
+hints:
+  - "histogram_quantile(φ, ...) precisa do label `le` no vetor de entrada."
+  - "rate dos buckets → sum by (le, route) → histogram_quantile."
+  - "histogram_quantile(0.99, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m])))"
+solution: 'histogram_quantile(0.99, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m])))'
+accepted_answers:
+  - 'histogram_quantile(0.99, sum by (route, le) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m])))'
+wrong_answers:
+  - 'histogram_quantile(0.99, sum by (route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m])))'
+  - 'histogram_quantile(0.99, rate(histogram_quantile_http_request_duration_seconds_bucket[5m]))'
+  - 'histogram_quantile(0.9, sum by (le, route) (rate(histogram_quantile_http_request_duration_seconds_bucket[5m])))'
+explanation: |
+  Receita clássica: `histogram_quantile(φ, sum by (le, <labels que você quer>) (rate(x_bucket[janela])))`.
+  O `le` PRECISA sobreviver à agregação, senão não há buckets para interpolar.
+
+  Pegadinha: sem o `sum`, você tem um p99 por pod (outra resposta). E φ vai de 0 a 1.

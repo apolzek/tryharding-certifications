@@ -1,0 +1,481 @@
+# Questões originais — domínio PromQL: seletores, operadores, agregação e vector matching
+- id: pq-001
+  domain: PromQL
+  difficulty: easy
+  question: |
+    Which of the following is NOT one of the four PromQL expression types?
+  options:
+  - 'Table'
+  - 'Instant vector'
+  - 'Range vector'
+  - 'Scalar'
+  answer: A
+  explanation_pt: |
+    Os tipos são instant vector, range vector, scalar e string. "Table" é só um modo de visualização da UI/Grafana.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types
+  lang: en
+- id: pq-002
+  domain: PromQL
+  difficulty: easy
+  question: |
+    Does the selector `http_requests_total{job=~"api"}` match a series with `job="api-gateway"`?
+  options:
+  - 'Yes, because =~ matches substrings'
+  - 'Yes, but only in range queries'
+  - 'No, because PromQL regex matchers are fully anchored'
+  - 'No, because =~ is a negative matcher'
+  answer: C
+  explanation_pt: |
+    Regex em PromQL é RE2 ancorado: `=~"api"` equivale a `^api$`. Para casar "api-gateway" use `=~"api.*"`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+  lang: en
+- id: pq-003
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Why is the selector `{job=~".*"}` rejected by Prometheus?
+  options:
+  - 'Because regex matchers are not allowed without a metric name'
+  - 'Because a vector selector must contain at least one matcher that does not match the empty string'
+  - 'Because .* is not valid RE2 syntax'
+  - 'Because job is a reserved label'
+  answer: B
+  explanation_pt: |
+    `.*` casa com string vazia, então selecionaria TODAS as séries. Válidos: `{job=~".+"}` ou `{job=~".*", env="prod"}`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+  lang: en
+- id: pq-004
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What does the selector `node_cpu_seconds_total{env=""}` return?
+  options:
+  - 'Nothing; empty matchers are invalid'
+  - 'Only series where env is set to the literal string ""'
+  - 'All series regardless of env'
+  - 'Series that do not have an env label (or have it empty)'
+  answer: D
+  explanation_pt: |
+    Um label ausente equivale a label com valor vazio. `{env=""}` seleciona as séries sem `env`; `{env!=""}` seleciona as que têm `env`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+  lang: en
+- id: pq-005
+  domain: PromQL
+  difficulty: easy
+  question: |
+    Which expression returns the value of `http_requests_total` as it was one week before the evaluation time?
+  options:
+  - '`http_requests_total offset 1w`'
+  - '`http_requests_total[1w]`'
+  - '`http_requests_total - 1w`'
+  - '`http_requests_total @ 1w`'
+  answer: A
+  explanation_pt: |
+    `offset` desloca a avaliação para o passado. `[1w]` seria um range vector com todas as amostras da semana; `@` recebe um timestamp Unix absoluto (ou `start()`/`end()`).
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier
+  lang: en
+- id: pq-006
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What does the `@` modifier do in `http_requests_total @ 1609746000`?
+  options:
+  - 'Shifts the query 1609746000 seconds into the past'
+  - 'Limits the result to 1609746000 series'
+  - 'Evaluates the selector at the absolute Unix timestamp 1609746000, regardless of the query evaluation time'
+  - 'Sets the step of a range query'
+  answer: C
+  explanation_pt: |
+    `@` fixa o instante absoluto da avaliação. Pode ser combinado com `offset` e com `start()`/`end()` (ex.: `@ end()` para usar o valor do fim do intervalo do gráfico).
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier
+  lang: en
+- id: pq-007
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Which expression computes the maximum 5-minute request rate observed over the last hour, sampled every minute?
+  options:
+  - '`max(rate(http_requests_total[5m]))[1h]`'
+  - '`max_over_time(rate(http_requests_total[5m])[1h:1m])`'
+  - '`rate(max_over_time(http_requests_total[1h])[5m])`'
+  - '`max_over_time(rate(http_requests_total[1h:5m]))`'
+  answer: B
+  explanation_pt: |
+    Subquery: `<instant expr>[<range>:<resolution>]` transforma o resultado de uma expressão em range vector. Aqui `rate(...[5m])` é avaliado a cada 1m durante 1h e `max_over_time` pega o máximo.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#subquery
+  lang: en
+- id: pq-008
+  domain: PromQL
+  difficulty: easy
+  question: |
+    The metric requests has labels job, instance and path. What labels does `sum without (instance) (requests)` keep?
+  options:
+  - 'Only instance'
+  - 'No labels'
+  - 'Only job'
+  - 'job and path'
+  answer: D
+  explanation_pt: |
+    `without (instance)` remove `instance` e agrega mantendo todos os outros labels (job, path). `by (...)` faz o contrário: mantém apenas os listados.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+  lang: en
+- id: pq-009
+  domain: PromQL
+  difficulty: easy
+  question: |
+    What does `topk(3, sum by (path) (rate(http_requests_total[5m])))` return?
+  options:
+  - 'The 3 paths with the highest request rate, with their original labels and values'
+  - 'The sum of the 3 highest rates'
+  - 'The 3rd highest rate as a scalar'
+  - 'The 3 lowest rates'
+  answer: A
+  explanation_pt: |
+    `topk(k, v)` devolve os k ELEMENTOS de maior valor, preservando labels e valores. `bottomk` pega os menores. Em range queries, o conjunto top pode mudar a cada passo.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+  lang: en
+- id: pq-010
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What does `quantile(0.9, node_load1)` compute?
+  options:
+  - 'The 90th percentile of each series over time'
+  - 'The 90th percentile latency from histogram buckets'
+  - 'The 0.9-quantile across all node_load1 series at each evaluation instant'
+  - 'The top 90% of series'
+  answer: C
+  explanation_pt: |
+    `quantile` é um operador de AGREGAÇÃO entre séries no mesmo instante. Para quantil ao longo do tempo use `quantile_over_time`; para histogramas, `histogram_quantile`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+  lang: en
+- id: pq-011
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Which expression correctly computes the overall error ratio of a service running on many instances?
+  options:
+  - '`avg(rate(errors_total[5m]) / rate(requests_total[5m]))`'
+  - '`sum(rate(errors_total[5m])) / sum(rate(requests_total[5m]))`'
+  - '`rate(sum(errors_total)[5m:]) / rate(sum(requests_total)[5m:])`'
+  - '`sum(errors_total) / sum(requests_total)`'
+  answer: B
+  explanation_pt: |
+    Primeiro `rate` por série, depois soma, e só então a divisão (razão de somas). Média de razões dá peso igual a instâncias com pouco tráfego; somar counters antes do `rate` quebra a detecção de resets; counters crus medem "desde sempre".
+  source: https://prometheus.io/docs/practices/rules/
+  lang: en
+- id: pq-012
+  domain: PromQL
+  difficulty: hard
+  question: |
+    errors has labels {instance, job, code}; requests has labels {instance, job}. Which expression divides each error series by the matching requests series?
+  options:
+  - '`errors / requests`'
+  - '`errors / on(code) requests`'
+  - '`errors / ignoring(code) requests`'
+  - '`errors / ignoring(code) group_left requests`'
+  answer: D
+  explanation_pt: |
+    O lado esquerdo tem vários `code` para cada (instance, job): é many-to-one. É preciso ignorar `code` no casamento E declarar `group_left`. Sem `group_left` dá erro de "many-to-many/one-to-one"; sem `ignoring` nada casa.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches
+  lang: en
+- id: pq-013
+  domain: PromQL
+  difficulty: hard
+  question: |
+    What does this expression do? `node_memory_MemAvailable_bytes * on(instance) group_left(nodename) node_uname_info`
+  options:
+  - 'Adds the nodename label from node_uname_info to each memory series, keeping the memory values (node_uname_info is always 1)'
+  - 'Returns only nodes whose nodename equals the instance'
+  - 'Multiplies memory by the number of nodes'
+  - 'It is invalid because node_uname_info is not a counter'
+  answer: A
+  explanation_pt: |
+    Padrão de "join" com métricas info: casa por `instance`, `group_left(nodename)` copia o label `nodename` do lado direito, e multiplicar por 1 preserva o valor.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches
+  lang: en
+- id: pq-014
+  domain: PromQL
+  difficulty: easy
+  question: |
+    What does `node_load1 > 4` return?
+  options:
+  - 'A 0 or 1 for every series'
+  - 'A scalar true/false'
+  - 'Only the series whose value is greater than 4, with their original values'
+  - 'An error, because comparisons need bool'
+  answer: C
+  explanation_pt: |
+    Sem `bool`, operadores de comparação FILTRAM: o que é falso é descartado e o que passa mantém o valor original. É o que faz alertas funcionarem: a expressão retorna algo só quando há problema.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators
+  lang: en
+- id: pq-015
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What does `node_load1 > bool 4` return?
+  options:
+  - 'Only series above 4'
+  - 'Every series, with value 1 where the comparison is true and 0 where it is false, and the metric name dropped'
+  - 'A single scalar'
+  - 'The number of series above 4'
+  answer: B
+  explanation_pt: |
+    Com `bool`, nenhuma série é filtrada: o valor vira 0 ou 1 e o nome da métrica é removido. Útil para contar (`sum(x > bool 4)`) ou calcular percentuais.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators
+  lang: en
+- id: pq-016
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Which comparison between two scalar literals is valid PromQL?
+  options:
+  - '`1 > 2`'
+  - '`1 == 2`'
+  - '`1 != bool`'
+  - '`1 > bool 2`'
+  answer: D
+  explanation_pt: |
+    Entre dois escalares, o modificador `bool` é obrigatório e o resultado é o escalar 0 ou 1. `1 > bool 2` retorna 0.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators
+  lang: en
+- id: pq-017
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What does `a unless b` return?
+  options:
+  - 'The elements of a for which there is no element in b with exactly matching label sets'
+  - 'The elements of b not present in a'
+  - 'The elements present in both a and b'
+  - 'All elements of a and b'
+  answer: A
+  explanation_pt: |
+    `unless` = complemento: fica com o que está em `a` e NÃO tem par em `b`. `and` = interseção (valores de `a`), `or` = união (tudo de `a` + o que de `b` não tem par em `a`).
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#logicalset-binary-operators
+  lang: en
+- id: pq-018
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What does `a or b` return?
+  options:
+  - 'Only elements present in both vectors'
+  - 'The sum of a and b'
+  - 'All elements of a, plus the elements of b that have no matching label set in a'
+  - 'Elements of b only'
+  answer: C
+  explanation_pt: |
+    `or` é a união com prioridade para o lado esquerdo. É por isso que `x or vector(0)` "preenche" o vazio: quando `x` não retorna nada, entra o elemento de `vector(0)`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#logicalset-binary-operators
+  lang: en
+- id: pq-019
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What is the result of the PromQL expression `2 + 3 * 4 ^ 2`?
+  options:
+  - '`400`'
+  - '`50`'
+  - '`146`'
+  - '`196`'
+  answer: B
+  explanation_pt: |
+    Precedência: `^` primeiro (4^2 = 16), depois `*` (3 × 16 = 48), depois `+` (2 + 48 = 50).
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operator-precedence
+  lang: en
+- id: pq-020
+  domain: PromQL
+  difficulty: hard
+  question: |
+    What is the result of `2 ^ 3 ^ 2` in PromQL?
+  options:
+  - '`64`'
+  - '`36`'
+  - '`12`'
+  - '`512`'
+  answer: D
+  explanation_pt: |
+    `^` é associativo à DIREITA: `2 ^ (3 ^ 2)` = 2^9 = 512. Os demais operadores de mesma precedência são associativos à esquerda.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operator-precedence
+  lang: en
+- id: pq-021
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What happens to the metric name when you compute `node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes`?
+  options:
+  - 'It is dropped from the result'
+  - 'The left-hand metric name is kept'
+  - 'The right-hand metric name is kept'
+  - 'The names are concatenated'
+  answer: A
+  explanation_pt: |
+    Operações aritméticas entre vetores descartam `__name__`, porque o resultado não é mais aquela métrica. Comparações sem `bool` mantêm o nome do lado esquerdo.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#arithmetic-binary-operators
+  lang: en
+- id: pq-022
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Why is `sum(http_requests_total[5m])` an invalid expression?
+  options:
+  - 'sum cannot be used with counters'
+  - 'The window must be at least 10m'
+  - 'Aggregation operators work on instant vectors, not range vectors; use a function such as rate() or sum_over_time() first'
+  - 'sum requires a by clause'
+  answer: C
+  explanation_pt: |
+    Operadores de agregação (`sum`, `avg`, `max`...) recebem instant vector. Para agregar ao longo do tempo use `*_over_time`; para counters, `sum(rate(x[5m]))`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+  lang: en
+- id: pq-023
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Which expression returns, per job, the number of targets that are currently down?
+  options:
+  - '`sum by (job) (up == 0)`'
+  - '`count by (job) (up)`'
+  - '`count(up == 0)`'
+  - '`count by (job) (up == 0)`'
+  answer: D
+  explanation_pt: |
+    `up == 0` filtra só os alvos fora do ar; `count by (job)` conta quantos por job. `sum` desses elementos daria 0 (soma de zeros); `count by (job) (up)` conta todos os alvos; `count(up == 0)` perde a quebra por job.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+  lang: en
+- id: pq-024
+  domain: PromQL
+  difficulty: hard
+  question: |
+    In Prometheus 3.x, which samples are included in the range selector `x[5m]` evaluated at time t?
+  options:
+  - 'Samples in the closed interval [t-5m, t]'
+  - 'Samples in the left-open, right-closed interval (t-5m, t]'
+  - 'Only the sample closest to t-5m'
+  - 'Samples in [t-5m, t) excluding t'
+  answer: B
+  explanation_pt: |
+    Desde o Prometheus 3.0, janelas são abertas à esquerda e fechadas à direita: uma amostra exatamente em t-5m não entra. Isso afeta, por exemplo, quantas amostras `x[1m]` contém com scrape de 1m.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors
+  lang: en
+- id: pq-025
+  domain: PromQL
+  difficulty: easy
+  question: |
+    What is the difference between an instant query and a range query in the Prometheus HTTP API?
+  options:
+  - 'Instant queries only accept scalars'
+  - 'Range queries accept only range vector selectors'
+  - 'A range query evaluates the same expression at every step between start and end; an instant query evaluates it at a single time'
+  - 'There is no difference'
+  answer: C
+  explanation_pt: |
+    Range query (`/api/v1/query_range`) = várias instant queries, uma por `step`. É o que o Grafana faz para gráficos. Por isso a expressão de uma range query deve retornar instant vector ou scalar.
+  source: https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
+  lang: en
+- id: pq-026
+  domain: PromQL
+  difficulty: easy
+  question: |
+    Which duration literal is valid in PromQL?
+  options:
+  - '`1h30m`'
+  - '`1.5h`'
+  - '90 minutes'
+  - '`1h 30m`'
+  answer: A
+  explanation_pt: |
+    Durações usam as unidades `ms, s, m, h, d, w, y` e podem ser combinadas de maior para menor, sem espaços: `1h30m`, `5m30s`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations
+  lang: en
+- id: pq-027
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Which selector returns all series whose metric name starts with http_?
+  options:
+  - '`http_*`'
+  - '`http_{}`'
+  - '`{name="http_.*"}`'
+  - '`{__name__=~"http_.*"}`'
+  answer: D
+  explanation_pt: |
+    O nome da métrica é o label interno `__name__`, e dá para aplicar matchers a ele. Cuidado com consultas assim em produção: podem selecionar muitas séries.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+  lang: en
+- id: pq-028
+  domain: PromQL
+  difficulty: hard
+  question: |
+    kube_pod_info has labels {namespace, pod, node}; container_memory has labels {namespace, pod, container}. Which expression adds the node label to every container_memory series?
+  options:
+  - '`container_memory * kube_pod_info`'
+  - '`container_memory * on(namespace, pod) group_left(node) kube_pod_info`'
+  - '`container_memory * on(node) group_right kube_pod_info`'
+  - '`container_memory or kube_pod_info`'
+  answer: B
+  explanation_pt: |
+    Vários containers por pod (lado esquerdo com mais séries) → `group_left`. Casa por `namespace, pod` e copia `node` da direita. O valor de `kube_pod_info` é 1, então a memória não muda.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches
+  lang: en
+- id: pq-029
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What value does every element of `group by (job) (up)` have?
+  options:
+  - 'The number of targets in the job'
+  - 'The sum of up'
+  - '1'
+  - '0'
+  answer: C
+  explanation_pt: |
+    O agregador `group` retorna 1 para cada grupo. É útil para listar combinações de labels existentes ou como lado direito de joins.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+  lang: en
+- id: pq-030
+  domain: PromQL
+  difficulty: medium
+  question: |
+    What is the result of `count_values("version", build_info)`?
+  options:
+  - 'One series per distinct sample value, with the value stored in a version label and the count of elements as the sample value'
+  - 'The number of distinct label names'
+  - 'The value of the version label as a number'
+  - 'The build_info series sorted by version'
+  answer: A
+  explanation_pt: |
+    `count_values("rotulo", v)` cria um label com cada VALOR distinto das amostras e conta quantos elementos têm aquele valor. Ex.: quantos alvos estão em cada versão, quando a versão é o valor numérico.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+  lang: en
+- id: pq-031
+  domain: PromQL
+  difficulty: medium
+  question: |
+    Two vectors are combined with a binary operator and no matching keywords. When do two elements match?
+  options:
+  - 'When they have the same metric name'
+  - 'When they share at least one label'
+  - 'When they come from the same job'
+  - 'When they have exactly the same label set (ignoring the metric name)'
+  answer: D
+  explanation_pt: |
+    O padrão é one-to-one com TODOS os labels iguais (exceto `__name__`). Para relaxar use `on(...)` (só esses labels) ou `ignoring(...)`. Elementos sem par são descartados.
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#one-to-one-vector-matches
+  lang: en
+- id: pq-032
+  domain: PromQL
+  difficulty: medium
+  question: |
+    How does `avg by (job) (x)` differ from `avg_over_time(x[10m])`?
+  options:
+  - 'They are identical'
+  - 'avg by (job) averages across series at one instant; avg_over_time averages each series across time'
+  - 'avg by (job) averages across time; avg_over_time across series'
+  - 'avg_over_time only works on counters'
+  answer: B
+  explanation_pt: |
+    Operadores de agregação agem na dimensão das SÉRIES (num instante). Funções `*_over_time` agem na dimensão do TEMPO (por série, sobre um range vector).
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#aggregation_over_time
+  lang: en

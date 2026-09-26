@@ -1,0 +1,26 @@
+id: "030"
+title: "Restarts por minuto"
+topic: counters
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/rate/
+prompt: |
+  O dashboard de estabilidade mostra **restarts por minuto** (não por segundo).
+  Calcule isso para o counter `resets_kube_pod_container_status_restarts_total`,
+  usando uma janela de 10 minutos.
+hints:
+  - "rate() dá por segundo."
+  - "Multiplique por 60."
+  - "rate(resets_kube_pod_container_status_restarts_total[10m]) * 60"
+solution: 'rate(resets_kube_pod_container_status_restarts_total[10m]) * 60'
+accepted_answers:
+  - 'increase(resets_kube_pod_container_status_restarts_total[10m]) / 10'
+  - '60 * rate(resets_kube_pod_container_status_restarts_total[10m])'
+wrong_answers:
+  - 'rate(resets_kube_pod_container_status_restarts_total[10m])'
+  - 'increase(resets_kube_pod_container_status_restarts_total[10m])'
+  - 'resets(resets_kube_pod_container_status_restarts_total[10m])'
+explanation: |
+  +1 restart a cada 2 min → 0,5 restart/min. `increase(x[10m]) / 10` dá o mesmo resultado.
+
+  Pegadinha: `resets()` dá 0 aqui (este counter só sobe); ele não conta restarts, conta QUEDAS.

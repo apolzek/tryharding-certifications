@@ -1,0 +1,992 @@
+# GERADO por tools/extract.py (não edite à mão; edite o README de origem e rode de novo)
+- id: lab-alertmanager-1
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: 'An alerting rule has `for: 5m`. The expression becomes true at 10:00 and stays true. What is the state of the alert at 10:02?'
+  options:
+  - inactive
+  - pending
+  - firing
+  - resolved
+  answer: B
+  explanation_pt: Enquanto o `for` não se cumpre, o alerta fica **pending** (visível em `ALERTS{alertstate="pending"}`) e **não** é enviado ao Alertmanager. Vira firing por volta de 10:05.
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-2
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Which component is responsible for grouping, deduplication and routing of alerts?
+  options:
+  - Prometheus server
+  - Pushgateway
+  - Alertmanager
+  - Exporters
+  answer: C
+  explanation_pt: O Prometheus só avalia as regras e envia os alertas; dedup, agrupamento, roteamento, inibição, silences e integrações são do **Alertmanager**.
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-3
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: A route tree has two child routes. The first matches `severity="critical"` and the second matches `team="db"`. An alert with `severity="critical", team="db"` arrives. Which receivers are notified?
+  options:
+  - Both
+  - Only the first route's receiver
+  - Only the second route's receiver
+  - The root receiver
+  answer: B
+  explanation_pt: 'Filhas são avaliadas em ordem e a **primeira que casa** vence. Para também chegar na segunda, a primeira precisaria de `continue: true` (exercício 05).'
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-4
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: You want warnings to be suppressed while a critical alert fires **for the same cluster**. What do you configure?
+  options:
+  - A silence with `severity="warning"`
+  - 'An `inhibit_rules` entry with source `severity="critical"`, target `severity="warning"`, `equal: [cluster]`'
+  - '`group_by: [cluster]`'
+  - '`mute_time_intervals`'
+  answer: B
+  explanation_pt: Inibição é a supressão **condicionada a outro alerta**. Silence (A) é manual e não depende de outro alerta; `group_by` só junta; `mute_time_intervals` é por horário.
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-5
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Which setting controls how long Alertmanager waits before sending a notification about **new alerts added to a group that was already notified**?
+  options:
+  - '`group_wait`'
+  - '`group_interval`'
+  - '`repeat_interval`'
+  - '`resolve_timeout`'
+  answer: B
+  explanation_pt: '`group_wait` = primeira notificação de um grupo **novo**; `group_interval` = mudanças num grupo **já notificado**; `repeat_interval` = reenvio quando **nada mudou**.'
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-6
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: In a highly available setup with 3 Alertmanagers, how should Prometheus be configured?
+  options:
+  - Send to a load balancer in front of the Alertmanagers
+  - Send to only one Alertmanager; they forward to each other
+  - Send alerts to all Alertmanager instances
+  - Use federation between Alertmanagers
+  answer: C
+  explanation_pt: Cada Prometheus manda para **todos**. Os Alertmanagers usam **gossip** para compartilhar silences e o notification log, deduplicando entre si.
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-7
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: What does the `ALERTS_FOR_STATE` series store?
+  options:
+  - The number of times the alert fired
+  - The Unix timestamp at which the alert became active, used to restore `for` state after a restart
+  - The current value of the expression
+  - The receiver that was notified
+  answer: B
+  explanation_pt: O valor é o `activeAt`. Ao reiniciar, o Prometheus lê essa série e retoma a contagem do `for` em vez de recomeçar do zero.
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-8
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Which `amtool` command validates that an alert with labels `team=db severity=critical` is delivered to the `dba` receiver?
+  options:
+  - '`amtool check-config team=db severity=critical`'
+  - '`amtool config routes test --verify.receivers=dba team=db severity=critical`'
+  - '`amtool alert query team=db`'
+  - '`amtool silence add team=db`'
+  answer: B
+  explanation_pt: '`config routes test` resolve a árvore para um conjunto de labels; `--verify.receivers` faz sair com código ≠ 0 se o resultado for diferente (ótimo em CI).'
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-alertmanager-9
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Which of the following should be an **annotation** rather than a **label** on an alerting rule?
+  options:
+  - '`severity: critical`'
+  - '`team: payments`'
+  - '`summary: "{{ $value }} errors"`'
+  - '`service: checkout`'
+  answer: C
+  explanation_pt: Labels identificam o alerta e servem para roteamento/agrupamento. Um valor que muda (como `$value`) em label criaria um alerta novo a cada avaliação.
+  source: labs/alertmanager/README.md
+  lang: en
+- id: lab-exporters-pushgateway-1
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Which use case is appropriate for the Pushgateway?
+  options:
+  - A long-running web service behind a firewall
+  - A service-level batch job that runs for 30 seconds every night
+  - Replacing the pull model for all microservices
+  - Aggregating counters from many instances of a service
+  answer: B
+  explanation_pt: 'A doc: *"the only valid use case for the Pushgateway is for capturing the outcome of a service-level batch job"*. A, C e D são antipadrões: serviços devem ser raspados, e o Pushgateway não agrega (pushes do mesmo grupo se sobrescrevem).'
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-exporters-pushgateway-2
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Metrics pushed to the Pushgateway appear in Prometheus with `exported_job="backup"` and `job="pushgateway"`. What fixes this?
+  options:
+  - '`honor_timestamps: true`'
+  - '`honor_labels: true` in the Pushgateway scrape config'
+  - Pushing to `/metrics/job/pushgateway`
+  - '`metric_relabel_configs` with `action: labeldrop` on `job`'
+  answer: B
+  explanation_pt: 'Com `honor_labels: true`, em caso de conflito os labels **dos dados** vencem os labels do alvo. Sem ele, os labels conflitantes dos dados são renomeados para `exported_<label>`.'
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-exporters-pushgateway-3
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: 'In a blackbox exporter scrape config, what is the purpose of `source_labels: [__address__]` → `target_label: __param_target`?'
+  options:
+  - It sets the address Prometheus connects to
+  - It passes the original target as the `target` URL parameter to the blackbox exporter
+  - It renames the `instance` label
+  - It selects the blackbox module
+  answer: B
+  explanation_pt: '`__param_<nome>` vira parâmetro de URL (`?target=...`). O endereço de conexão (A) é trocado depois, com `__address__ = blackbox:9115`. O módulo (D) vem de `params: module: [...]`.'
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-exporters-pushgateway-4
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: A blackbox HTTP probe target is down. What are `up` and `probe_success` for that target?
+  options:
+  - '`up=0`, `probe_success=0`'
+  - '`up=1`, `probe_success=0`'
+  - '`up=0`, `probe_success=1`'
+  - '`up=1`, `probe_success=1`'
+  answer: B
+  explanation_pt: O scrape do **blackbox** funcionou (`up=1`); a **sonda** falhou (`probe_success=0`). `up=0` só se o próprio blackbox estiver fora.
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-exporters-pushgateway-5
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: A cron script on a host needs to expose the timestamp of its last successful run. The host already runs node_exporter. What is the simplest recommended approach?
+  options:
+  - Push to the Pushgateway with the hostname as grouping key
+  - Write a `.prom` file to the node_exporter textfile collector directory
+  - Start an HTTP server in the script
+  - Use remote write
+  answer: B
+  explanation_pt: 'Textfile collector: o job é amarrado ao host, o node_exporter já é raspado, e o `instance` fica certo. A funciona, mas traz os problemas do Pushgateway (não expira, perde `up`).'
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-exporters-pushgateway-6
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: What is the default port of node_exporter? And of the Pushgateway?
+  options:
+  - 9100 and 9091
+  - 9090 and 9093
+  - 9115 and 9100
+  - 9091 and 9100
+  answer: A
+  explanation_pt: node_exporter 9100, Pushgateway 9091. (9090 Prometheus, 9093 Alertmanager, 9115 blackbox.)
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-exporters-pushgateway-7
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Which metric can be used to alert on a TLS certificate about to expire, using the blackbox exporter?
+  options:
+  - '`probe_http_ssl`'
+  - '`probe_ssl_earliest_cert_expiry - time()`'
+  - '`ssl_cert_not_after`'
+  - '`probe_tls_version_info`'
+  answer: B
+  explanation_pt: '`probe_ssl_earliest_cert_expiry` é o Unix time de expiração do certificado que vence primeiro na cadeia; subtraindo `time()` temos os segundos restantes. `probe_http_ssl` só diz se foi usado SSL (0/1).'
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-exporters-pushgateway-8
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: A batch job that ran on a decommissioned server pushed metrics to the Pushgateway 3 months ago. What happens to those metrics?
+  options:
+  - They expire after 5 minutes (staleness)
+  - They are deleted after 24h
+  - They remain exposed and scraped indefinitely until explicitly deleted
+  - Prometheus drops them because the timestamps are old
+  answer: C
+  explanation_pt: O Pushgateway não tem TTL. As amostras recebem o timestamp do **scrape**, então parecem frescas para sempre. Apague com `curl -X DELETE .../metrics/job/<job>/instance/<inst>`.
+  source: labs/exporters-pushgateway/README.md
+  lang: en
+- id: lab-federation-remote-write-1
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: A global Prometheus federates from several datacenter Prometheus servers. Which setting keeps the original `job` and `instance` labels from the source servers?
+  options:
+  - '`honor_timestamps: true`'
+  - '`honor_labels: true`'
+  - '`external_labels`'
+  - '`metric_relabel_configs` with `labelmap`'
+  answer: B
+  explanation_pt: 'Sem `honor_labels: true` os labels do Prometheus que raspa vencem e os originais viram `exported_job`/`exported_instance`.'
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-federation-remote-write-2
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which flag lets a Prometheus 3 server accept samples pushed by other Prometheus servers via remote write?
+  options:
+  - '`--enable-feature=remote-write`'
+  - '`--web.enable-lifecycle`'
+  - '`--web.enable-remote-write-receiver`'
+  - '`--storage.remote.enable`'
+  answer: C
+  explanation_pt: Habilita `POST /api/v1/write`. (Em versões 2.x antigas era `--enable-feature=remote-write-receiver`; na v3 só existe a flag.)
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-federation-remote-write-3
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Where are `external_labels` applied?
+  options:
+  - To every series stored in the local TSDB
+  - Only to alerts
+  - 'To data leaving the server: federation, remote write, alerts sent to Alertmanager'
+  - Only to recording rules
+  answer: C
+  explanation_pt: Eles não são gravados localmente; são anexados em tudo que "sai" do servidor (e usados como filtro no remote read).
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-federation-remote-write-4
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which statement about Prometheus Agent mode is TRUE?
+  options:
+  - It supports recording rules but not alerting rules
+  - It can be queried with PromQL through `/api/v1/query`
+  - It scrapes targets and forwards samples with remote write, keeping only a WAL
+  - It replaces Alertmanager
+  answer: C
+  explanation_pt: O agent desliga TSDB consultável, regras, alertas e remote read. Só raspa e envia (com WAL local).
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-federation-remote-write-5
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: You only want recording-rule results (`job:*`) to be sent to a remote storage while keeping everything locally. What do you use?
+  options:
+  - '`metric_relabel_configs` with `action: keep`'
+  - '`write_relabel_configs` with `action: keep` on `__name__`'
+  - '`relabel_configs` with `action: drop`'
+  - '`alert_relabel_configs`'
+  answer: B
+  explanation_pt: '`write_relabel_configs` filtra só aquele `remote_write`. A (`metric_relabel_configs`) descartaria localmente também. C age em alvos.'
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-federation-remote-write-6
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: What is the recommended use of federation?
+  options:
+  - Replicating all series from one Prometheus to another for backup
+  - Pulling aggregated series (e.g. recording rules) from lower-level Prometheus servers into a global one
+  - Long-term storage for years
+  - Deduplicating HA pairs
+  answer: B
+  explanation_pt: Federação hierárquica **de agregados**. Backup/long-term/dedup são papéis de remote write + Thanos/Mimir/etc.
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-federation-remote-write-7
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Two identical Prometheus replicas remote-write to Mimir. What must differ between them so that Mimir's HA tracker can deduplicate?
+  options:
+  - '`job_name`'
+  - A replica external label (e.g. `__replica__`), while `cluster` stays the same
+  - '`scrape_interval`'
+  - Nothing; Mimir detects duplicates automatically
+  answer: B
+  explanation_pt: O HA tracker elege uma réplica por `cluster` usando o label `__replica__` e descarta as amostras da outra. Com Thanos Querier o equivalente é `--query.replica-label`.
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-federation-remote-write-8
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which metric best shows that remote write is falling behind?
+  options:
+  - '`up`'
+  - '`prometheus_remote_storage_queue_highest_timestamp_seconds - prometheus_remote_storage_queue_highest_sent_timestamp_seconds`'
+  - '`prometheus_tsdb_head_series`'
+  - '`scrape_duration_seconds`'
+  answer: B
+  explanation_pt: É o atraso (em segundos) entre a amostra mais nova que entrou na fila e a mais nova já enviada. Crescendo = o destino não está dando conta (veja também `samples_pending` e `shards`).
+  source: labs/federation-remote-write/README.md
+  lang: en
+- id: lab-instrumentation-1
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: You need the 99th percentile latency across **20 replicas** of a service. Which metric type should the service expose?
+  options:
+  - Gauge
+  - Summary with a 0.99 objective
+  - Histogram
+  - Counter
+  answer: C
+  explanation_pt: 'Histogram: `histogram_quantile(0.99, sum by (le) (rate(x_bucket[5m])))` agrega os buckets das 20 réplicas. Quantis de summary **não podem ser agregados** (média de p99 ≠ p99).'
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-2
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Which metric name follows Prometheus naming best practices?
+  options:
+  - '`http_request_duration_ms`'
+  - '`httpRequestDurationSeconds`'
+  - '`http_request_duration_seconds`'
+  - '`http_request_duration_seconds_total` (histogram)'
+  answer: C
+  explanation_pt: snake_case, unidade base (segundos) e por extenso. A usa ms, B é camelCase, D usa `_total` num histogram (`_total` é só para counters).
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-3
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: A developer adds a label `request_id` to `http_requests_total`. What is the main problem?
+  options:
+  - Label names can't contain underscores
+  - 'Unbounded cardinality: each request creates a new time series'
+  - Counters cannot have labels
+  - '`promtool check metrics` will reject it'
+  answer: B
+  explanation_pt: 'Cada valor único vira uma série: memória e disco explodem. O `promtool check metrics` **não** detecta isso (D é falso). IDs únicos vão para logs/traces.'
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-4
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: In the OpenMetrics exposition format, how must the payload end?
+  options:
+  - With an empty line
+  - With `# EOF`
+  - With `# END`
+  - No special ending is required
+  answer: B
+  explanation_pt: '`# EOF` é obrigatório no OpenMetrics; permite detectar resposta truncada. O formato text 0.0.4 não tem isso.'
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-5
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Which statement about summaries is TRUE?
+  options:
+  - Quantiles are calculated by the Prometheus server at query time
+  - You can choose a different quantile at query time
+  - Quantiles are calculated on the client and cannot be meaningfully aggregated across instances
+  - Summaries require the `le` label
+  answer: C
+  explanation_pt: A e B descrevem o histogram; D também (`le` é label do histogram; o summary usa `quantile`).
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-6
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: What does the RED method stand for?
+  options:
+  - Requests, Errors, Downtime
+  - Rate, Errors, Duration
+  - Rate, Exceptions, Delay
+  - Resources, Events, Duration
+  answer: B
+  explanation_pt: Rate, Errors, Duration, para serviços. O **USE** (Utilization, Saturation, Errors) é para recursos; os **4 golden signals** são Latency, Traffic, Errors, Saturation.
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-7
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: A counter `jobs_processed_total` is exposed. What is the correct way to express "jobs per second"?
+  options:
+  - '`jobs_processed_total / 60`'
+  - '`rate(jobs_processed_total[5m])`'
+  - '`deriv(jobs_processed_total[5m])`'
+  - '`delta(jobs_processed_total[5m])`'
+  answer: B
+  explanation_pt: '`rate` é para counters e compensa resets. `deriv`/`delta` são para gauges.'
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-8
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: You want to expose the running application version so it can be joined with other metrics. What is the conventional approach?
+  options:
+  - A gauge whose value is the version number, e.g. `app_version 1.42`
+  - A label `version` on every metric
+  - An `_info` metric with value 1 and the version as a label, e.g. `app_info{version="1.4.2"} 1`
+  - A counter incremented at each deploy
+  answer: C
+  explanation_pt: O padrão `_info` (como `go_build_info`, `node_uname_info`) guarda os metadados em labels com valor constante 1; junta-se com `* on (...) group_left (version) app_info`. B multiplicaria a cardinalidade de tudo e A não representa `1.4.2`.
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-instrumentation-9
+  domain: Instrumentation and Exporters
+  difficulty: medium
+  question: Which is a valid reason to prefer a summary over a histogram?
+  options:
+  - You need to aggregate latency across many instances
+  - You need an accurate quantile from a single instance and cannot predict the value range to choose buckets
+  - You want to compute an Apdex score
+  - You want to change the quantile later
+  answer: B
+  explanation_pt: É o caso de uso de summary descrito na doc. Apdex usa buckets de histogram (A, C, D são pró-histogram).
+  source: labs/instrumentation/README.md
+  lang: en
+- id: lab-promql-operators-1
+  domain: PromQL
+  difficulty: medium
+  question: Which selector returns series whose `pod` label **starts with** `api-`?
+  options:
+  - '`x{pod=~"api-"}`'
+  - '`x{pod="api-.*"}`'
+  - '`x{pod=~"api-.*"}`'
+  - '`x{pod=~"^api-"}`'
+  answer: C
+  explanation_pt: |-
+    Regex do PromQL é **totalmente ancorada**: A e D viram `^api-$` (só casa com o texto exato
+    `api-`). B usa `=`, que compara a string literal `api-.*`.
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-2
+  domain: PromQL
+  difficulty: medium
+  question: |-
+    `errors_total{code="500", method="get"}` and `requests_total{method="get"}` exist. What does
+    `errors_total / requests_total` return?
+  options:
+  - The error ratio per method
+  - An empty result
+  - 'An error: many-to-one matching must be explicit'
+  - '`NaN`'
+  answer: B
+  explanation_pt: |-
+    Sem modificador, a chave de casamento é o conjunto **inteiro** de labels; `{code, method}` ≠
+    `{method}`, então nada casa e o resultado é **vazio** (sem erro). O certo é `/ ignoring(code)` (ou
+    `on(method)`). Se houvesse **vários** `code` por método, aí seria preciso `ignoring(code) group_left`.
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-3
+  domain: PromQL
+  difficulty: medium
+  question: What does `node_memory_bytes > bool 1e9` return for a series whose value is `5e8`?
+  options:
+  - The series is dropped
+  - '`0`, keeping the metric name'
+  - '`0`, without the metric name'
+  - '`5e8`'
+  answer: C
+  explanation_pt: 'Com `bool`, a comparação não filtra: devolve `0`/`1` e **descarta o `__name__`**. Sem `bool`, a série seria descartada (A).'
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-4
+  domain: PromQL
+  difficulty: medium
+  question: Which expression is **invalid**?
+  options:
+  - '`sum(rate(x[5m] offset 1h))`'
+  - '`sum(rate(x[5m])) offset 1h`'
+  - '`rate(x[5m] @ end())`'
+  - '`x offset 5m @ 1609746000`'
+  answer: B
+  explanation_pt: |-
+    `offset` (e `@`) precisam vir **logo depois de um seletor** (ou subquery), não depois de uma
+    agregação. D é válida: a ordem entre `@` e `offset` é livre e o offset é relativo ao `@`.
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-5
+  domain: PromQL
+  difficulty: medium
+  question: |-
+    `method_code:http_errors:rate5m` has labels `{method, code}` and `method:http_requests:rate5m`
+    has `{method}`. Which query returns, **for each method and code**, the fraction of requests?
+  options:
+  - '`method_code:http_errors:rate5m / on(method) method:http_requests:rate5m`'
+  - '`method_code:http_errors:rate5m / ignoring(code) group_left method:http_requests:rate5m`'
+  - '`method_code:http_errors:rate5m / ignoring(code) group_right method:http_requests:rate5m`'
+  - '`method_code:http_errors:rate5m and ignoring(code) method:http_requests:rate5m`'
+  answer: B
+  explanation_pt: |-
+    Várias séries por `method` à **esquerda** (uma por `code`) e uma à direita → many-to-one com
+    `group_left`. A dá erro (many-to-one precisa ser explícito), C inverte o lado "many", D é operador
+    lógico (não divide nada; devolve os valores da esquerda). É o exemplo da documentação oficial.
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-6
+  domain: PromQL
+  difficulty: medium
+  question: What is the result of `2 ^ 3 ^ 2` in PromQL?
+  options:
+  - '64'
+  - '512'
+  - '36'
+  - Parse error
+  answer: B
+  explanation_pt: '`^` é **associativo à direita**: `2 ^ (3 ^ 2)` = 2⁹ = 512. Todos os outros operadores binários são associativos à esquerda.'
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-7
+  domain: PromQL
+  difficulty: medium
+  question: You need the total memory per `application` **keeping every other label** except `instance`. Which is correct?
+  options:
+  - '`sum by(application)(mem)`'
+  - '`sum without(instance)(mem)`'
+  - '`sum(mem) by (instance)`'
+  - '`max without(application)(mem)`'
+  answer: B
+  explanation_pt: '`without` remove só os labels listados e preserva todos os outros; `by` mantém **só** os listados.'
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-8
+  domain: PromQL
+  difficulty: medium
+  question: '`build_version` is a gauge whose **value** is the build number. Which counts how many instances run each build?'
+  options:
+  - '`count by(build_version)(build_version)`'
+  - '`count_values("version", build_version)`'
+  - '`sum(build_version)`'
+  - '`group(build_version)`'
+  answer: B
+  explanation_pt: '`count_values` cria uma série por **valor distinto**, com esse valor no label indicado, contando as ocorrências.'
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-9
+  domain: PromQL
+  difficulty: medium
+  question: Which statement about `topk(3, x)` is **true**?
+  options:
+  - It returns a single series with the 3rd largest value
+  - It returns the 3 largest series with all their original labels
+  - With `by (job)` it returns only the `job` label
+  - In a range query it always returns exactly 3 series in the legend
+  answer: B
+  explanation_pt: |-
+    `topk`/`bottomk` devolvem as **séries originais**. O `by` só separa os grupos (C é falsa). Numa
+    range query o top 3 é recalculado em **cada** ponto, então a legenda pode ter mais de 3 séries (D é falsa).
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-promql-operators-10
+  domain: PromQL
+  difficulty: medium
+  question: Which is the lowest-precedence binary operator?
+  options:
+  - '`and`'
+  - '`unless`'
+  - '`or`'
+  - '`==`'
+  answer: C
+  explanation_pt: A ordem é `^` > `* / % atan2` > `+ -` > comparações > `and unless` > `or`.
+  source: labs/promql-operators/README.md
+  lang: en
+- id: lab-recording-rules-testing-1
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Which recording rule name follows the Prometheus naming convention for `sum by (job) (rate(http_requests_total[5m]))`?
+  options:
+  - '`http_requests_total:rate5m:job`'
+  - '`job:http_requests:rate5m`'
+  - '`job:http_requests_total:sum`'
+  - '`rate5m:http_requests:job`'
+  answer: B
+  explanation_pt: '`nível:métrica:operações`: o nível é `job` (label que sobrou), a métrica perde o `_total` depois do `rate`, a operação é `rate5m`.'
+  source: labs/recording-rules-testing/README.md
+  lang: en
+- id: lab-recording-rules-testing-2
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: What is the main purpose of recording rules?
+  options:
+  - To send alerts to Alertmanager
+  - To precompute frequently used or expensive expressions and save the result as a new time series
+  - To delete old time series
+  - To relabel targets before scraping
+  answer: B
+  explanation_pt: Recording rules pré-calculam e gravam o resultado como série nova, deixando dashboards e alertas rápidos.
+  source: labs/recording-rules-testing/README.md
+  lang: en
+- id: lab-recording-rules-testing-3
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Which command runs unit tests for alerting and recording rules?
+  options:
+  - '`promtool check rules tests.yml`'
+  - '`promtool test rules tests.yml`'
+  - '`amtool check-config tests.yml`'
+  - '`prometheus --test tests.yml`'
+  answer: B
+  explanation_pt: '`check rules` só valida sintaxe/PromQL; `test rules` executa os cenários (`input_series`) e compara com `exp_samples`/`exp_alerts`.'
+  source: labs/recording-rules-testing/README.md
+  lang: en
+- id: lab-recording-rules-testing-4
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: In a `promtool` test, what does the input series notation `'1+2x3'` expand to?
+  options:
+  - '`1 2 3`'
+  - '`1 3 5 7`'
+  - '`1 3 5`'
+  - '`3 3 3`'
+  answer: B
+  explanation_pt: 'Começa em 1 e soma 2, **3 vezes**: 4 amostras (`n+1`).'
+  source: labs/recording-rules-testing/README.md
+  lang: en
+- id: lab-recording-rules-testing-5
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: 'An alert has `for: 5m`. In an `alert_rule_test`, you evaluate at a time when the alert is still pending. What should `exp_alerts` be?'
+  options:
+  - 'The alert with `alertstate: pending`'
+  - An empty list
+  - The alert with its annotations
+  - The test cannot evaluate pending alerts
+  answer: B
+  explanation_pt: '`exp_alerts` contém só alertas **firing**. Pending aparece apenas na série `ALERTS{alertstate="pending"}`, que pode ser checada com `promql_expr_test`.'
+  source: labs/recording-rules-testing/README.md
+  lang: en
+- id: lab-recording-rules-testing-6
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: How are rules within the same rule group evaluated?
+  options:
+  - In parallel, in random order
+  - Sequentially, in the order they are defined
+  - Alphabetically by name
+  - Only when queried
+  answer: B
+  explanation_pt: 'Dentro do grupo: **sequencial**, na ordem do arquivo, então uma regra pode usar o resultado da anterior no mesmo ciclo. Grupos diferentes rodam em paralelo.'
+  source: labs/recording-rules-testing/README.md
+  lang: en
+- id: lab-recording-rules-testing-7
+  domain: Alerting and Dashboarding
+  difficulty: medium
+  question: Which field is valid in an alerting rule but **not** in a recording rule?
+  options:
+  - '`expr`'
+  - '`labels`'
+  - '`for`'
+  - '`record`'
+  answer: C
+  explanation_pt: '`for` (e `keep_firing_for`, `annotations`) são exclusivos de alerta. `promtool check rules` rejeita com `invalid field ''for'' in recording rule`.'
+  source: labs/recording-rules-testing/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-1
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which relabeling stage can drop a metric by its `__name__` before it is stored?
+  options:
+  - '`relabel_configs`'
+  - '`metric_relabel_configs`'
+  - '`write_relabel_configs`'
+  - '`alert_relabel_configs`'
+  answer: B
+  explanation_pt: '`metric_relabel_configs` roda depois do scrape, sobre cada série, e é onde `__name__` existe. `relabel_configs` age sobre alvos. `write_relabel_configs` também veria `__name__`, mas só filtra o que vai para o **remote write** (a série continua gravada localmente).'
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-2
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: A target was discovered with `__address__="10.0.0.5:9100"` and no relabeling touches `instance`. What will the `instance` label be?
+  options:
+  - empty
+  - '`10.0.0.5`'
+  - '`10.0.0.5:9100`'
+  - the value of `__meta_*` hostname
+  answer: C
+  explanation_pt: Se `instance` não for definido no relabel, o Prometheus copia `__address__` para ele depois do relabel.
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-3
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: 'Given `source_labels: [__meta_a, __meta_b]` with values `x` and `y`, and no `separator`, what string does `regex` match against?'
+  options:
+  - '`xy`'
+  - '`x;y`'
+  - '`x,y`'
+  - '`x:y`'
+  answer: B
+  explanation_pt: O `separator` padrão é `;`.
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-4
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: A scraped target exposes `foo{job="batch"}` while the scrape config's `job_name` is `pushgw`, with default settings. What is stored?
+  options:
+  - '`foo{job="batch"}`'
+  - '`foo{job="pushgw"}` (the exposed label is dropped)'
+  - '`foo{job="pushgw", exported_job="batch"}`'
+  - the scrape fails
+  answer: C
+  explanation_pt: 'Com `honor_labels: false` (padrão), em conflito o label do servidor vence e o exposto é renomeado para `exported_<label>`. Com `honor_labels: true`, seria A.'
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-5
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which relabel configuration keeps only targets whose `team` label is exactly `payments`?
+  options:
+  - '`{source_labels: [team], regex: "pay", action: keep}`'
+  - '`{source_labels: [team], regex: "payments", action: keep}`'
+  - '`{target_label: team, regex: "payments", action: keep}`'
+  - '`{source_labels: [team], regex: "payments", action: labelkeep}`'
+  answer: B
+  explanation_pt: 'A falha porque a regex é ancorada. C usa `target_label` (keep olha `source_labels`). D: `labelkeep` casa com **nomes** de labels.'
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-6
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: What happens when a scrape returns more samples than `sample_limit`?
+  options:
+  - Only the first N samples are stored
+  - The whole scrape is treated as failed and `up` becomes 0
+  - Prometheus drops the oldest series in the TSDB
+  - The limit is ignored for counters
+  answer: B
+  explanation_pt: O scrape inteiro é descartado e marcado como falho (`up=0`, erro "sample limit exceeded"). O limite é aplicado após o `metric_relabel_configs`.
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-7
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: You want to split scraping of 1000 targets between 4 Prometheus servers. Which action helps?
+  options:
+  - '`labelmap`'
+  - '`hashmod`'
+  - '`keepequal`'
+  - '`replace` with `modulus`'
+  answer: B
+  explanation_pt: '`hashmod` com `modulus: 4` grava o balde (0-3) em um label temporário (`__tmp_hash`), e cada servidor faz `keep` do seu número.'
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-8
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which statement about `file_sd_configs` is TRUE?
+  options:
+  - Changes require `POST /-/reload`
+  - Files are watched and re-read automatically; `refresh_interval` is a fallback
+  - Only YAML is supported
+  - It adds `__meta_url` to each target
+  answer: B
+  explanation_pt: O Prometheus observa os arquivos (inotify) e relê periodicamente. Aceita JSON e YAML. Adiciona `__meta_filepath` (`__meta_url` é do http_sd).
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-service-discovery-relabeling-9
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which labels are removed from the target label set after relabeling?
+  options:
+  - Only `__meta_*`
+  - All labels starting with `__`
+  - '`job` and `instance`'
+  - None
+  answer: B
+  explanation_pt: Tudo com prefixo `__` (inclui `__meta_*`, `__tmp_*`, `__address__`, `__param_*`) é removido. `job` e `instance` ficam.
+  source: labs/service-discovery-relabeling/README.md
+  lang: en
+- id: lab-slo-end-to-end-1
+  domain: Observability Concepts
+  difficulty: medium
+  question: What is the error budget for an SLO of 99.9% availability over 30 days, expressed as time of total unavailability?
+  options:
+  - ~4.3 minutes
+  - ~43 minutes
+  - ~7.2 hours
+  - ~3 days
+  answer: B
+  explanation_pt: 30d = 43.200 min; 0,1% disso = **43,2 min**. 99,99% → 4,3 min (A); 99% → 7,2 h (C).
+  source: labs/slo-end-to-end/README.md
+  lang: en
+- id: lab-slo-end-to-end-2
+  domain: Observability Concepts
+  difficulty: medium
+  question: Which statement best describes the relationship between SLI, SLO and SLA?
+  options:
+  - The SLA is an internal target; the SLO is a legal contract
+  - The SLI is a measurement; the SLO is a target for that measurement; the SLA is an agreement with consequences, usually looser than the SLO
+  - SLO and SLA are synonyms
+  - The SLI is the percentage of the error budget that remains
+  answer: B
+  explanation_pt: SLI mede, SLO é a meta (interna), SLA é o contrato (externo, com multa/crédito) e deve ser mais frouxo que o SLO para dar margem de reação.
+  source: labs/slo-end-to-end/README.md
+  lang: en
+- id: lab-slo-end-to-end-3
+  domain: Observability Concepts
+  difficulty: medium
+  question: Your SLO is 99.9%. Over the last hour, 1.44% of requests failed. What is the burn rate?
+  options:
+  - '1.44'
+  - '14.4'
+  - '0.144'
+  - '144'
+  answer: B
+  explanation_pt: Burn rate = razão de erro / budget = 0,0144 / 0,001 = **14,4**. Nesse ritmo, 2% do budget de 30 dias vai embora em 1 hora e o budget inteiro em ~2 dias.
+  source: labs/slo-end-to-end/README.md
+  lang: en
+- id: lab-slo-end-to-end-4
+  domain: Observability Concepts
+  difficulty: medium
+  question: Why do multi-window burn-rate alerts combine a long window (1h) with a short window (5m)?
+  options:
+  - The short window makes the alert fire faster
+  - The long window ensures the problem is significant; the short window ensures it is still happening, so the alert resets quickly after recovery
+  - Prometheus cannot evaluate windows longer than 1h
+  - To reduce the cardinality of the alert
+  answer: B
+  explanation_pt: Só com 1h, o alerta continuaria firing até ~1h depois do conserto. Só com 5m, qualquer pico de segundos acordaria alguém. O `and` das duas dá precisão **e** reset rápido.
+  source: labs/slo-end-to-end/README.md
+  lang: pt
+- id: lab-slo-end-to-end-5
+  domain: Observability Concepts
+  difficulty: medium
+  question: Which PromQL expression is a correct availability SLI (ratio of failed requests) across all instances of a job?
+  options:
+  - '`avg(rate(http_requests_total{code=~"5.."}[5m]) / rate(http_requests_total[5m]))`'
+  - '`sum(rate(http_requests_total{code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`'
+  - '`rate(sum(http_requests_total{code=~"5.."})[5m]) / rate(sum(http_requests_total)[5m])`'
+  - '`sum(http_requests_total{code=~"5.."}) / sum(http_requests_total)`'
+  answer: B
+  explanation_pt: Rate primeiro, soma depois, e **razão das somas**. Em A o `/` casa série a série **inclusive pelo label `code`**, então cada resultado vira `rate(500)/rate(500) = 1` (e ainda seria média de razões); C faz `rate(sum)` (quebra com resets); D usa os counters crus desde o início do processo.
+  source: labs/slo-end-to-end/README.md
+  lang: en
+- id: lab-slo-end-to-end-6
+  domain: Observability Concepts
+  difficulty: medium
+  question: You want a latency SLI "requests served in under 300ms". Which instrumentation makes this easy and aggregatable across instances?
+  options:
+  - A summary with quantile 0.99
+  - A histogram with a bucket boundary at 0.3 seconds
+  - A gauge with the last request latency
+  - A counter of total request time
+  answer: B
+  explanation_pt: '`rate(x_bucket{le="0.3"}[w]) / rate(x_count[w])` dá a fração de requisições rápidas, e buckets **somam** entre instâncias. Quantis de summary não podem ser agregados; gauge perde eventos; counter de tempo total só dá média.'
+  source: labs/slo-end-to-end/README.md
+  lang: en
+- id: lab-slo-end-to-end-7
+  domain: Observability Concepts
+  difficulty: medium
+  question: 'An alert has `for: 2m`. Its expression becomes true at 10:00:00 and stays true. Rules are evaluated every 30s. What is the alert state at 10:01:00?'
+  options:
+  - inactive
+  - pending
+  - firing
+  - resolved
+  answer: B
+  explanation_pt: Enquanto a expressão é verdadeira há menos que o `for`, o alerta fica **pending** (aparece em `ALERTS{alertstate="pending"}`, não é enviado ao Alertmanager). Vira **firing** a partir de ~10:02:00.
+  source: labs/slo-end-to-end/README.md
+  lang: en
+- id: lab-tsdb-storage-1
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: How long is the default local storage retention in Prometheus?
+  options:
+  - 7d
+  - 15d
+  - 30d
+  - Unlimited
+  answer: B
+  explanation_pt: '15 dias, quando **nem** `retention.time` **nem** `retention.size` são configurados. Detalhe de prova: se você configurar **só** o `size`, o padrão de 15d deixa de valer e só o limite de tamanho é aplicado.'
+  source: labs/tsdb-storage/README.md
+  lang: en
+- id: lab-tsdb-storage-2
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which component allows Prometheus to recover in-memory data after a crash?
+  options:
+  - Tombstones
+  - The index file
+  - The write-ahead log (WAL)
+  - Compaction
+  answer: C
+  explanation_pt: Toda amostra que entra na head é antes escrita no WAL. No restart, o Prometheus faz *replay* do WAL (e do checkpoint) para reconstruir a head. Tombstones marcam deleções; o index é por bloco; compactação junta blocos.
+  source: labs/tsdb-storage/README.md
+  lang: en
+- id: lab-tsdb-storage-3
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: A target is removed from service discovery. When do its series stop being returned by an instant query?
+  options:
+  - After 5 minutes (lookback delta)
+  - Immediately, because Prometheus writes stale markers
+  - After the next compaction
+  - Only after the retention period
+  answer: B
+  explanation_pt: Alvo removido (ou scrape falhando, ou série que sumiu do `/metrics`) → stale markers. Os 5 minutos do lookback só valem quando **não** há stale marker, por exemplo séries expostas com timestamp explícito.
+  source: labs/tsdb-storage/README.md
+  lang: en
+- id: lab-tsdb-storage-4
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: You called `/api/v1/admin/tsdb/delete_series` but disk usage did not change. Why?
+  options:
+  - The admin API is read-only
+  - Deletion only writes tombstones; space is reclaimed by `clean_tombstones` or compaction
+  - You need to restart Prometheus
+  - Deleted data is moved to the WAL
+  answer: B
+  explanation_pt: 'Os blocos são imutáveis: a deleção é registrada num arquivo `tombstones` e aplicada quando o bloco é reescrito (`POST /api/v1/admin/tsdb/clean_tombstones` ou compactação).'
+  source: labs/tsdb-storage/README.md
+  lang: en
+- id: lab-tsdb-storage-5
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which statement about Prometheus local storage is correct?
+  options:
+  - It replicates data across Prometheus servers in the same cluster
+  - It is not clustered or replicated; use remote storage integrations for durability and long-term storage
+  - It requires an external database such as Cassandra
+  - It is recommended to put it on NFS for durability
+  answer: B
+  explanation_pt: 'Texto quase literal da doc: *"Prometheus''s local storage is limited to a single node''s scalability and durability."* NFS não é recomendado (não-POSIX, risco de corrupção).'
+  source: labs/tsdb-storage/README.md
+  lang: en
+- id: lab-tsdb-storage-6
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: What is the approximate on-disk cost of a sample in the Prometheus TSDB?
+  options:
+  - 1-2 bytes
+  - 16 bytes
+  - 64 bytes
+  - 1 KiB
+  answer: A
+  explanation_pt: Graças à compressão delta-of-delta (timestamps) + XOR (valores) dos chunks. Uma amostra "crua" seria 16 bytes (int64 + float64).
+  source: labs/tsdb-storage/README.md
+  lang: en
+- id: lab-tsdb-storage-7
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Which tool imports historical data from an OpenMetrics file into Prometheus?
+  options:
+  - '`promtool tsdb dump`'
+  - '`promtool tsdb create-blocks-from openmetrics`'
+  - '`promtool check metrics`'
+  - The `/api/v1/admin/tsdb/snapshot` endpoint
+  answer: B
+  explanation_pt: Ele gera blocos TSDB que você coloca no data dir. `dump`/`dump-openmetrics` fazem o caminho inverso; `create-blocks-from rules` faz backfill de recording rules.
+  source: labs/tsdb-storage/README.md
+  lang: en
+- id: lab-tsdb-storage-8
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: Your Prometheus memory doubled after a deploy. What is the most likely cause?
+  options:
+  - Retention was increased from 15d to 30d
+  - A new label with high cardinality (e.g. user ID) multiplied the number of active series
+  - The scrape interval changed from 15s to 30s
+  - Remote write was enabled to a slow endpoint
+  answer: B
+  explanation_pt: RAM é função das **séries ativas na head**. Retenção custa disco; scrape mais lento reduz amostras, não séries. (Remote write lento também gasta memória, mas em fila, e não "dobra" por deploy de aplicação.)
+  source: labs/tsdb-storage/README.md
+  lang: en

@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCA Flashcards</title>
+<meta name="description" content="Flashcards offline para a Prometheus Certified Associate: __COUNT__ cards gerados de flashcards/tools/build.py">
+<style>
+:root{
+  --bg:#f6f5f2; --surface:#ffffff; --surface-2:#efeee9; --text:#1b1f24; --muted:#5d6570;
+  --border:#dcdad3; --accent:#c2410c; --accent-soft:#fde7dc; --ok:#15803d; --ok-soft:#dcf3e3;
+  --cloze:#0a64d8; --code-bg:rgba(120,120,120,.14); --shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  --d-observability:#7c3aed; --d-fundamentals:#0369a1; --d-promql:#c2410c; --d-instrumentation:#15803d; --d-alerting:#b91c1c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141517; --surface:#1d1f22; --surface-2:#26282c; --text:#e7e6e2; --muted:#a2a7ae;
+    --border:#34373c; --accent:#fb923c; --accent-soft:#3a2418; --ok:#4ade80; --ok-soft:#153222;
+    --cloze:#6fb1ff; --code-bg:rgba(200,200,200,.12); --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+    --d-observability:#a78bfa; --d-fundamentals:#38bdf8; --d-promql:#fb923c; --d-instrumentation:#4ade80; --d-alerting:#f87171;
+  }
+}
+:root[data-theme="dark"]{
+    --bg:#141517; --surface:#1d1f22; --surface-2:#26282c; --text:#e7e6e2; --muted:#a2a7ae;
+    --border:#34373c; --accent:#fb923c; --accent-soft:#3a2418; --ok:#4ade80; --ok-soft:#153222;
+    --cloze:#6fb1ff; --code-bg:rgba(200,200,200,.12); --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+    --d-observability:#a78bfa; --d-fundamentals:#38bdf8; --d-promql:#fb923c; --d-instrumentation:#4ade80; --d-alerting:#f87171;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--cloze)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+pre{background:var(--code-bg);padding:10px;border-radius:8px;overflow:auto;font-size:.85em}
+pre code{background:none;padding:0}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+header h1{font-size:1.35rem;margin:0 0 2px}
+header p{margin:0;color:var(--muted);font-size:.9rem}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 8px}
+.chip{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:5px 12px;font-size:.85rem;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.chip[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.chip small{opacity:.7}
+select,input[type=search]{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px 10px;font:inherit;font-size:.9rem}
+input[type=search]{flex:1;min-width:160px}
+label.tg{display:inline-flex;gap:6px;align-items:center;font-size:.9rem;color:var(--muted);cursor:pointer}
+button.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;font:inherit;font-size:.9rem;cursor:pointer}
+button.btn:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.progress{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin:6px 0 4px}
+.progress>div{height:100%;background:var(--ok);width:0;transition:width .3s}
+.status{display:flex;justify-content:space-between;color:var(--muted);font-size:.85rem;gap:8px;flex-wrap:wrap}
+/* flip card */
+.stage{perspective:1600px;margin:14px 0}
+.card{position:relative;min-height:320px;transition:transform .45s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d;cursor:pointer}
+.card.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:22px 24px 18px;display:flex;flex-direction:column;overflow:auto}
+.face.back{transform:rotateY(180deg)}
+.meta{display:flex;gap:8px;align-items:center;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;flex-wrap:wrap}
+.meta .dom{font-weight:700}
+.meta .known{margin-left:auto;color:var(--ok);font-weight:700}
+.content{font-size:1.15rem;flex:1}
+.content ul{padding-left:1.2em}
+.q-mini{color:var(--muted);font-size:.9rem;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--border)}
+.cloze{font-weight:700;color:var(--cloze)}
+.cloze-a{font-weight:700;color:var(--cloze);background:var(--code-bg);border-radius:4px;padding:0 3px}
+.extra{margin-top:14px;font-size:.9rem;color:var(--muted)}
+.src{margin-top:12px;font-size:.78rem;color:var(--muted)}
+.hint{color:var(--muted);font-size:.8rem;text-align:center;margin-top:auto;padding-top:10px}
+.nav{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.empty{text-align:center;color:var(--muted);padding:60px 10px}
+.keys{color:var(--muted);font-size:.8rem;margin-top:18px;line-height:1.9}
+kbd{border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:.78rem;background:var(--surface)}
+/* list view (and print) */
+.list{display:none}
+body.listmode .list{display:block}
+body.listmode .stage, body.listmode .nav{display:none}
+.item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:8px 0;break-inside:avoid}
+.item .q{font-weight:600}
+.item .a{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)}
+.item .meta{margin-bottom:4px}
+@media (max-width:560px){
+  .face{padding:16px}
+  .content{font-size:1.02rem}
+  .card{min-height:360px}
+}
+@media print{
+  body{background:#fff;color:#000}
+  header p,.bar,.progress,.status,.stage,.nav,.keys,#themeBtn{display:none!important}
+  .list{display:block!important}
+  .item{border-color:#999;box-shadow:none}
+  a{color:#000}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:start">
+      <div>
+        <h1>PCA Flashcards</h1>
+        <p><span id="total">__COUNT__</span> cards · Prometheus Certified Associate · offline</p>
+      </div>
+      <button class="btn" id="themeBtn" title="Alternar tema (t)">◐</button>
+    </div>
+  </header>
+
+  <div class="bar" id="domains" role="group" aria-label="Filtrar por domínio"></div>
+  <div class="bar">
+    <select id="origin" aria-label="Origem">
+      <option value="">Todas as origens</option>
+    </select>
+    <input type="search" id="search" placeholder="Buscar (ex.: group_wait, rate, relabel)…" aria-label="Buscar">
+    <label class="tg"><input type="checkbox" id="hideKnown"> ocultar conhecidas</label>
+  </div>
+  <div class="bar">
+    <button class="btn" id="shuffleBtn">🔀 Embaralhar</button>
+    <button class="btn" id="viewBtn">☰ Lista / imprimir</button>
+    <button class="btn" id="printBtn">🖨 Imprimir</button>
+    <button class="btn" id="resetBtn" title="Esquecer as marcadas como conhecidas">↺ Zerar conhecidas</button>
+  </div>
+
+  <div class="progress" aria-hidden="true"><div id="pbar"></div></div>
+  <div class="status"><span id="pos">–</span><span id="knownStat">–</span></div>
+
+  <div class="stage">
+    <div class="card" id="card" tabindex="0" aria-live="polite">
+      <div class="face front"><div class="meta" id="mf"></div><div class="content" id="cf"></div><div class="hint">clique ou <kbd>espaço</kbd> para virar</div></div>
+      <div class="face back"><div class="meta" id="mb"></div><div class="content" id="cb"></div></div>
+    </div>
+    <div class="empty" id="empty" hidden>Nenhum card com esses filtros. 🎉</div>
+  </div>
+  <div class="nav">
+    <button class="btn" id="prevBtn">← Anterior</button>
+    <button class="btn primary" id="flipBtn">Virar</button>
+    <button class="btn ok" id="knownBtn">✓ Conhecida</button>
+    <button class="btn" id="nextBtn">Próxima →</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="keys">
+    <kbd>espaço</kbd>/<kbd>enter</kbd> virar · <kbd>→</kbd>/<kbd>l</kbd> próxima · <kbd>←</kbd>/<kbd>h</kbd> anterior ·
+    <kbd>k</kbd> conhecida (marca e avança) · <kbd>s</kbd> embaralhar · <kbd>u</kbd> ocultar conhecidas ·
+    <kbd>0</kbd>–<kbd>5</kbd> domínio · <kbd>/</kbd> buscar · <kbd>v</kbd> lista · <kbd>t</kbd> tema
+  </div>
+</div>
+
+<script>
+const CARDS = /*__CARDS__*/[];
+const META = /*__META__*/{};
+const KEY = "pca-flashcards-v1";
+const store = {
+  load(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } },
+  save(s){ try { localStorage.setItem(KEY, JSON.stringify(s)); } catch(e){} }
+};
+const saved = store.load();
+const known = new Set(Array.isArray(saved.known) ? saved.known : []);
+const st = { domain: saved.domain || "", origin: saved.origin || "", q: "", hideKnown: !!saved.hideKnown, order: null, i: 0, flipped: false };
+if (saved.theme) document.documentElement.dataset.theme = saved.theme;
+const $ = id => document.getElementById(id);
+const persist = () => store.save({ known: [...known], domain: st.domain, origin: st.origin, hideKnown: st.hideKnown, theme: document.documentElement.dataset.theme || "" });
+const dmeta = Object.fromEntries(META.domains.map((d,i) => [d.key, {...d, n:i+1}]));
+
+// domain chips
+function chips(){
+  const box = $("domains"); box.innerHTML = "";
+  const all = [{key:"", name:"Todos", n:0}, ...META.domains.map((d,i)=>({...d, n:i+1}))];
+  for (const d of all){
+    const c = CARDS.filter(x => !d.key || x.d === d.key).length;
+    const b = document.createElement("button");
+    b.className = "chip"; b.setAttribute("aria-pressed", String(st.domain === d.key));
+    b.innerHTML = (d.key ? `<span class="dot" style="background:var(--d-${d.key})"></span>` : "") +
+      `${d.name}${d.weight ? ` <small>${d.weight}%</small>` : ""} <small>· ${c}</small>`;
+    b.title = `tecla ${d.n}`;
+    b.onclick = () => { st.domain = d.key; refilter(); };
+    box.appendChild(b);
+  }
+}
+for (const [k,v] of Object.entries(META.origins)){
+  const o = document.createElement("option"); o.value = k; o.textContent = v; $("origin").appendChild(o);
+}
+
+function strip(h){ const d = document.createElement("div"); d.innerHTML = h; return d.textContent.toLowerCase(); }
+const hay = CARDS.map(c => strip(c.f + " " + c.b + " " + c.x));
+
+function filtered(){
+  const q = st.q.trim().toLowerCase();
+  const out = [];
+  CARDS.forEach((c, idx) => {
+    if (st.domain && c.d !== st.domain) return;
+    if (st.origin && c.o !== st.origin) return;
+    if (st.hideKnown && known.has(c.id)) return;
+    if (q && !hay[idx].includes(q)) return;
+    out.push(idx);
+  });
+  return out;
+}
+function refilter(keepPos){
+  const cur = st.order && st.order[st.i];
+  st.order = filtered();
+  if (st.shuffled) shuffleArr(st.order);
+  st.i = keepPos ? Math.max(0, st.order.indexOf(cur)) : 0;
+  if (st.i >= st.order.length) st.i = 0;
+  st.flipped = false; persist(); chips(); show(); renderList();
+}
+function shuffleArr(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
+
+function metaHtml(c){
+  const d = dmeta[c.d];
+  return `<span class="dom" style="color:var(--d-${c.d})">${d.name}</span><span>· ${META.origins[c.o]}</span>` +
+    (known.has(c.id) ? `<span class="known">✓ conhecida</span>` : "");
+}
+function show(){
+  const n = st.order.length, card = $("card");
+  $("empty").hidden = n > 0; card.hidden = n === 0;
+  const inFilter = CARDS.filter(c => (!st.domain || c.d === st.domain) && (!st.origin || c.o === st.origin));
+  const k = inFilter.filter(c => known.has(c.id)).length;
+  $("knownStat").textContent = `${k}/${inFilter.length} conhecidas`;
+  $("pbar").style.width = inFilter.length ? (100 * k / inFilter.length) + "%" : "0";
+  if (!n){ $("pos").textContent = "0 cards"; return; }
+  const c = CARDS[st.order[st.i]];
+  $("pos").textContent = `card ${st.i + 1} de ${n}${st.shuffled ? " (embaralhado)" : ""}`;
+  $("mf").innerHTML = metaHtml(c); $("mb").innerHTML = metaHtml(c);
+  $("cf").innerHTML = c.f;
+  $("cb").innerHTML = `<div class="q-mini">${c.f}</div>` + c.b +
+    (c.x ? `<div class="extra">${c.x}</div>` : "") + (c.s ? `<div class="src">📎 ${c.s}</div>` : "");
+  card.classList.toggle("flipped", st.flipped);
+  $("knownBtn").textContent = known.has(c.id) ? "✗ Desmarcar" : "✓ Conhecida";
+}
+function renderList(){
+  if (!document.body.classList.contains("listmode") && !st.printing) { $("list").innerHTML = ""; return; }
+  $("list").innerHTML = st.order.map((idx, n) => { const c = CARDS[idx];
+    return `<div class="item"><div class="meta">${metaHtml(c)}<span>#${n+1}</span></div><div class="q">${c.f}</div><div class="a">${c.b}${c.x ? `<div class="extra">${c.x}</div>` : ""}${c.s ? `<div class="src">📎 ${c.s}</div>` : ""}</div></div>`; }).join("");
+}
+const flip = () => { st.flipped = !st.flipped; show(); };
+const go = d => { if (!st.order.length) return; st.i = (st.i + d + st.order.length) % st.order.length; st.flipped = false; show(); };
+function toggleKnown(){
+  if (!st.order.length) return;
+  const c = CARDS[st.order[st.i]];
+  if (known.has(c.id)) { known.delete(c.id); persist(); show(); return; }
+  known.add(c.id); persist();
+  if (st.hideKnown){ st.order.splice(st.i, 1); if (st.i >= st.order.length) st.i = 0; st.flipped = false; show(); }
+  else go(1);
+}
+function shuffle(){ st.shuffled = true; shuffleArr(st.order); st.i = 0; st.flipped = false; show(); renderList(); }
+function toggleView(){ document.body.classList.toggle("listmode"); renderList(); }
+function toggleTheme(){
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark"; persist();
+}
+
+$("card").onclick = e => { if (e.target.closest("a")) return; flip(); };
+$("flipBtn").onclick = flip; $("nextBtn").onclick = () => go(1); $("prevBtn").onclick = () => go(-1);
+$("knownBtn").onclick = toggleKnown; $("shuffleBtn").onclick = shuffle; $("viewBtn").onclick = toggleView;
+$("themeBtn").onclick = toggleTheme;
+$("printBtn").onclick = () => { st.printing = true; renderList(); setTimeout(() => window.print(), 50); };
+window.addEventListener("afterprint", () => { st.printing = false; renderList(); });
+window.addEventListener("beforeprint", () => { st.printing = true; renderList(); });
+$("resetBtn").onclick = () => { if (confirm("Esquecer todas as cards marcadas como conhecidas?")) { known.clear(); refilter(); } };
+$("origin").value = st.origin; $("origin").onchange = e => { st.origin = e.target.value; refilter(); };
+$("hideKnown").checked = st.hideKnown; $("hideKnown").onchange = e => { st.hideKnown = e.target.checked; refilter(true); };
+$("search").oninput = e => { st.q = e.target.value; refilter(); };
+
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input,select,textarea")) { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+  if (k === " " || k === "Enter") { e.preventDefault(); flip(); }
+  else if (k === "ArrowRight" || k === "l") go(1);
+  else if (k === "ArrowLeft" || k === "h") go(-1);
+  else if (k === "k") toggleKnown();
+  else if (k === "s") shuffle();
+  else if (k === "u") { st.hideKnown = !st.hideKnown; $("hideKnown").checked = st.hideKnown; refilter(true); }
+  else if (k === "v") toggleView();
+  else if (k === "t") toggleTheme();
+  else if (k === "/") { e.preventDefault(); $("search").focus(); }
+  else if (/^[0-5]$/.test(k)) { st.domain = k === "0" ? "" : (META.domains[+k - 1] || {}).key || ""; refilter(); }
+});
+// deep link: flashcards.html#q=group_wait&d=alerting&flip
+(function(){ try {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.has("q")) { st.q = h.get("q"); $("search").value = st.q; }
+  if (h.has("d")) st.domain = h.get("d");
+  if (h.has("o")) { st.origin = h.get("o"); $("origin").value = st.origin; }
+  refilter();
+  if (h.has("flip")) { st.flipped = true; show(); }
+  if (h.has("list")) toggleView();
+} catch(e) { refilter(); } })();
+</script>
+</body>
+</html>

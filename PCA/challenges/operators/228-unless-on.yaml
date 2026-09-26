@@ -1,0 +1,24 @@
+id: '228'
+title: '`unless on(...)`: serviços sem nenhum erro'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#9-operadores-lógicos-and-or-unless
+prompt: |
+  Retorne todas as séries de `sort_desc_http_requests_total{service, code}` dos serviços que
+  **não tiveram nenhum erro 500** (taxa de 500 em 5m igual a zero).
+hints:
+- Remova os serviços que têm rate de 500 > 0
+- unless on(service)
+solution: sort_desc_http_requests_total unless on(service) rate(sort_desc_http_requests_total{code="500"}[5m]) > 0
+accepted_answers:
+- sort_desc_http_requests_total{service="recommendations"}
+- sort_desc_http_requests_total and on(service) rate(sort_desc_http_requests_total{code="500"}[5m]) == 0
+wrong_answers:
+- sort_desc_http_requests_total unless rate(sort_desc_http_requests_total{code="500"}[5m]) > 0
+- sort_desc_http_requests_total and on(service) rate(sort_desc_http_requests_total{code="500"}[5m]) > 0
+tolerance: 1.0e-05
+explanation: |
+  `unless on(service)` remove da esquerda **todas** as séries cujo `service` aparece à direita
+  (os que têm erro). Sobra só `recommendations` (200 e 500). Sem `on(service)`, só as séries
+  `code="500"` com erro seriam removidas (sobrariam 5 séries).

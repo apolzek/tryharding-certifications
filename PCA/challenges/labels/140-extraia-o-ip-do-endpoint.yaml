@@ -1,0 +1,26 @@
+id: "140"
+title: "Extraia o IP do endpoint"
+topic: labels
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_replace/
+prompt: |
+  `label_replace_node_cpu_usage_percent` tem o label `endpoint="10.0.0.5:9100"` (IP:porta). Crie um label novo **`ip`** contendo
+  **só o IP** (sem a porta), mantendo os outros labels.
+hints:
+  - "label_replace(v, \"destino\", \"substituição\", \"origem\", \"regex\")"
+  - "Use um grupo de captura para o IP e referencie com $1."
+  - "label_replace(label_replace_node_cpu_usage_percent, \"ip\", \"$1\", \"endpoint\", \"(.*):.*\")"
+solution: 'label_replace(label_replace_node_cpu_usage_percent, "ip", "$1", "endpoint", "(.*):.*")'
+accepted_answers:
+  - 'label_replace(label_replace_node_cpu_usage_percent, "ip", "$1", "endpoint", "([^:]+):[0-9]+")'
+  - 'label_replace(label_replace_node_cpu_usage_percent, "ip", "${1}", "endpoint", "(.+):(.+)")'
+wrong_answers:
+  - 'label_replace(label_replace_node_cpu_usage_percent, "ip", "$1", "endpoint", ".*:(.*)")'
+  - 'label_replace(label_replace_node_cpu_usage_percent, "endpoint", "$1", "endpoint", "(.*):.*")'
+  - 'label_replace(label_replace_node_cpu_usage_percent, "ip", "$1", "endpoint", "(.*)")'
+explanation: |
+  A regex é ancorada e precisa casar o valor INTEIRO; `$1` é o 1º grupo. Se a regex não casar,
+  a série volta **sem alteração** (nenhum erro!).
+
+  Pegadinha: trocar o destino para `endpoint` sobrescreve o label original em vez de criar `ip`.

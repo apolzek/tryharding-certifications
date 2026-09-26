@@ -1,0 +1,26 @@
+id: "129"
+title: "Quanto tempo leva cada scrape"
+topic: absence-and-staleness
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/count_over_time/
+prompt: |
+  O Prometheus também cria, para cada alvo, a série sintética `scrape_duration_seconds`.
+  Retorne **o alvo com o scrape mais lento** agora, mantendo os labels `job` e `instance`.
+hints:
+  - "As séries sintéticas de scrape: up, scrape_duration_seconds, scrape_samples_scraped..."
+  - "O maior, mantendo os labels: topk."
+  - "topk(1, scrape_duration_seconds)"
+solution: 'topk(1, scrape_duration_seconds)'
+accepted_answers:
+  - 'scrape_duration_seconds == scalar(max(scrape_duration_seconds))'
+wrong_answers:
+  - 'max(scrape_duration_seconds)'
+  - 'bottomk(1, scrape_duration_seconds)'
+  - 'scrape_duration_seconds'
+explanation: |
+  Séries sintéticas por alvo: `up`, `scrape_duration_seconds`, `scrape_samples_scraped`,
+  `scrape_samples_post_metric_relabeling`, `scrape_series_added`. Um scrape perto do `scrape_timeout` é
+  sinal de exporter lento.
+
+  Pegadinha: `max()` dá o valor, mas perde QUAL alvo é.

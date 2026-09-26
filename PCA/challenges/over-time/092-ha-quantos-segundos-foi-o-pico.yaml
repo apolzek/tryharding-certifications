@@ -1,0 +1,23 @@
+id: "092"
+title: "Há quantos segundos foi o pico"
+topic: over-time
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/ts_of_max_over_time/
+prompt: |
+  Em `ts_of_max_over_time_node_cpu_utilisation_percent{host}`, descubra **há quantos segundos
+  aconteceu o pico de CPU** de cada host dentro dos **últimos 10 minutos**.
+hints:
+  - "Existe uma função (experimental) que devolve o TIMESTAMP do máximo da janela."
+  - "Subtraia de time()."
+  - "time() - ts_of_max_over_time(v[10m])"
+solution: 'time() - ts_of_max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[10m])'
+wrong_answers:
+  - 'max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[10m])'
+  - 'ts_of_max_over_time(ts_of_max_over_time_node_cpu_utilisation_percent[10m])'
+  - 'time() - timestamp(ts_of_max_over_time_node_cpu_utilisation_percent)'
+explanation: |
+  `ts_of_max_over_time` devolve QUANDO (timestamp Unix em segundos) ocorreu o valor máximo na janela.
+  `time() - ...` transforma em 'há quanto tempo'.
+
+  Pegadinha: `max_over_time` devolve o VALOR do pico, não o momento.

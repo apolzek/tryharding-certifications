@@ -1,0 +1,16 @@
+groups:
+  - name: search
+    rules:
+      - alert: SearchTaxaDeErroAlta
+        # os dois lados têm labels diferentes (code vs method):
+        # agregue para o MESMO conjunto de labels antes de dividir
+        expr: |
+          sum by (job, instance) (rate(http_errors_total{job="search"}[1m]))
+            /
+          sum by (job, instance) (rate(http_requests_total{job="search"}[1m]))
+            > 0.05
+        for: 10s
+        labels:
+          severity: page
+        annotations:
+          summary: "search com {{ $value | humanizePercentage }} de erro em {{ $labels.instance }}"

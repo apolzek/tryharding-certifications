@@ -1,0 +1,28 @@
+# docker run --rm -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.15.0 test rules rules.test.yml
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200",instance="a"}'
+        values: '0+300x400'
+      - series: 'http_requests_total{job="checkout",code="200",instance="b"}'
+        values: '0+300x400'
+      - series: 'http_requests_total{job="checkout",code="500",instance="a"}'
+        values: '0+6x400'
+      - series: 'http_requests_total{job="other",code="500",instance="x"}'   # outro job: não pode entrar na conta
+        values: '0+1000x400'
+    promql_expr_test:
+      # 6 erros / 606 requisições por minuto = 0,990099%
+      - expr: round(job:slo_errors_per_request:ratio_rate5m, 0.000001)
+        eval_time: 6h
+        exp_samples: [{ labels: '{job="checkout"}', value: 0.009901 }]
+      - expr: round(job:slo_errors_per_request:ratio_rate30m, 0.000001)
+        eval_time: 6h
+        exp_samples: [{ labels: '{job="checkout"}', value: 0.009901 }]
+      - expr: round(job:slo_errors_per_request:ratio_rate1h, 0.000001)
+        eval_time: 6h
+        exp_samples: [{ labels: '{job="checkout"}', value: 0.009901 }]
+      - expr: round(job:slo_errors_per_request:ratio_rate6h, 0.000001)
+        eval_time: 6h30m
+        exp_samples: [{ labels: '{job="checkout"}', value: 0.009901 }]

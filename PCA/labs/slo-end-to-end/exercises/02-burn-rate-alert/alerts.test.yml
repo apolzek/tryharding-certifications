@@ -1,0 +1,44 @@
+# docker run --rm -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.15.0 test rules alerts.test.yml
+rule_files: [sli.yml, alerts.yml]
+evaluation_interval: 1m
+tests:
+  # 1) ~4,8% de erro (burn ≈ 48x): Fast dispara após o for de 2m; Medium só depois do for de 15m
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+600x60'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+30x60'
+    alert_rule_test:
+      - { eval_time: 1m, alertname: SLOErrorBudgetBurnFast, exp_alerts: [] }
+      - { eval_time: 10m, alertname: SLOErrorBudgetBurnMedium, exp_alerts: [] }
+    promql_expr_test:
+      # ALERTS é a série sintética que o Prometheus grava para cada alerta pending/firing
+      - expr: count by (alertname, severity, burn_rate) (ALERTS{alertname="SLOErrorBudgetBurnFast", alertstate="firing"})
+        eval_time: 4m
+        exp_samples: [{ labels: '{alertname="SLOErrorBudgetBurnFast", severity="page", burn_rate="14.4"}', value: 1 }]
+      - expr: count by (alertname, severity, burn_rate) (ALERTS{alertname="SLOErrorBudgetBurnMedium", alertstate="firing"})
+        eval_time: 20m
+        exp_samples: [{ labels: '{alertname="SLOErrorBudgetBurnMedium", severity="page", burn_rate="6"}', value: 1 }]
+  # 2) ~1% de erro (burn ≈ 9.9x): Medium dispara, Fast NÃO
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+600x120'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+6x120'
+    alert_rule_test:
+      - { eval_time: 1h, alertname: SLOErrorBudgetBurnFast, exp_alerts: [] }
+    promql_expr_test:
+      - expr: count by (alertname) (ALERTS{alertname="SLOErrorBudgetBurnMedium", alertstate="firing"})
+        eval_time: 1h
+        exp_samples: [{ labels: '{alertname="SLOErrorBudgetBurnMedium"}', value: 1 }]
+  # 3) Incidente acabou: 30m de erro e depois 0. Aos 45m a janela de 1h ainda está alta, mas a de 5m não.
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="checkout",code="200"}'
+        values: '0+600x60'
+      - series: 'http_requests_total{job="checkout",code="500"}'
+        values: '0+30x30 900+0x30'
+    alert_rule_test:
+      - { eval_time: 45m, alertname: SLOErrorBudgetBurnFast, exp_alerts: [] }

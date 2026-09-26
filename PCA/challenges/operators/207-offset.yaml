@@ -1,0 +1,25 @@
+id: '207'
+title: 'offset: o valor de 1 hora atrás'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#3-offset
+prompt: |
+  `increase_http_requests_total{code}` é um counter.
+
+  Retorne o **valor cru do counter como ele estava há exatamente 1 hora**.
+hints:
+- Existe um modificador que desloca o seletor no tempo
+- metrica offset 1h
+solution: increase_http_requests_total offset 1h
+accepted_answers:
+- increase_http_requests_total offset 60m
+- increase_http_requests_total offset 3600s
+wrong_answers:
+- increase_http_requests_total
+- increase_http_requests_total offset 1m
+- increase_http_requests_total offset -1h
+tolerance: 1.0e-05
+explanation: |
+  `offset 1h` desloca a avaliação **daquele seletor** 1 hora para trás. Ele vem **logo depois do seletor**
+  (`sum(x offset 1h)` ✅, `sum(x) offset 1h` ❌ erro de parse).

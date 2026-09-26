@@ -1,0 +1,16 @@
+# Solução do exercício 03
+groups:
+  - name: slo-checkout-budget
+    interval: 5m
+    rules:
+      - record: job:slo_errors_per_request:ratio_rate30d
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[30d]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[30d]))
+      # budget = 1 - SLO = 0.001.  restante = 1 - (gasto / budget)
+      - record: job:slo_error_budget_remaining:ratio
+        expr: 1 - (job:slo_errors_per_request:ratio_rate30d / (1 - 0.999))
+      # 30d = 43200 min; budget = 0.001 * 43200 = 43,2 min de indisponibilidade TOTAL
+      - record: job:slo_error_budget_remaining:minutes
+        expr: job:slo_error_budget_remaining:ratio * (1 - 0.999) * 30 * 24 * 60

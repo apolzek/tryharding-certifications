@@ -1,0 +1,12 @@
+groups:
+  - name: ex08
+    rules:
+      - record: job:http_requests:rate5m          # "-" não é permitido em nome de métrica
+        expr: sum by (job) (rate(http_requests_total[5m]))
+      - record: instance:node_cpu_utilisation:rate5m
+        expr: 1 - avg without (cpu, mode) (rate(node_cpu_seconds_total{mode="idle"}[5m]))
+        # "for" só existe em regra de ALERTA
+      - record: job:up:sum                        # regra duplicada removida (lint duplicate-rules)
+        expr: sum by (job) (up)
+      - alert: TooManyRestarts
+        expr: increase(kube_pod_container_status_restarts_total[1h]) > 5   # parêntese faltando

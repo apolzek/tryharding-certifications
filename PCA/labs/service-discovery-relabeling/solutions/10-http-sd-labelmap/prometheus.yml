@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  - job_name: http-sd
+    http_sd_configs:
+      - url: http://sd-server:8000/targets.json
+        refresh_interval: 15s
+    relabel_configs:
+      # "__meta_(.+)" também copiaria __meta_url (vira label url=...). Seja explícito.
+      - action: labelmap
+        regex: __meta_(datacenter|owner_team)

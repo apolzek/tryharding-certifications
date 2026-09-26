@@ -1,0 +1,35 @@
+name: pca-tsdb-storage
+
+services:
+  generator:
+    build: ./generator
+    image: pca-tsdb-storage-generator:latest
+    restart: unless-stopped
+    ports:
+      - "9151:8000"   # /control e /backfill.om (fora do mapa "oficial", só para você brincar)
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle      # POST /-/reload
+      - --web.enable-admin-api      # /api/v1/admin/tsdb/* (snapshot, delete_series, clean_tombstones)
+      - --query.lookback-delta=5m   # o padrão, explícito para você lembrar que existe
+    volumes:
+      - ./prometheus:/etc/prometheus   # rw: os exercícios editam o prometheus.yml e fazem reload
+      - prometheus-data:/prometheus
+    ports:
+      - "9150:9090"
+    depends_on:
+      generator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  prometheus-data:

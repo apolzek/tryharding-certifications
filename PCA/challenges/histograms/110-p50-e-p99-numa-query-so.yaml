@@ -1,0 +1,26 @@
+id: "110"
+title: "p50 e p99 numa query só"
+topic: histograms
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_quantiles/
+prompt: |
+  O painel quer **p50 e p99 de cada serviço** de uma vez, com um label `quantile` diferenciando as séries.
+  Use o native histogram `histogram_quantiles_api_latency_seconds{service}` (5 min) e a função
+  experimental de quantis múltiplos.
+hints:
+  - "Note o plural: histogram_quantiles."
+  - "Assinatura: (histograma, \"nome_do_label\", φ1, φ2, ...)."
+  - "histogram_quantiles(rate(histogram_quantiles_api_latency_seconds[5m]), \"quantile\", 0.5, 0.99)"
+solution: 'histogram_quantiles(rate(histogram_quantiles_api_latency_seconds[5m]), "quantile", 0.5, 0.99)'
+accepted_answers:
+  - 'label_replace(histogram_quantile(0.5, rate(histogram_quantiles_api_latency_seconds[5m])), "quantile", "0.5", "", "") or label_replace(histogram_quantile(0.99, rate(histogram_quantiles_api_latency_seconds[5m])), "quantile", "0.99", "", "")'
+wrong_answers:
+  - 'histogram_quantile(0.99, rate(histogram_quantiles_api_latency_seconds[5m]))'
+  - 'histogram_quantiles(rate(histogram_quantiles_api_latency_seconds[5m]), "q", 0.5, 0.99)'
+  - 'histogram_quantiles(rate(histogram_quantiles_api_latency_seconds[5m]), "quantile", 0.5, 0.9)'
+explanation: |
+  `histogram_quantiles` (plural, experimental) calcula até 10 quantis e cria um label com o nome que você
+  escolher. Sem ela, você faz `label_replace(...) or label_replace(...)` à mão.
+
+  Pegadinha: o nome do label faz parte da resposta (`"q"` ≠ `"quantile"`).

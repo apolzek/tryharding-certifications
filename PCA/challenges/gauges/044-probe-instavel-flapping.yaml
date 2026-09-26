@@ -1,0 +1,23 @@
+id: "044"
+title: "Probe instável (flapping)"
+topic: gauges
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/changes/
+prompt: |
+  `changes_probe_success{target}` é 1 (ok) ou 0 (falhou). Um dos alvos está 'piscando'.
+  Retorne **quantas vezes o estado de cada alvo mudou nos últimos 5 minutos**.
+hints:
+  - "Subiu ou desceu, é uma mudança."
+  - "changes(v[5m])"
+  - "changes(changes_probe_success[5m])"
+solution: 'changes(changes_probe_success[5m])'
+wrong_answers:
+  - 'resets(changes_probe_success[5m])'
+  - 'delta(changes_probe_success[5m])'
+  - 'count_over_time(changes_probe_success[5m])'
+explanation: |
+  frete ≈ 20 mudanças (cai e volta a cada 15 s), pagamentos = 0.
+  Alerta de flapping clássico: `changes(probe_success[10m]) > 4`.
+
+  Pegadinha: `resets()` só conta as QUEDAS (1→0), metade das mudanças.

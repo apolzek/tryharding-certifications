@@ -1,0 +1,27 @@
+id: "021"
+title: "Restarts de container nos últimos 15 min"
+topic: counters
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/increase/
+prompt: |
+  O on-call quer saber **quantos restarts cada container teve nos últimos 15 minutos**.
+  Use o counter `increase_kube_pod_container_status_restarts_total` (imita o kube-state-metrics).
+hints:
+  - "Quer 'quanto cresceu na janela', não 'por segundo'."
+  - "increase(counter[janela])"
+  - "increase(increase_kube_pod_container_status_restarts_total[15m])"
+solution: 'increase(increase_kube_pod_container_status_restarts_total[15m])'
+accepted_answers:
+  - 'rate(increase_kube_pod_container_status_restarts_total[15m]) * 900'
+  - 'rate(increase_kube_pod_container_status_restarts_total[15m]) * 15 * 60'
+wrong_answers:
+  - 'resets(increase_kube_pod_container_status_restarts_total[15m])'
+  - 'increase_kube_pod_container_status_restarts_total'
+  - 'rate(increase_kube_pod_container_status_restarts_total[15m])'
+explanation: |
+  `increase()` = `rate() * duração da janela`. O pod checkout reinicia a cada 2 min → ~7,5 em 15 min
+  (o valor não é inteiro por causa da extrapolação nas bordas; é normal).
+
+  Pegadinha: `resets()` aqui dá 0: este counter CONTA restarts, ele nunca volta a zero.
+  `resets()` serve para counters que zeram quando o PROCESSO reinicia.

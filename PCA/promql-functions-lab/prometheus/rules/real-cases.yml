@@ -121,7 +121,8 @@ groups:
     rules:
       - alert: TargetDown
         # clássico da prova: up == 0
-        expr: up == 0
+        # (o job pca-progress só está up quando você roda ./check.py exporter, então fica de fora)
+        expr: up{job!="pca-progress"} == 0
         for: 30s
         labels: { severity: critical, lesson: absent }
         annotations:

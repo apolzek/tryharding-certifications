@@ -1,0 +1,22 @@
+id: '219'
+title: '`bool`: 1 ou 0 para cada série'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#7-operadores-de-comparação
+prompt: |
+  Para **cada** CronJob de `sort_cronjob_last_duration_seconds`, retorne `1` se a duração passou
+  de **30 s** e `0` caso contrário (todas as séries devem aparecer).
+hints:
+- O modificador bool troca o filtro por 0/1
+- x > bool 30
+solution: sort_cronjob_last_duration_seconds > bool 30
+accepted_answers:
+- 30 < bool sort_cronjob_last_duration_seconds
+wrong_answers:
+- sort_cronjob_last_duration_seconds > 30
+- sort_cronjob_last_duration_seconds >= bool 120
+explanation: |
+  Com `bool`, a comparação **não filtra**: devolve 1 (verdadeiro) ou 0 (falso) para toda série que
+  tem par — e **descarta o nome da métrica**. Note que `sync` (valor `NaN`) vira **0**: qualquer
+  comparação com NaN é falsa (exceto `!=`).

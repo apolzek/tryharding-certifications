@@ -1,0 +1,25 @@
+id: "087"
+title: "Último resultado do batch job"
+topic: over-time
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/last_over_time/
+prompt: |
+  O batch job só expõe `last_over_time_batch_items_processed{job_name}` por ~20 s quando roda;
+  depois a série some e o painel fica vazio. Mostre **o último valor visto de cada job nos últimos
+  5 minutos**, mesmo que ele já tenha sumido.
+hints:
+  - "Existe uma função que 'segura' o último valor da janela."
+  - "last_over_time(v[5m])"
+  - "last_over_time(last_over_time_batch_items_processed[5m])"
+solution: 'last_over_time(last_over_time_batch_items_processed[5m])'
+wrong_answers:
+  - 'first_over_time(last_over_time_batch_items_processed[5m])'
+  - 'avg_over_time(last_over_time_batch_items_processed[5m])'
+  - 'count_over_time(last_over_time_batch_items_processed[5m])'
+explanation: |
+  Uma série que some fica 'stale' e sai das consultas instantâneas. `last_over_time(x[5m])`
+  devolve a amostra mais recente dentro da janela, mesmo que a série não exista mais agora.
+
+  Pegadinha: o lookback padrão de 5 min NÃO ajuda aqui — quando o alvo para de expor a série
+  o Prometheus grava um marcador de staleness e ela some na hora.

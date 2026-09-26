@@ -1,0 +1,26 @@
+id: "127"
+title: "Há quanto tempo cada sensor reportou"
+topic: absence-and-staleness
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/ts_of_last_over_time/
+prompt: |
+  Para o alerta "sensor sem reportar", calcule **há quantos segundos cada sensor de
+  `ts_of_last_over_time_sensor_temperature_celsius` enviou sua última amostra**, olhando os últimos 20 minutos
+  (o sensor `retired` só reporta 1 min a cada 15 min).
+hints:
+  - "Existe uma função (experimental) que devolve o TIMESTAMP da última amostra na janela."
+  - "Subtraia esse timestamp do relógio da consulta."
+  - "time() - ts_of_last_over_time(v[20m])"
+solution: 'time() - ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius[20m])'
+wrong_answers:
+  - 'ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius[20m]) - time()'
+  - 'ts_of_last_over_time(ts_of_last_over_time_sensor_temperature_celsius[20m])'
+  - 'time() - last_over_time(ts_of_last_over_time_sensor_temperature_celsius[20m])'
+explanation: |
+  healthy ≈ 0–5 s, flaky até ~95 s, retired até ~15 min. Alerta: `... > 300`.
+  Sem a função experimental dá para aproximar com `time() - max_over_time(timestamp(x)[20m:5s])`
+  (subquery; erra até um passo de 5 s, por isso não é aceita aqui).
+
+  Pegadinha: `timestamp(x)` só enxerga séries que existem AGORA — o sensor sumido fica de fora.
+  `last_over_time` devolve o VALOR (temperatura), não o horário.

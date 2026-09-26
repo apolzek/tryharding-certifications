@@ -1,0 +1,1 @@
+sum without(partition)(sort_by_label_desc_kafka_log_size_bytes)

@@ -1,0 +1,24 @@
+id: "041"
+title: "Velocidade do vazamento de memória"
+topic: gauges
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/deriv/
+prompt: |
+  Suspeita de memory leak! Calcule a **inclinação (bytes por segundo)** da memória de cada pod
+  em `deriv_container_memory_working_set_bytes` nos últimos 5 minutos, usando **regressão linear**
+  (robusta a picos isolados).
+hints:
+  - "Para gauge, 'por segundo' com regressão linear é uma função específica."
+  - "Não é rate() (isso é para counters)."
+  - "deriv(deriv_container_memory_working_set_bytes[5m])"
+solution: 'deriv(deriv_container_memory_working_set_bytes[5m])'
+wrong_answers:
+  - 'rate(deriv_container_memory_working_set_bytes[5m])'
+  - 'idelta(deriv_container_memory_working_set_bytes[5m])'
+  - 'deriv(deriv_container_memory_working_set_bytes[5m]) * 60'
+explanation: |
+  `deriv()` ajusta uma reta (mínimos quadrados) em TODOS os pontos da janela: leaky ≈ 1 MiB/s,
+  healthy ≈ 0. Por usar todos os pontos, um pico isolado quase não muda o resultado.
+
+  Pegadinha: `rate()` num gauge trata cada queda (ruído) como reset e dá valores enormes.

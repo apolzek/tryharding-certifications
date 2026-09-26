@@ -1,0 +1,26 @@
+id: '200'
+title: 'Seletor com `=`: só o namespace shop'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#2-seletores-e-matchers
+prompt: |
+  A métrica `sort_desc_container_cpu_usage_seconds_total{namespace, pod}` é o counter de CPU
+  de cada container (imita o cAdvisor).
+
+  Retorne **só as séries do namespace `shop`** (valor cru, sem funções).
+hints:
+- 'Filtro de label vai entre chaves: metrica{label="valor"}'
+- sort_desc_container_cpu_usage_seconds_total{namespace="shop"}
+solution: sort_desc_container_cpu_usage_seconds_total{namespace="shop"}
+accepted_answers:
+- '{__name__="sort_desc_container_cpu_usage_seconds_total", namespace="shop"}'
+- sort_desc_container_cpu_usage_seconds_total{namespace=~"shop"}
+wrong_answers:
+- sort_desc_container_cpu_usage_seconds_total
+- sort_desc_container_cpu_usage_seconds_total{namespace!="shop"}
+tolerance: 0.001
+explanation: |
+  `{namespace="shop"}` é um *equality matcher*: seleciona só as séries cujo label `namespace`
+  é exatamente `shop`. Resultado: 4 pods (`api-7f9c-a`, `api-7f9c-b`, `redis-0`, `web-5d8e-x`).
+  `metrica` sozinha é açúcar sintático para `{__name__="metrica"}`.

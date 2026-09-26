@@ -1,0 +1,25 @@
+id: "112"
+title: "Req/s mais rápidas que 100 ms"
+topic: histograms
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_quantile/
+prompt: |
+  Usando os buckets clássicos `histogram_quantile_http_request_duration_seconds_bucket`, calcule as **req/s que terminaram em até 0,1 s**,
+  por série (rota e pod), nos últimos 5 minutos.
+hints:
+  - "Buckets clássicos são cumulativos: `le=\"0.1\"` conta tudo ≤ 0,1 s."
+  - "Filtre o bucket pelo label `le` e aplique rate."
+  - "rate(histogram_quantile_http_request_duration_seconds_bucket{le=\"0.1\"}[5m])"
+solution: 'rate(histogram_quantile_http_request_duration_seconds_bucket{le="0.1"}[5m])'
+accepted_answers:
+  - 'increase(histogram_quantile_http_request_duration_seconds_bucket{le="0.1"}[5m]) / 300'
+wrong_answers:
+  - 'rate(histogram_quantile_http_request_duration_seconds_bucket{le="+Inf"}[5m])'
+  - 'rate(histogram_quantile_http_request_duration_seconds_bucket{le="0.25"}[5m])'
+  - 'histogram_quantile_http_request_duration_seconds_bucket{le="0.1"}'
+explanation: |
+  Cada bucket `le` é um counter com as observações ≤ `le`. `le="+Inf"` = todas (= `_count`).
+
+  Pegadinha: o valor do label é string: no Prometheus 3 os `le` são normalizados (`"1.0"`, `"5.0"`),
+  então confira o valor exato com `count by (le) (...)` antes de filtrar.

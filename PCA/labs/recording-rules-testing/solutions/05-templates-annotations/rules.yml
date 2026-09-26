@@ -1,0 +1,13 @@
+groups:
+  - name: ex05
+    rules:
+      - alert: DiskAlmostFull
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.1
+        labels:
+          severity: warning
+        annotations:
+          # o label se chama mountpoint (label inexistente vira string vazia, sem erro!)
+          summary: "disco {{ $labels.mountpoint }} de {{ $labels.instance }} com {{ $value | humanizePercentage }} livre"
+          # $value é o valor da EXPR (a razão). Para mostrar outra grandeza, use query dentro do template:
+          description: >-
+            restam {{ with printf "node_filesystem_avail_bytes{instance='%s',mountpoint='%s'}" $labels.instance $labels.mountpoint | query }}{{ . | first | value | humanize1024 }}B{{ end }}

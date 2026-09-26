@@ -1,0 +1,11 @@
+route:
+  receiver: slack
+  group_by: [alertname, cluster]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+receivers:
+  - name: slack
+    webhook_configs:
+      - url: http://receiver:8080/hook/slack
+        send_resolved: true      # webhook já é true por padrão; aqui estava desligado de propósito. (slack/email: padrão false!)

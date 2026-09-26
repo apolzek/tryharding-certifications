@@ -1,0 +1,676 @@
+# Questões originais — domínio Prometheus Fundamentals (enunciado EN, explicação pt-BR)
+- id: fund-001
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    Which component of the Prometheus ecosystem is responsible for deduplicating, grouping and routing alerts to receivers such as email, Slack or PagerDuty?
+  options:
+  - 'The Prometheus server rule manager'
+  - 'Alertmanager'
+  - 'Pushgateway'
+  - 'node_exporter'
+  answer: B
+  explanation_pt: |
+    O Prometheus AVALIA as regras de alerta e envia os alertas ativos. Quem deduplica, agrupa, silencia, inibe e entrega as notificações é o Alertmanager.
+  source: https://prometheus.io/docs/introduction/overview/#architecture
+  lang: en
+- id: fund-002
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    In the Prometheus data model, what uniquely identifies a time series?
+  options:
+  - 'Its metric name and its set of key/value label pairs'
+  - 'Only its metric name'
+  - 'The job name and the scrape timestamp'
+  - 'The target IP address'
+  answer: A
+  explanation_pt: |
+    Série = nome da métrica + conjunto de labels. Mudar/adicionar qualquer valor de label cria outra série. Internamente o nome é só o label especial `__name__`.
+  source: https://prometheus.io/docs/concepts/data_model/
+  lang: en
+- id: fund-003
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What does a single (float) sample stored by Prometheus consist of?
+  options:
+  - 'A string value and a nanosecond timestamp'
+  - 'An integer value and a second-precision timestamp'
+  - 'A float64 value and a millisecond-precision timestamp'
+  - 'A JSON document with all labels'
+  answer: C
+  explanation_pt: |
+    Cada amostra é um valor float64 (ou um native histogram) + timestamp com precisão de milissegundos. Os labels pertencem à série, não à amostra.
+  source: https://prometheus.io/docs/concepts/data_model/#samples
+  lang: en
+- id: fund-004
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    If scrape_interval is not set anywhere in the configuration, what value does Prometheus use?
+  options:
+  - '15s'
+  - '30s'
+  - '5m'
+  - '1m'
+  answer: D
+  explanation_pt: |
+    O default global é `scrape_interval: 1m` (o `15s` aparece no prometheus.yml de exemplo, não é o default). Também são 1m o `evaluation_interval` e 10s o `scrape_timeout`.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file
+  lang: en
+- id: fund-005
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    What is the default scrape_timeout in Prometheus?
+  options:
+  - '10s'
+  - '1m'
+  - '5s'
+  - 'Equal to scrape_interval'
+  answer: A
+  explanation_pt: |
+    Default global: `scrape_timeout: 10s`. O timeout não pode ser maior que o `scrape_interval` do job (a config é rejeitada).
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file
+  lang: en
+- id: fund-006
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    What HTTP path does Prometheus scrape on a target by default?
+  options:
+  - '/api/v1/metrics'
+  - '/prometheus'
+  - '/metrics'
+  - '/federate'
+  answer: C
+  explanation_pt: |
+    `metrics_path` tem default `/metrics` e `scheme` tem default `http`. Ambos podem ser trocados por job ou, por alvo, via labels `__metrics_path__` e `__scheme__` no relabeling.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
+  lang: en
+- id: fund-007
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    Which two labels does Prometheus attach automatically to every series it scrapes from a target?
+  options:
+  - 'host and port'
+  - 'cluster and replica'
+  - '__name__ and le'
+  - 'job and instance'
+  answer: D
+  explanation_pt: |
+    `job` vem do `job_name` e `instance` vem do `__address__` (host:porta) após o relabeling, caso não tenha sido definido.
+  source: https://prometheus.io/docs/concepts/jobs_instances/
+  lang: en
+- id: fund-008
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    What does the value of the automatically generated up series indicate?
+  options:
+  - '1 if the last scrape of the target succeeded, 0 if it failed'
+  - 'The uptime of the target in seconds'
+  - 'The number of scrapes since Prometheus started'
+  - '1 if the target is registered in service discovery, even if never scraped'
+  answer: A
+  explanation_pt: |
+    `up{job, instance}` é 1 quando o scrape foi bem-sucedido e 0 quando falhou. É a base de alertas como `up == 0`. O uptime de um processo vem de `time() - process_start_time_seconds`.
+  source: https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
+  lang: en
+- id: fund-009
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Which of these series is NOT automatically generated by Prometheus for each scrape target?
+  options:
+  - 'scrape_duration_seconds'
+  - 'scrape_samples_post_metric_relabeling'
+  - 'up'
+  - 'process_start_time_seconds'
+  answer: D
+  explanation_pt: |
+    Por scrape, o Prometheus gera `up`, `scrape_duration_seconds`, `scrape_samples_scraped`, `scrape_samples_post_metric_relabeling` e `scrape_series_added`. `process_start_time_seconds` é exposta pela client library DO ALVO.
+  source: https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
+  lang: en
+- id: fund-010
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    A target exposes a series with the label job="batch". The scrape config has job_name "pushgw" and honor_labels is left at its default. How is the series stored?
+  options:
+  - 'With job="batch" only'
+  - 'With job="pushgw" and exported_job="batch"'
+  - 'The series is dropped because of the conflict'
+  - 'With job="batch,pushgw"'
+  answer: B
+  explanation_pt: |
+    Com `honor_labels: false` (default), em caso de conflito o label raspado é renomeado para `exported_<nome>` e o label do servidor prevalece. Com `honor_labels: true`, o valor raspado é mantido.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
+  lang: en
+- id: fund-011
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    In which scenarios does the documentation recommend setting honor_labels to true?
+  options:
+  - 'When scraping node_exporter'
+  - 'Whenever a target uses HTTPS'
+  - 'When scraping the Pushgateway or a /federate endpoint, where the labels in the scraped data must be preserved'
+  - 'Never; it is deprecated'
+  answer: C
+  explanation_pt: |
+    Pushgateway e federação expõem séries que já têm `job`/`instance` de ORIGEM. `honor_labels: true` preserva esses labels em vez de sobrescrevê-los com os do scrape.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
+  lang: en
+- id: fund-012
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What is the difference between relabel_configs and metric_relabel_configs in a scrape config?
+  options:
+  - 'relabel_configs acts on targets before the scrape; metric_relabel_configs acts on scraped samples before they are ingested'
+  - 'relabel_configs acts on samples; metric_relabel_configs acts on targets'
+  - 'Both act on alerts sent to Alertmanager'
+  - 'metric_relabel_configs runs at query time'
+  answer: A
+  explanation_pt: |
+    `relabel_configs`: sobre o alvo (labels `__meta_*`, `__address__`...) ANTES de raspar — decide quem raspar e com quais labels. `metric_relabel_configs`: sobre cada série raspada, DEPOIS do scrape e antes de gravar — útil para descartar métricas caras. Há ainda `alert_relabel_configs` e `write_relabel_configs`.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs
+  lang: en
+- id: fund-013
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    A target exposes an expensive, high-cardinality metric named app_debug_histogram_bucket that you never query. What is the correct way to stop storing it while still scraping the target?
+  options:
+  - 'relabel_configs with action: drop on __address__'
+  - 'Delete it with the admin API every hour'
+  - 'Set sample_limit: 0 on the job'
+  - 'metric_relabel_configs with source_labels: [__name__], regex: app_debug_histogram_bucket, action: drop'
+  answer: D
+  explanation_pt: |
+    Descartar SÉRIES é trabalho de `metric_relabel_configs` (após o scrape). Drop em `relabel_configs` descartaria o ALVO inteiro. Melhor ainda é corrigir na origem, mas metric relabeling é o remédio do lado do Prometheus.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs
+  lang: en
+- id: fund-014
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Using Kubernetes service discovery, you want to scrape only pods annotated with prometheus.io/scrape="true". Which relabeling rule achieves this?
+  options:
+  - 'source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape], regex: "true", action: drop'
+  - 'source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape], regex: "true", action: keep'
+  - 'source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape], action: labeldrop'
+  - 'target_label: __meta_kubernetes_pod_annotation_prometheus_io_scrape, replacement: "true"'
+  answer: B
+  explanation_pt: |
+    `keep` descarta todo alvo cujo valor concatenado dos `source_labels` NÃO casa com o regex. Caracteres inválidos em nomes de label (`.` e `/`) viram `_` nos metadados `__meta_kubernetes_pod_annotation_*`.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-015
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What are the default values of action, regex and replacement in a relabel_config?
+  options:
+  - 'action: keep, regex: .+, replacement: $0'
+  - 'action: labelmap, regex: (.*), replacement: $1'
+  - 'action: replace, regex: (.*), replacement: $1'
+  - 'There are no defaults; all three are mandatory'
+  answer: C
+  explanation_pt: |
+    Defaults: `action: replace`, `regex: (.*)`, `replacement: $1`, `separator: ;`. Por isso um bloco só com `source_labels` e `target_label` copia o valor de um label para outro.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-016
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    A relabel rule uses action keep with source_labels [env] and regex prod. A target has env="production". What happens?
+  options:
+  - 'The target is dropped, because relabeling regexes are anchored on both ends and "prod" does not match "production"'
+  - 'The target is kept, because "prod" is a substring of "production"'
+  - 'The configuration is rejected'
+  - 'The env label is rewritten to "prod"'
+  answer: A
+  explanation_pt: |
+    Regex de relabeling é RE2 ANCORADO (`^prod$`). Para casar substring use `prod.*` ou `.*prod.*`. O mesmo vale para os matchers `=~` do PromQL.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-017
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What happens to labels whose names start with a double underscore (for example __meta_kubernetes_pod_name) after target relabeling completes?
+  options:
+  - 'They are stored as normal labels'
+  - 'They are renamed with an exported_ prefix'
+  - 'They are converted into annotations'
+  - 'They are removed from the label set'
+  answer: D
+  explanation_pt: |
+    Labels com prefixo `__` são internos e removidos após o relabeling. Se quiser guardar algo, copie para um label normal (ex.: `target_label: pod`) ou use `labelmap`.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-018
+  domain: Prometheus Fundamentals
+  difficulty: hard
+  question: |
+    In a relabeling chain you need a temporary label that feeds a later step and must never collide with labels used by Prometheus itself. Which name prefix should you use?
+  options:
+  - '__meta_'
+  - '__tmp'
+  - 'tmp_'
+  - '__param_'
+  answer: B
+  explanation_pt: |
+    A doc garante que o prefixo `__tmp` nunca será usado pelo Prometheus. Como começa com `__`, ele também é descartado ao fim do relabeling. `__meta_` é do service discovery e `__param_` vira parâmetro de URL.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-019
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Which relabel action copies all Kubernetes pod labels (__meta_kubernetes_pod_label_<name>) into regular labels <name> using a single rule?
+  options:
+  - 'replace'
+  - 'hashmod'
+  - 'labelmap with regex __meta_kubernetes_pod_label_(.+)'
+  - 'labelkeep with regex __meta_kubernetes_pod_label_.*'
+  answer: C
+  explanation_pt: |
+    `labelmap` aplica o regex aos NOMES de todos os labels e copia os que casam para o nome dado pelo `replacement` (default `$1`). `labelkeep`/`labeldrop` só removem labels, não renomeiam.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-020
+  domain: Prometheus Fundamentals
+  difficulty: hard
+  question: |
+    What is the hashmod relabel action typically used for?
+  options:
+  - 'Horizontally sharding targets across several Prometheus servers'
+  - 'Hashing label values to hide sensitive data'
+  - 'Computing checksums of scraped payloads'
+  - 'Deduplicating alerts'
+  answer: A
+  explanation_pt: |
+    `hashmod` grava em `target_label` o hash dos `source_labels` módulo `modulus`. Com um `keep` em seguida (ex.: só o shard 2), cada servidor raspa uma fração dos alvos.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-021
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Some targets discovered by service discovery expose metrics at /admin/metrics instead of /metrics. How can you change the path per target?
+  options:
+  - 'Set the instance label to the new path'
+  - 'Add the path to the job label'
+  - 'Use metric_relabel_configs on __name__'
+  - 'Use relabel_configs to set the __metrics_path__ label for those targets'
+  answer: D
+  explanation_pt: |
+    Labels especiais `__address__`, `__scheme__`, `__metrics_path__`, `__param_<nome>`, `__scrape_interval__` e `__scrape_timeout__` sobrescrevem, por alvo, as opções do scrape_config.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-022
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    If no relabeling rule sets the instance label, where does its value come from?
+  options:
+  - 'The hostname of the Prometheus server'
+  - 'The value of __address__ after relabeling'
+  - 'The job_name'
+  - 'The target''s HELP line'
+  answer: B
+  explanation_pt: |
+    Após o relabeling, se `instance` não foi definido, ele recebe o valor de `__address__` (host:porta). Por isso é comum reescrever `__address__` no blackbox e depois fixar `instance` com o alvo real.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  lang: en
+- id: fund-023
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    How does file_sd_configs behave when the referenced target files change?
+  options:
+  - 'Prometheus must be restarted to see the changes'
+  - 'The files are only read once at startup'
+  - 'Prometheus watches the files and applies changes automatically, also re-reading them periodically (refresh_interval)'
+  - 'Changes are applied only after a POST to /-/reload'
+  answer: C
+  explanation_pt: |
+    O file_sd observa os arquivos (JSON ou YAML) e aplica mudanças sem reload, além de reler a cada `refresh_interval` (default 5m). É uma forma simples de integrar um SD próprio: um script gera o arquivo.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config
+  lang: en
+- id: fund-024
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Which of these is NOT a valid role for kubernetes_sd_configs?
+  options:
+  - 'deployment'
+  - 'pod'
+  - 'endpointslice'
+  - 'ingress'
+  answer: A
+  explanation_pt: |
+    Roles válidos: `node`, `service`, `pod`, `endpoints`, `endpointslice` e `ingress`. Não existe role `deployment`; pods de um deployment são descobertos pelo role `pod` ou via endpoints do Service.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
+  lang: en
+- id: fund-025
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    How can you make a running Prometheus server reload its configuration file without restarting it?
+  options:
+  - 'Send SIGKILL to the process'
+  - 'Delete the data directory'
+  - 'Call GET /api/v1/status/config'
+  - 'Send SIGHUP to the process, or POST to /-/reload when --web.enable-lifecycle is set'
+  answer: D
+  explanation_pt: |
+    Reload: sinal SIGHUP ou `POST /-/reload` (este exige a flag `--web.enable-lifecycle`). Se a nova config for inválida, ela não é aplicada e a anterior continua valendo.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+  lang: en
+- id: fund-026
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    How does the Prometheus TSDB organize persisted samples on disk?
+  options:
+  - 'One file per time series'
+  - 'In blocks that initially cover two hours each and are later compacted into larger blocks'
+  - 'In a single append-only SQL table'
+  - 'In daily CSV files'
+  answer: B
+  explanation_pt: |
+    Amostras recentes ficam no head (memória + WAL). A cada ~2 h o head vira um bloco imutável (diretório com chunks, index, meta.json, tombstones). Depois a compactação junta blocos em blocos maiores.
+  source: https://prometheus.io/docs/prometheus/latest/storage/
+  lang: en
+- id: fund-027
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What is the purpose of the write-ahead log (WAL) in the Prometheus TSDB?
+  options:
+  - 'To send samples to remote storage'
+  - 'To store alert history'
+  - 'To protect the in-memory head block against data loss if Prometheus crashes, by replaying it on restart'
+  - 'To cache query results'
+  answer: C
+  explanation_pt: |
+    Os dados mais recentes vivem em memória (head). O WAL registra tudo que entra para que, após um crash, o head seja reconstruído. O WAL fica no diretório `wal/`, em segmentos de 128 MB.
+  source: https://prometheus.io/docs/prometheus/latest/storage/
+  lang: en
+- id: fund-028
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    If no retention time or size is configured, how long does Prometheus keep data in local storage?
+  options:
+  - '15 days'
+  - '30 days'
+  - '7 days'
+  - 'Forever'
+  answer: A
+  explanation_pt: |
+    Sem retenção por tempo nem por tamanho configurada, o default é 15d. Se tempo e tamanho forem definidos, vale o que for atingido primeiro.
+  source: https://prometheus.io/docs/prometheus/latest/storage/#operational-aspects
+  lang: en
+- id: fund-029
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Which statement about Prometheus local storage is true?
+  options:
+  - 'It is automatically replicated across all Prometheus servers in the same network'
+  - 'It is designed to be stored on NFS for durability'
+  - 'It supports unlimited retention with no impact on disk'
+  - 'It is not clustered or replicated; for durability and long-term storage, use remote storage integrations'
+  answer: D
+  explanation_pt: |
+    A doc é explícita: armazenamento local não é clusterizado nem replicado e não é durável contra falha de disco/nó. Para longo prazo/HA use remote write para soluções como Thanos, Cortex/Mimir etc. NFS não é suportado.
+  source: https://prometheus.io/docs/prometheus/latest/storage/
+  lang: en
+- id: fund-030
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Both a time-based and a size-based retention policy are configured. Which one is applied?
+  options:
+  - 'Only the time-based one'
+  - 'Whichever triggers first'
+  - 'Only the size-based one'
+  - 'Prometheus refuses to start'
+  answer: B
+  explanation_pt: |
+    Com os dois configurados, o que for atingido primeiro dispara a remoção de blocos antigos. A remoção é por bloco inteiro, então pode levar um tempo até o espaço ser liberado.
+  source: https://prometheus.io/docs/prometheus/latest/storage/#operational-aspects
+  lang: en
+- id: fund-031
+  domain: Prometheus Fundamentals
+  difficulty: hard
+  question: |
+    A target that was being scraped is removed from service discovery. What happens to its series in instant queries shortly afterwards?
+  options:
+  - 'They keep returning the last value for 15 days'
+  - 'They keep returning the last value until Prometheus restarts'
+  - 'Prometheus writes staleness markers, so the series stop being returned by instant queries soon after the removal'
+  - 'The series are deleted from disk immediately'
+  answer: C
+  explanation_pt: |
+    Quando um alvo some ou uma série deixa de aparecer no scrape, o Prometheus grava um staleness marker e a série para de aparecer nas consultas instantâneas. Os dados históricos continuam no disco até a retenção.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness
+  lang: en
+- id: fund-032
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    An instant query is evaluated at time t for a series whose most recent sample is 7 minutes old and has no staleness marker (default settings). What is returned for that series?
+  options:
+  - 'Nothing, because the sample is older than the 5-minute lookback delta'
+  - 'The 7-minute-old value'
+  - 'Zero'
+  - 'NaN'
+  answer: A
+  explanation_pt: |
+    Uma instant query pega a amostra mais recente dentro do lookback delta (default 5m, `--query.lookback-delta`). Mais antiga que isso, a série não aparece no resultado.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness
+  lang: en
+- id: fund-033
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    A global Prometheus needs to pull selected, pre-aggregated series from several datacenter Prometheus servers. Which endpoint and parameter does it scrape?
+  options:
+  - '/api/v1/query with query='
+  - '/metrics with name[]='
+  - '/api/v1/write with series='
+  - '/federate with one or more match[] selectors'
+  answer: D
+  explanation_pt: |
+    Federação: o Prometheus global raspa `/federate?match[]=<seletor>` dos servidores locais, com `honor_labels: true`. O uso típico (hierárquico) é federar séries já agregadas por recording rules, não tudo.
+  source: https://prometheus.io/docs/prometheus/latest/federation/
+  lang: en
+- id: fund-034
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Which statement correctly describes hierarchical federation?
+  options:
+  - 'Each Prometheus replicates all raw series to every other server'
+  - 'Higher-level Prometheus servers collect aggregated time series from lower-level servers, giving a global view'
+  - 'It is the recommended way to get long-term storage of all raw data'
+  - 'It requires Alertmanager clustering'
+  answer: B
+  explanation_pt: |
+    Hierárquica = árvore: servidores por datacenter/cluster fazem o trabalho pesado e o servidor global federa só os agregados. Federar TODAS as séries brutas não escala; para isso use remote write.
+  source: https://prometheus.io/docs/prometheus/latest/federation/#hierarchical-federation
+  lang: en
+- id: fund-035
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    You want a Prometheus server to accept samples sent by other Prometheus instances via remote write. What must be enabled on the receiving server?
+  options:
+  - 'honor_labels: true'
+  - 'The --agent flag'
+  - 'The --web.enable-remote-write-receiver flag'
+  - 'A /federate scrape job'
+  answer: C
+  explanation_pt: |
+    O endpoint `/api/v1/write` só aceita escrita com `--web.enable-remote-write-receiver`. O lado que ENVIA configura `remote_write` com a URL. `--agent` é para quem só envia.
+  source: https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations
+  lang: en
+- id: fund-036
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What does Prometheus Agent mode (started with --agent) do?
+  options:
+  - 'Scrapes targets and forwards data via remote write; local querying, alerting and rule evaluation are disabled'
+  - 'Runs only the Alertmanager'
+  - 'Acts as a Pushgateway replacement'
+  - 'Evaluates recording rules without scraping'
+  answer: A
+  explanation_pt: |
+    Agent mode mantém scrape, service discovery e relabeling, troca o TSDB completo por um WAL otimizado e envia tudo por remote write. Não há consultas, regras nem alertas locais.
+  source: https://prometheus.io/docs/prometheus/latest/prometheus_agent/
+  lang: en
+- id: fund-037
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What is the usual way to make Prometheus alerting highly available?
+  options:
+  - 'Run a single Prometheus with a very large disk'
+  - 'Put two Prometheus servers behind a load balancer that splits the targets'
+  - 'Use federation between two Alertmanagers'
+  - 'Run two identical Prometheus servers scraping the same targets, both sending alerts to a clustered Alertmanager that deduplicates them'
+  answer: D
+  explanation_pt: |
+    HA no Prometheus = redundância: réplicas idênticas, independentes, raspando os mesmos alvos. Os alertas duplicados são deduplicados pelo cluster de Alertmanagers (gossip).
+  source: https://prometheus.io/docs/introduction/faq/#can-prometheus-be-made-highly-available
+  lang: en
+- id: fund-038
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    You run three Alertmanager instances in a cluster. How should Prometheus be configured to send alerts to them?
+  options:
+  - 'Send to only one of them; gossip will forward the alerts'
+  - 'List all Alertmanager instances directly in the alerting configuration, not behind a load balancer'
+  - 'Put them behind a round-robin load balancer'
+  - 'Use remote_write to send alerts'
+  answer: B
+  explanation_pt: |
+    A doc do Alertmanager diz para configurar a LISTA de todas as instâncias no Prometheus. O cluster usa gossip para deduplicar notificações e compartilhar silences, mas não repassa alertas entre instâncias.
+  source: https://github.com/prometheus/alertmanager#high-availability
+  lang: en
+- id: fund-039
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    What are external_labels in the global configuration used for?
+  options:
+  - 'They are added to every series at scrape time and stored in the local TSDB'
+  - 'They override the job label of all targets'
+  - 'They are attached to series and alerts when communicating with external systems (federation, remote write, Alertmanager)'
+  - 'They define which labels are dropped before storage'
+  answer: C
+  explanation_pt: |
+    `external_labels` (ex.: `cluster`, `replica`) identificam o servidor para sistemas externos. Não são gravados no TSDB local; são aplicados quando dados/alertas saem do servidor e só se a série ainda não tiver aquele label.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file
+  lang: en
+- id: fund-040
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Which HTTP API endpoint evaluates an expression over a time range at a fixed step, as Grafana does for time series graphs?
+  options:
+  - '/api/v1/query_range'
+  - '/api/v1/query'
+  - '/api/v1/series'
+  - '/federate'
+  answer: A
+  explanation_pt: |
+    `/api/v1/query_range` recebe `start`, `end` e `step` e avalia a expressão em cada passo. `/api/v1/query` avalia em um único instante; `/api/v1/series` lista séries que casam com seletores.
+  source: https://prometheus.io/docs/prometheus/latest/querying/api/
+  lang: en
+- id: fund-041
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    A scrape config sets scrape_interval 15s and scrape_timeout 30s. What happens?
+  options:
+  - 'Prometheus silently uses 30s as the interval'
+  - 'The timeout is capped at 10s'
+  - 'Scrapes overlap and data is duplicated'
+  - 'The configuration is invalid, because scrape_timeout cannot be greater than scrape_interval'
+  answer: D
+  explanation_pt: |
+    O Prometheus valida a config e recusa `scrape_timeout` maior que `scrape_interval`. No reload, a config nova é rejeitada e a antiga segue ativa.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
+  lang: en
+- id: fund-042
+  domain: Prometheus Fundamentals
+  difficulty: hard
+  question: |
+    Prometheus 3.x supports UTF-8 metric names. How do you select a metric named http.server.request.duration in PromQL?
+  options:
+  - '`http.server.request.duration`'
+  - '`http_server_request_duration{utf8="true"}`'
+  - '`{"http.server.request.duration"}`'
+  - '`metric("http.server.request.duration")`'
+  answer: C
+  explanation_pt: |
+    Nomes que não seguem o formato clássico `[a-zA-Z_:][a-zA-Z0-9_:]*` são escritos entre aspas dentro das chaves: `{"http.server.request.duration"}` (ou `{__name__="http.server.request.duration"}`). O mesmo vale para labels: `{"nome.metrica", "label.com.ponto"="x"}`.
+  source: https://prometheus.io/docs/guides/utf8/
+  lang: en
+- id: fund-043
+  domain: Prometheus Fundamentals
+  difficulty: medium
+  question: |
+    Which DNS record type does dns_sd_configs query by default?
+  options:
+  - 'A'
+  - 'SRV'
+  - 'TXT'
+  - 'CNAME'
+  answer: B
+  explanation_pt: |
+    `dns_sd_configs` usa `type: SRV` por padrão (o registro já traz host e porta). Com `A`/`AAAA` é preciso informar `port`. Também suporta `MX` e `NS`.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+  lang: en
+- id: fund-044
+  domain: Prometheus Fundamentals
+  difficulty: easy
+  question: |
+    Which of the following does the Prometheus server itself NOT do?
+  options:
+  - 'Evaluate recording and alerting rules'
+  - 'Scrape targets and store samples in its TSDB'
+  - 'Send email or Slack notifications for firing alerts'
+  - 'Serve PromQL queries through an HTTP API'
+  answer: C
+  explanation_pt: |
+    O Prometheus envia alertas ao Alertmanager; quem fala com e-mail, Slack, PagerDuty, webhooks etc. é o Alertmanager.
+  source: https://prometheus.io/docs/introduction/overview/#architecture
+  lang: en
+- id: fund-045
+  domain: Prometheus Fundamentals
+  difficulty: hard
+  question: |
+    A static target is configured as a blackbox_exporter probe. Which relabeling sequence is standard?
+  options:
+  - 'Copy __address__ to __param_target, copy __param_target to instance, then set __address__ to the blackbox_exporter host:port'
+  - 'Copy instance to __address__ and drop __param_target'
+  - 'Set __metrics_path__ to the probed URL'
+  - 'Use metric_relabel_configs to change __address__ after the scrape'
+  answer: A
+  explanation_pt: |
+    O alvo "lógico" (a URL a testar) vira o parâmetro `target` (`__param_target`), o label `instance` guarda esse alvo para ficar legível, e `__address__` passa a apontar para o exporter, que é quem realmente é raspado em `/probe`.
+  source: https://github.com/prometheus/blackbox_exporter#prometheus-configuration
+  lang: en

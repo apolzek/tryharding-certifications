@@ -1,0 +1,135 @@
+# SLOs do "checkout" ESCALADOS 1:60 para caber numa aula: 1 hora de produção = 1 minuto aqui.
+# Gerado a partir de ../../rules-production/slo-rules.yml trocando só o TEMPO:
+#
+#   produção:  5m   30m   1h   2h   6h   1d    3d    30d (janela do SLO)
+#   lab:       5s   30s   1m   2m   6m   24m   72m   12h
+#
+# O que NÃO muda: o SLO (99,9% / 99% < 300ms), o budget e os limiares de burn rate (14.4, 6, 3, 1).
+# Burn rate é uma razão sem unidade de tempo ("quantas vezes mais rápido que o sustentável"), então
+# comprimir o relógio não altera a matemática: 14.4x por 1 "hora" continua gastando 2% do budget.
+# Exceção honesta: o `for:` escalado seria 2s/15s; usamos 30s para dar tempo de ver o estado pending.
+# Os nomes das séries usam a janela REAL do lab (ratio_rate1m), não a de produção, para ninguém se enganar.
+groups:
+  # ── SLIs: razão de eventos RUINS por janela ────────────────────────────────────────────
+  - name: slo-checkout-sli
+    interval: 1s
+    rules:
+      - record: job:slo_errors_per_request:ratio_rate5s
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[5s]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[5s]))
+      - record: job:slo_errors_per_request:ratio_rate30s
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[30s]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[30s]))
+      - record: job:slo_errors_per_request:ratio_rate1m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[1m]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[1m]))
+      - record: job:slo_errors_per_request:ratio_rate2m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[2m]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[2m]))
+      - record: job:slo_errors_per_request:ratio_rate6m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[6m]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[6m]))
+      - record: job:slo_errors_per_request:ratio_rate24m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[24m]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[24m]))
+      - record: job:slo_errors_per_request:ratio_rate72m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[72m]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[72m]))
+
+      # Latência: fração de requisições LENTAS (> 300ms) = 1 - (bucket le="0.3" / total)
+      - record: job:slo_latency_slow_per_request:ratio_rate5s
+        expr: |
+          1 - (
+            sum by (job) (rate(http_request_duration_seconds_bucket{job="checkout",le="0.3"}[5s]))
+            /
+            sum by (job) (rate(http_request_duration_seconds_count{job="checkout"}[5s]))
+          )
+      - record: job:slo_latency_slow_per_request:ratio_rate1m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_request_duration_seconds_bucket{job="checkout",le="0.3"}[1m]))
+            /
+            sum by (job) (rate(http_request_duration_seconds_count{job="checkout"}[1m]))
+          )
+
+  # ── Error budget (janela do SLO = 12h no lab = 30d em produção). ──────────────────────
+  - name: slo-checkout-budget
+    interval: 5s
+    rules:
+      - record: job:slo_errors_per_request:ratio_rate12h
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[12h]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[12h]))
+      # 1 = budget intacto · 0 = budget gasto · negativo = SLO violado
+      - record: job:slo_error_budget_remaining:ratio
+        expr: 1 - (job:slo_errors_per_request:ratio_rate12h / (1 - 0.999))
+
+  # ── Alertas multi-window multi-burn-rate (SRE Workbook, tabela 5-8) ─────────────────────
+  #  burn rate = razão de erro / budget.  14.4x por 1m (lab) = 14.4x por 1h (prod): 2% do budget;
+  #  6x por 6m gasta 5%; 3x por 24m gasta 10%; 1x por 72m gasta 10% (tudo relativo ao SLO de 12h).
+  #  A janela CURTA (1/12 da longa) faz o alerta parar logo que o problema acaba.
+  - name: slo-checkout-alerts
+    interval: 1s
+    rules:
+      - alert: SLOErrorBudgetBurnFast
+        expr: |
+          job:slo_errors_per_request:ratio_rate1m > (14.4 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate5s > (14.4 * 0.001)
+        for: 30s
+        labels: { severity: page, slo: availability, burn_rate: "14.4", long_window: 1m }
+        annotations:
+          summary: "{{ $labels.job }}: queimando o error budget 14.4x mais rápido que o sustentável"
+          description: "Nesse ritmo, 2% do budget some em 1 \"hora\" (1min no lab) e tudo em ~2 \"dias\" (~50min no lab)."
+      - alert: SLOErrorBudgetBurnMedium
+        expr: |
+          job:slo_errors_per_request:ratio_rate6m > (6 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate30s > (6 * 0.001)
+        for: 30s
+        labels: { severity: page, slo: availability, burn_rate: "6", long_window: 6m }
+        annotations:
+          summary: "{{ $labels.job }}: burn rate > 6x (5% do budget em 6h)"
+      - alert: SLOErrorBudgetBurnSlow
+        expr: |
+          job:slo_errors_per_request:ratio_rate24m > (3 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate2m > (3 * 0.001)
+        for: 1m
+        labels: { severity: ticket, slo: availability, burn_rate: "3", long_window: 24m }
+        annotations:
+          summary: "{{ $labels.job }}: burn rate > 3x (10% do budget em 1d)"
+      - alert: SLOErrorBudgetBurnVerySlow
+        expr: |
+          job:slo_errors_per_request:ratio_rate72m > (1 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate6m > (1 * 0.001)
+        for: 3m
+        labels: { severity: ticket, slo: availability, burn_rate: "1", long_window: 72m }
+        annotations:
+          summary: "{{ $labels.job }}: burn rate > 1x (10% do budget em 3d)"
+
+      - alert: SLOLatencyBudgetBurnFast
+        expr: |
+          job:slo_latency_slow_per_request:ratio_rate1m > (14.4 * 0.01)
+          and
+          job:slo_latency_slow_per_request:ratio_rate5s > (14.4 * 0.01)
+        for: 30s
+        labels: { severity: page, slo: latency, burn_rate: "14.4", long_window: 1m }
+        annotations:
+          summary: "{{ $labels.job }}: mais de 14.4% das requisições acima de 300ms"

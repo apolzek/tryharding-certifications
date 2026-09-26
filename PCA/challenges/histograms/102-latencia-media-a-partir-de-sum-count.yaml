@@ -1,0 +1,26 @@
+id: "102"
+title: "Latência média a partir de _sum/_count"
+topic: histograms
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_avg/
+prompt: |
+  Calcule a **latência média (s) de cada serviço** nos últimos 5 minutos a partir das séries
+  clássicas `histogram_avg_request_duration_seconds_sum` e `_count`.
+hints:
+  - "Média = soma das durações ÷ número de requisições."
+  - "Os dois são counters: rate() em cada um e divida."
+  - "rate(x_sum[5m]) / rate(x_count[5m])"
+solution: 'rate(histogram_avg_request_duration_seconds_sum[5m]) / rate(histogram_avg_request_duration_seconds_count[5m])'
+accepted_answers:
+  - 'histogram_avg(rate(histogram_avg_request_duration_seconds[5m]))'
+  - 'increase(histogram_avg_request_duration_seconds_sum[5m]) / increase(histogram_avg_request_duration_seconds_count[5m])'
+wrong_answers:
+  - 'rate(histogram_avg_request_duration_seconds_sum[5m])'
+  - 'avg(rate(histogram_avg_request_duration_seconds_sum[5m]) / rate(histogram_avg_request_duration_seconds_count[5m]))'
+  - 'rate(histogram_avg_request_duration_seconds_count[5m]) / rate(histogram_avg_request_duration_seconds_sum[5m])'
+explanation: |
+  `rate(_sum)/rate(_count)` = média na janela. Com native histograms: `histogram_avg(rate(x[5m]))`
+  (mesmo resultado, porque soma e contagem são exatas nos dois formatos).
+
+  Pegadinha: `_sum / _count` SEM rate é a média desde que o processo subiu (não reage a nada).

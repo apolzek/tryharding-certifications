@@ -1,0 +1,129 @@
+# SLOs do serviço "checkout" com as janelas REAIS de produção (Google SRE Workbook, cap. 5).
+# Este arquivo NÃO é carregado pelo Prometheus do lab (as janelas de horas/dias não caberiam numa aula):
+# ele é validado com `promtool check rules` + `promtool test rules slo-rules.test.yml`.
+# O Prometheus do lab carrega a versão ESCALADA 1:60 em ../prometheus/rules/slo-lab.yml.
+#
+# SLO de disponibilidade: 99,9% das requisições sem 5xx em 30 dias  -> budget = 0,1%  (0.001)
+# SLO de latência:        99%   das requisições em até 300ms, 30 dias -> budget = 1%    (0.01)
+groups:
+  # ── SLIs: razão de eventos RUINS por janela ────────────────────────────────────────────
+  - name: slo-checkout-sli
+    rules:
+      - record: job:slo_errors_per_request:ratio_rate5m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[5m]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[5m]))
+      - record: job:slo_errors_per_request:ratio_rate30m
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[30m]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[30m]))
+      - record: job:slo_errors_per_request:ratio_rate1h
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[1h]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[1h]))
+      - record: job:slo_errors_per_request:ratio_rate2h
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[2h]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[2h]))
+      - record: job:slo_errors_per_request:ratio_rate6h
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[6h]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[6h]))
+      - record: job:slo_errors_per_request:ratio_rate1d
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[1d]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[1d]))
+      - record: job:slo_errors_per_request:ratio_rate3d
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[3d]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[3d]))
+
+      # Latência: fração de requisições LENTAS (> 300ms) = 1 - (bucket le="0.3" / total)
+      - record: job:slo_latency_slow_per_request:ratio_rate5m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_request_duration_seconds_bucket{job="checkout",le="0.3"}[5m]))
+            /
+            sum by (job) (rate(http_request_duration_seconds_count{job="checkout"}[5m]))
+          )
+      - record: job:slo_latency_slow_per_request:ratio_rate1h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_request_duration_seconds_bucket{job="checkout",le="0.3"}[1h]))
+            /
+            sum by (job) (rate(http_request_duration_seconds_count{job="checkout"}[1h]))
+          )
+
+  # ── Error budget (janela do SLO = 30d). Avaliar a cada 5m basta. ───────────────────────
+  - name: slo-checkout-budget
+    interval: 5m
+    rules:
+      - record: job:slo_errors_per_request:ratio_rate30d
+        expr: |
+          sum by (job) (rate(http_requests_total{job="checkout",code=~"5.."}[30d]))
+          /
+          sum by (job) (rate(http_requests_total{job="checkout"}[30d]))
+      # 1 = budget intacto · 0 = budget gasto · negativo = SLO violado
+      - record: job:slo_error_budget_remaining:ratio
+        expr: 1 - (job:slo_errors_per_request:ratio_rate30d / (1 - 0.999))
+
+  # ── Alertas multi-window multi-burn-rate (SRE Workbook, tabela 5-8) ─────────────────────
+  #  burn rate = razão de erro / budget.  14.4x por 1h gasta 2% do budget de 30d;
+  #  6x por 6h gasta 5%; 3x por 1d gasta 10%; 1x por 3d gasta 10%.
+  #  A janela CURTA (1/12 da longa) faz o alerta parar logo que o problema acaba.
+  - name: slo-checkout-alerts
+    rules:
+      - alert: SLOErrorBudgetBurnFast
+        expr: |
+          job:slo_errors_per_request:ratio_rate1h > (14.4 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate5m > (14.4 * 0.001)
+        for: 2m
+        labels: { severity: page, slo: availability, burn_rate: "14.4", long_window: 1h }
+        annotations:
+          summary: "{{ $labels.job }}: queimando o error budget 14.4x mais rápido que o sustentável"
+          description: "Nesse ritmo, 2% do budget de 30d some em 1h e tudo em ~2 dias."
+      - alert: SLOErrorBudgetBurnMedium
+        expr: |
+          job:slo_errors_per_request:ratio_rate6h > (6 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate30m > (6 * 0.001)
+        for: 15m
+        labels: { severity: page, slo: availability, burn_rate: "6", long_window: 6h }
+        annotations:
+          summary: "{{ $labels.job }}: burn rate > 6x (5% do budget em 6h)"
+      - alert: SLOErrorBudgetBurnSlow
+        expr: |
+          job:slo_errors_per_request:ratio_rate1d > (3 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate2h > (3 * 0.001)
+        for: 1h
+        labels: { severity: ticket, slo: availability, burn_rate: "3", long_window: 1d }
+        annotations:
+          summary: "{{ $labels.job }}: burn rate > 3x (10% do budget em 1d)"
+      - alert: SLOErrorBudgetBurnVerySlow
+        expr: |
+          job:slo_errors_per_request:ratio_rate3d > (1 * 0.001)
+          and
+          job:slo_errors_per_request:ratio_rate6h > (1 * 0.001)
+        for: 3h
+        labels: { severity: ticket, slo: availability, burn_rate: "1", long_window: 3d }
+        annotations:
+          summary: "{{ $labels.job }}: burn rate > 1x (10% do budget em 3d)"
+
+      - alert: SLOLatencyBudgetBurnFast
+        expr: |
+          job:slo_latency_slow_per_request:ratio_rate1h > (14.4 * 0.01)
+          and
+          job:slo_latency_slow_per_request:ratio_rate5m > (14.4 * 0.01)
+        for: 2m
+        labels: { severity: page, slo: latency, burn_rate: "14.4", long_window: 1h }
+        annotations:
+          summary: "{{ $labels.job }}: mais de 14.4% das requisições acima de 300ms"

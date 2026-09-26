@@ -1,0 +1,26 @@
+id: '204'
+title: Selecionando pelo `__name__`
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#2-seletores-e-matchers
+prompt: |
+  O nome da métrica é só mais um label: `__name__`.
+
+  **Quantas séries** existem no total cujo **nome** começa com `sort_node_filesystem_` e termina com `_bytes`?
+  (responda com uma query que retorne esse número)
+hints:
+- '{__name__=~"..."} seleciona por nome de métrica, com regex'
+- 'Depois é só contar: count(...)'
+solution: count({__name__=~"sort_node_filesystem_.+_bytes"})
+accepted_answers:
+- count(sort_node_filesystem_avail_bytes) + count(sort_node_filesystem_size_bytes)
+- count({__name__=~"sort_node_filesystem_(avail|size)_bytes"})
+wrong_answers:
+- count(sort_node_filesystem_size_bytes)
+- count({__name__=~"sort_node_filesystem_"})
+explanation: |
+  `{__name__=~"sort_node_filesystem_.+_bytes"}` casa com `sort_node_filesystem_avail_bytes` **e**
+  `sort_node_filesystem_size_bytes` (5 séries cada) → `count` = **10**.
+  Lembre: um seletor precisa de pelo menos um matcher que **não** case com vazio
+  (`{__name__=~".*"}` sozinho é inválido; `.+` é válido).

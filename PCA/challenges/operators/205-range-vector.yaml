@@ -1,0 +1,24 @@
+id: '205'
+title: 'Range vector: as amostras brutas do último minuto'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#1-tipos-de-dados
+prompt: |
+  Retorne um **range vector** com as amostras brutas do **último 1 minuto** da série
+  `sort_cronjob_last_duration_seconds{cronjob="backup"}`.
+
+  (dica: no Prometheus UI isso só funciona na aba **Table**)
+hints:
+- Range vector = seletor seguido de [duração]
+- sort_cronjob_last_duration_seconds{cronjob="backup"}[1m]
+solution: sort_cronjob_last_duration_seconds{cronjob="backup"}[1m]
+accepted_answers:
+- sort_cronjob_last_duration_seconds{cronjob="backup"}[60s]
+wrong_answers:
+- sort_cronjob_last_duration_seconds{cronjob="backup"}
+- sort_cronjob_last_duration_seconds[1m]
+explanation: |
+  `[1m]` transforma o instant vector em **range vector**: para cada série, todas as amostras dos
+  últimos 60 s (com scrape de 5 s, ~12 amostras). Range vector **não pode** ser o resultado de uma
+  *range query* (gráfico) — só de instant query — e é a entrada de funções como `rate()`, `*_over_time()`.

@@ -1,0 +1,22 @@
+id: "195"
+title: "Pool de conexões quase esgotado"
+topic: alerting-expressions
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/min_over_time/
+prompt: |
+  Alerta: **pools com menos de 5 conexões livres em algum momento dos últimos 5 minutos**
+  (`min_over_time_hikaricp_connections_idle{pool}`). Valor = o mínimo observado.
+hints:
+  - "'Em algum momento' + 'menos de' = mínimo da janela."
+  - "min_over_time(v[5m]) < 5"
+  - "min_over_time(min_over_time_hikaricp_connections_idle[5m]) < 5"
+solution: 'min_over_time(min_over_time_hikaricp_connections_idle[5m]) < 5'
+wrong_answers:
+  - 'avg_over_time(min_over_time_hikaricp_connections_idle[5m]) < 5'
+  - 'min(min_over_time_hikaricp_connections_idle) < 5'
+explanation: |
+  Só o pool `main` (cai para 1–2 por 15 s a cada 3 min). A queda nunca aparece num scrape 'de minuto
+  cheio', mas `min_over_time` enxerga todas as amostras.
+
+  Pegadinha: o valor instantâneo quase sempre está ~40 e o alerta nunca dispararia.

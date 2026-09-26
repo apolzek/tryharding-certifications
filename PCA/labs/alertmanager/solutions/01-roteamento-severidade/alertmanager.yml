@@ -1,0 +1,19 @@
+receivers:
+  - name: default
+    webhook_configs: [{ url: http://receiver:8080/hook/default, send_resolved: true }]
+  - name: pager
+    webhook_configs: [{ url: http://receiver:8080/hook/pager, send_resolved: true }]
+  - name: slack
+    webhook_configs: [{ url: http://receiver:8080/hook/slack, send_resolved: true }]
+  - name: dba
+    webhook_configs: [{ url: http://receiver:8080/hook/dba, send_resolved: true }]
+
+route:
+  receiver: slack                    # "todo o resto" = receiver da rota raiz
+  group_by: [alertname, cluster]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+  routes:
+    - matchers: [severity="critical"]  # o valor tem que ser IGUAL ao label que a regra de alerta coloca
+      receiver: pager

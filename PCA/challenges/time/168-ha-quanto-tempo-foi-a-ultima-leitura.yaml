@@ -1,0 +1,23 @@
+id: "168"
+title: "Há quanto tempo foi a última leitura"
+topic: time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/timestamp/
+prompt: |
+  Alguns sensores de `timestamp_sensor_temperature_celsius{sensor}` mandam leituras atrasadas
+  (com timestamp explícito). Retorne **a idade, em segundos, da amostra atual de cada sensor**.
+hints:
+  - "Existe uma função que devolve o timestamp da AMOSTRA (não o valor)."
+  - "Subtraia do time()."
+  - "time() - timestamp(timestamp_sensor_temperature_celsius)"
+solution: 'time() - timestamp(timestamp_sensor_temperature_celsius)'
+wrong_answers:
+  - 'time() - timestamp_sensor_temperature_celsius'
+  - 'timestamp(timestamp_sensor_temperature_celsius)'
+  - '(time() - timestamp(timestamp_sensor_temperature_celsius)) / 60'
+explanation: |
+  sala-servidores ≈ 0–5 s; estufa-lora até ~60 s; freezer-bateria até 300 s (depois some: lookback de 5 min).
+  `timestamp(v)` = quando a amostra foi coletada (ou o timestamp explícito que o exporter enviou).
+
+  Pegadinha: `time() - valor` subtrai a TEMPERATURA do relógio.

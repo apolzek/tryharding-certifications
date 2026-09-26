@@ -1,0 +1,24 @@
+id: "063"
+title: "Quantos pods por imagem"
+topic: aggregation
+level: basic
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+prompt: |
+  Quantos **pods estão rodando cada imagem**? Use `label_replace_container_memory_working_set_bytes`
+  (labels `pod` e `image`) — o valor da métrica não importa, só a quantidade de séries.
+hints:
+  - "Contar séries = count."
+  - "Agrupe pelo label da imagem."
+  - "count by (image) (...)"
+solution: 'count by (image) (label_replace_container_memory_working_set_bytes)'
+accepted_answers:
+  - 'count(label_replace_container_memory_working_set_bytes) by (image)'
+wrong_answers:
+  - 'sum by (image) (label_replace_container_memory_working_set_bytes)'
+  - 'count(label_replace_container_memory_working_set_bytes)'
+  - 'count by (pod) (label_replace_container_memory_working_set_bytes)'
+explanation: |
+  `count` conta séries: checkout:1.8.2 → 3, payments:2.1.0 → 2, redis:7.2 → 1.
+
+  Pegadinha: `sum` somaria os VALORES (bytes de memória), não a quantidade.

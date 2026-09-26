@@ -1,0 +1,27 @@
+id: "002"
+title: "Esconda o serviço sem tráfego"
+topic: selectors-and-types
+level: basic
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/basics/
+prompt: |
+  No painel de requisições, o serviço `recommendations` não recebe tráfego e só polui o gráfico.
+  Usando o counter `sort_desc_http_requests_total` (labels `service` e `code`),
+  retorne **todas as séries exceto as do serviço `recommendations`**.
+hints:
+  - "Existe um matcher de 'diferente de'."
+  - "`!=` exclui um valor exato; `!~` exclui por regex."
+  - "sort_desc_http_requests_total{service!=\"...\"}"
+solution: 'sort_desc_http_requests_total{service!="recommendations"}'
+accepted_answers:
+  - 'sort_desc_http_requests_total{service!~"recommendations"}'
+  - 'sort_desc_http_requests_total{service=~"cart|checkout|payments"}'
+wrong_answers:
+  - 'sort_desc_http_requests_total'
+  - 'sort_desc_http_requests_total{service="recommendations"}'
+  - 'sort_desc_http_requests_total{service!="recommendation"}'
+explanation: |
+  `!=` remove as séries cujo label é exatamente aquele valor. Listar os que você quer
+  (`=~"cart|checkout|payments"`) também funciona, mas quebra quando um serviço novo aparece.
+
+  Pegadinha: `!=` compara a string inteira: `!="recommendation"` (sem o s) não remove nada.

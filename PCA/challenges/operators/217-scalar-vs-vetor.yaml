@@ -1,0 +1,27 @@
+id: '217'
+title: Comparando com o valor de outra métrica (sem labels em comum)
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#7-operadores-de-comparação
+prompt: |
+  `scalar_node_cpu_usage_percent{node}` é o uso de CPU por nó e `scalar_cpu_alert_threshold_percent`
+  (uma série, **sem** o label `node`) é o limite configurado (muda entre 70 e 80).
+
+  Para **cada nó**, retorne `1` se o uso de CPU está **acima do limite** e `0` se não está.
+hints:
+- 'vetor > vetor só casa séries com os MESMOS labels: aqui não há par'
+- Transforme o limite em escalar com scalar(), ou use on() group_left
+- x > bool scalar(limite)
+solution: scalar_node_cpu_usage_percent > bool scalar(scalar_cpu_alert_threshold_percent)
+accepted_answers:
+- scalar_node_cpu_usage_percent > bool on() group_left scalar_cpu_alert_threshold_percent
+- scalar(scalar_cpu_alert_threshold_percent) < bool scalar_node_cpu_usage_percent
+wrong_answers:
+- scalar_node_cpu_usage_percent > bool scalar_cpu_alert_threshold_percent
+- scalar_node_cpu_usage_percent
+explanation: |
+  `a > b` entre dois vetores exige casamento de labels: `{node="node-1"}` não tem par em
+  `scalar_cpu_alert_threshold_percent{}` → resultado **vazio**. Duas saídas: `scalar(...)` (vira
+  escalar e casa com tudo) ou `> bool on() group_left scalar_cpu_alert_threshold_percent` (casa por
+  "nenhum label" — cada nó com a única série do limite). O `bool` garante que todo nó aparece (0 ou 1).

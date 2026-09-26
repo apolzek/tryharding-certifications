@@ -1,0 +1,27 @@
+id: "148"
+title: "Enriquecer com target_info"
+topic: labels
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/info/
+prompt: |
+  `info_http_server_requests_total{route}` não sabe em qual cluster/namespace/versão roda; esses dados
+  estão em `target_info` (mesmo `job`/`instance`). Retorne a **req/s de cada rota (rate 5m) com todos os
+  data labels de `target_info`** (k8s_cluster_name, k8s_namespace_name, version), usando a função experimental.
+hints:
+  - "Existe uma função que faz o join com target_info automaticamente."
+  - "info(v)"
+  - "info(rate(info_http_server_requests_total[5m]))"
+solution: 'info(rate(info_http_server_requests_total[5m]))'
+accepted_answers:
+  - 'rate(info_http_server_requests_total[5m]) * on (job, instance) group_left (k8s_cluster_name, k8s_namespace_name, version) target_info'
+wrong_answers:
+  - 'rate(info_http_server_requests_total[5m])'
+  - 'rate(info_http_server_requests_total[5m]) * on (job, instance) group_left target_info'
+  - 'info(rate(info_http_server_requests_total[5m]), {k8s_cluster_name=~".+"})'
+explanation: |
+  `info(v)` procura `target_info` com o mesmo `job` e `instance` (os *identifying labels*) e copia os
+  demais labels. É o `* on (job, instance) group_left (...) target_info` sem precisar listar os labels —
+  e continua funcionando quando `version` muda.
+
+  Pegadinha: `group_left` sem a lista de labels não copia nada.

@@ -1,0 +1,23 @@
+id: "126"
+title: "Painel que não pisca com sensor instável"
+topic: absence-and-staleness
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/last_over_time/
+prompt: |
+  O sensor `flaky` de `ts_of_last_over_time_sensor_temperature_celsius{sensor}` some por 90 s a cada 3 min
+  e o painel fica piscando. Mostre **a última temperatura conhecida de cada sensor nos últimos 10 minutos**.
+hints:
+  - "Quando a série some ela fica 'stale' e sai do resultado instantâneo."
+  - "Segure o último valor da janela."
+  - "last_over_time(v[10m])"
+solution: 'last_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m])'
+wrong_answers:
+  - 'avg_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m])'
+  - 'last_over_time(ts_of_last_over_time_sensor_temperature_celsius[10m]) offset 5m'
+tolerance: 0.001
+explanation: |
+  Staleness: quando um alvo para de expor uma série, o Prometheus grava um *stale marker* e ela some
+  imediatamente das consultas (não espera os 5 min de lookback). `last_over_time(x[10m])` 'segura' o valor.
+
+  Pegadinha: isso também esconde que o sensor morreu — combine com um alerta de ausência.

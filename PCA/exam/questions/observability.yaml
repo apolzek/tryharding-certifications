@@ -1,0 +1,541 @@
+# Questões originais — domínio Observability Concepts (enunciado EN, explicação pt-BR)
+- id: obs-001
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which statement best describes the difference between monitoring and observability?
+  options:
+  - 'Monitoring requires tracing, while observability only needs metrics'
+  - 'They are synonyms; the terms are fully interchangeable'
+  - 'Observability is the ability to understand a system''s internal state from its outputs and ask new questions; monitoring watches for known, predefined failure conditions'
+  - 'Monitoring is done with logs only, observability with metrics only'
+  answer: C
+  explanation_pt: |
+    Monitoramento responde perguntas que você já sabia que ia fazer (dashboards e alertas para falhas conhecidas). Observabilidade é a propriedade de conseguir inferir o estado interno a partir das saídas (métricas, logs, traces) e investigar o "desconhecido desconhecido" sem ter que subir código novo.
+  source: https://prometheus.io/docs/introduction/overview/
+  lang: en
+- id: obs-002
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which telemetry signal is best suited to follow a single request as it travels through multiple microservices?
+  options:
+  - 'Distributed traces'
+  - 'Metrics'
+  - 'Heap dumps'
+  - 'Recording rules'
+  answer: A
+  explanation_pt: |
+    Um trace é composto por spans ligados por um trace ID propagado entre serviços, mostrando o caminho e o tempo de cada etapa de UMA requisição. Métricas são agregadas (perdem o detalhe por requisição).
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+  lang: en
+- id: obs-003
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which telemetry signal is the most efficient choice for long-term storage of aggregated numeric trends and for alerting?
+  options:
+  - 'Logs'
+  - 'Metrics'
+  - 'Traces'
+  - 'Core dumps'
+  answer: B
+  explanation_pt: |
+    Métricas são números agregados com custo praticamente constante por série, independentemente do volume de tráfego. São baratas de guardar, rápidas de consultar e ideais para alertas e tendências. Logs e traces crescem com o número de eventos/requisições.
+  source: https://prometheus.io/docs/introduction/overview/
+  lang: en
+- id: obs-004
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    What is a Service Level Indicator (SLI)?
+  options:
+  - 'A contract with customers that defines penalties for downtime'
+  - 'The target value that a service must meet over a period'
+  - 'The amount of unreliability a team is allowed to spend'
+  - 'A carefully defined quantitative measure of some aspect of the level of service provided, such as the proportion of requests served in under 300 ms'
+  answer: D
+  explanation_pt: |
+    SLI = a MEDIDA (ex.: % de requisições bem-sucedidas, % abaixo de 300 ms). SLO = o ALVO para essa medida. SLA = o CONTRATO com consequências. Error budget = o quanto de falha o SLO permite.
+  source: https://sre.google/sre-book/service-level-objectives/
+  lang: en
+- id: obs-005
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    What is a Service Level Objective (SLO)?
+  options:
+  - 'A target value or range for an SLI, measured over a time window (e.g. 99.9% of requests succeed over 30 days)'
+  - 'A legal agreement with financial penalties'
+  - 'A dashboard that shows service latency'
+  - 'The raw counter of failed requests'
+  answer: A
+  explanation_pt: |
+    O SLO é o objetivo interno: "SLI X deve ficar acima de Y durante a janela Z". Ele não tem, por si só, consequência contratual (isso é o SLA).
+  source: https://sre.google/sre-book/service-level-objectives/
+  lang: en
+- id: obs-006
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    What distinguishes a Service Level Agreement (SLA) from an SLO?
+  options:
+  - 'An SLA is always stricter than the SLO'
+  - 'An SLA is measured with traces, an SLO with metrics'
+  - 'An SLA is an explicit or implicit contract with users that includes consequences (e.g. refunds) when it is not met'
+  - 'An SLA only applies to internal services'
+  answer: C
+  explanation_pt: |
+    O SLA é o acordo com o cliente e carrega consequências (créditos, multas). Normalmente o SLO interno é MAIS estrito que o SLA, para que o time perceba e reaja antes de violar o contrato.
+  source: https://sre.google/sre-book/service-level-objectives/
+  lang: en
+- id: obs-007
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    A service has an availability SLO of 99.9% over a 30-day window. Approximately how much total downtime does the error budget allow?
+  options:
+  - '4.32 minutes'
+  - '43.2 minutes'
+  - '7.2 hours'
+  - '1.44 minutes'
+  answer: B
+  explanation_pt: |
+    30 dias = 43 200 minutos. Error budget = 1 − 0,999 = 0,1%. 43 200 × 0,001 = 43,2 minutos. (99,99% daria 4,32 min; 99% daria 7,2 h.)
+  source: https://sre.google/workbook/implementing-slos/
+  lang: en
+- id: obs-008
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    A request-based SLO states that 99.9% of requests must succeed over 28 days. The service receives 10,000,000 requests in that window. How many failed requests does the error budget allow?
+  options:
+  - '1,000'
+  - '100,000'
+  - '99,900'
+  - '10,000'
+  answer: D
+  explanation_pt: |
+    Error budget = 0,1% dos eventos válidos: 10 000 000 × 0,001 = 10 000 requisições com falha.
+  source: https://sre.google/workbook/implementing-slos/
+  lang: en
+- id: obs-009
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    How is an internal SLO usually positioned relative to the external SLA for the same service?
+  options:
+  - 'The SLO is set stricter than the SLA, so problems are detected and fixed before the contract is breached'
+  - 'The SLO is set looser than the SLA to reduce alert noise'
+  - 'They must always be identical values'
+  - 'The SLO only exists when there is no SLA'
+  answer: A
+  explanation_pt: |
+    Se o SLA promete 99,5%, o time costuma mirar um SLO de 99,9%. A margem entre os dois é o colchão que permite reagir antes de pagar multas.
+  source: https://sre.google/sre-book/service-level-objectives/
+  lang: en
+- id: obs-010
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    Which is an advantage of the pull model used by Prometheus?
+  options:
+  - 'Targets can send data from behind any firewall without being reachable'
+  - 'It is the only model that supports short-lived batch jobs'
+  - 'A failed scrape is itself a health signal (the up metric becomes 0) and the monitoring server controls the collection rate'
+  - 'Pull removes the need for service discovery'
+  answer: C
+  explanation_pt: |
+    No pull, o Prometheus sabe exatamente quais alvos deveriam existir (via config/SD). Se não consegue raspar, `up` vira 0 — você detecta alvo fora do ar de graça. Além disso, o servidor dita o ritmo (scrape_interval) e não é inundado por clientes. Alvos atrás de firewall e jobs de vida curta são justamente os pontos fracos do pull.
+  source: https://prometheus.io/docs/introduction/faq/#why-do-you-pull-rather-than-push
+  lang: en
+- id: obs-011
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    In which situation is pushing metrics (instead of being scraped) the most appropriate approach in the Prometheus ecosystem?
+  options:
+  - 'A long-running web server with a stable address'
+  - 'A short-lived, service-level batch job that may finish before it can be scraped'
+  - 'A Kubernetes pod with a /metrics endpoint'
+  - 'A database with an existing exporter'
+  answer: B
+  explanation_pt: |
+    Jobs que terminam antes do próximo scrape não podem ser "puxados". Para esse caso (batch job de nível de serviço), a solução oficial é empurrar para o Pushgateway, que fica exposto para o Prometheus raspar.
+  source: https://prometheus.io/docs/practices/pushing/
+  lang: en
+- id: obs-012
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    What is blackbox monitoring?
+  options:
+  - 'Testing externally visible behavior as a user would see it, e.g. probing an HTTP endpoint from outside'
+  - 'Collecting metrics exposed by the internals of an application'
+  - 'Monitoring only the kernel of the operating system'
+  - 'Storing metrics in an encrypted database'
+  answer: A
+  explanation_pt: |
+    Blackbox = "caixa preta": você não olha para dentro, só testa de fora (o site responde? o DNS resolve? o certificado vence quando?). Whitebox = métricas expostas pelo próprio sistema (contadores internos, filas, latência medida no código).
+  source: https://sre.google/sre-book/monitoring-distributed-systems/
+  lang: en
+- id: obs-013
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which of the following is an example of whitebox monitoring?
+  options:
+  - 'An external ping every minute to check if a host responds'
+  - 'A synthetic HTTP check from another region'
+  - 'Checking the TLS certificate expiry date of a public website'
+  - 'An application exposing http_requests_total and queue length through a client library'
+  answer: D
+  explanation_pt: |
+    Whitebox usa informação de DENTRO do sistema: métricas instrumentadas no código, contadores internos, estado de filas. As outras opções são sondas externas (blackbox).
+  source: https://sre.google/sre-book/monitoring-distributed-systems/
+  lang: en
+- id: obs-014
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which Prometheus-ecosystem component is designed specifically for blackbox probing over HTTP, HTTPS, DNS, TCP, ICMP and gRPC?
+  options:
+  - 'node_exporter'
+  - 'Pushgateway'
+  - 'blackbox_exporter'
+  - 'Alertmanager'
+  answer: C
+  explanation_pt: |
+    O blackbox_exporter executa sondas (módulos como `http_2xx`, `tcp_connect`, `icmp`, `dns`) contra um alvo passado via parâmetro `target` e expõe o resultado, por exemplo `probe_success` e `probe_duration_seconds`.
+  source: https://github.com/prometheus/blackbox_exporter
+  lang: en
+- id: obs-015
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which of the following is NOT one of the "four golden signals" described in the Google SRE book?
+  options:
+  - 'Latency'
+  - 'Errors'
+  - 'Utilization'
+  - 'Traffic'
+  answer: C
+  explanation_pt: |
+    Os 4 sinais de ouro são Latency, Traffic, Errors e Saturation. "Utilization" pertence ao método USE (Utilization, Saturation, Errors), usado para recursos.
+  source: https://sre.google/sre-book/monitoring-distributed-systems/
+  lang: en
+- id: obs-016
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    The RED method is commonly used to monitor request-driven services. What does RED stand for?
+  options:
+  - 'Reliability, Efficiency, Durability'
+  - 'Rate, Errors, Duration'
+  - 'Requests, Events, Dashboards'
+  - 'Resources, Errors, Delay'
+  answer: B
+  explanation_pt: |
+    RED (Tom Wilkie): Rate (requisições/s), Errors (requisições com erro/s) e Duration (distribuição de latência). Em PromQL: `rate(..._total[5m])`, a taxa filtrada por erro e `histogram_quantile` sobre os buckets.
+  source: https://grafana.com/blog/2018/08/02/the-red-method-how-to-instrument-your-services/
+  lang: en
+- id: obs-017
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    The USE method (Utilization, Saturation, Errors) is best applied to which kind of component?
+  options:
+  - 'Resources such as CPUs, disks, memory and network interfaces'
+  - 'User-facing HTTP endpoints'
+  - 'Business KPIs like revenue'
+  - 'Log pipelines only'
+  answer: A
+  explanation_pt: |
+    USE (Brendan Gregg) é para RECURSOS: quanto está sendo usado, quanto trabalho está enfileirado (saturação) e quantos erros. Para serviços orientados a requisição use RED ou os golden signals.
+  source: https://www.brendangregg.com/usemethod.html
+  lang: en
+- id: obs-018
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    In the context of Prometheus, what does "cardinality" refer to?
+  options:
+  - 'The number of Prometheus servers in a federation'
+  - 'The number of scrape targets per job'
+  - 'The number of samples per second being ingested'
+  - 'The number of unique time series, driven by the combinations of label values'
+  answer: D
+  explanation_pt: |
+    Cada combinação única de nome de métrica + labels é uma série. Cardinalidade é quantas séries existem; é o principal fator de uso de memória e desempenho do Prometheus.
+  source: https://prometheus.io/docs/practices/naming/#labels
+  lang: en
+- id: obs-019
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    A developer wants to add a user_id label to http_requests_total. Why is this discouraged?
+  options:
+  - 'Label values cannot contain digits'
+  - 'Prometheus automatically drops labels named user_id'
+  - 'Each distinct user creates a new time series, leading to unbounded cardinality and high memory usage'
+  - 'Counters cannot have more than two labels'
+  answer: C
+  explanation_pt: |
+    Labels com valores ilimitados (IDs de usuário, e-mails, IDs de requisição) criam uma série nova para cada valor. A cardinalidade explode, consumindo memória, disco e deixando consultas lentas. Esse tipo de detalhe pertence a logs/traces.
+  source: https://prometheus.io/docs/practices/naming/#labels
+  lang: en
+- id: obs-020
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    A counter has the labels method (4 possible values), status (5 possible values) and it is scraped from 10 instances. What is the maximum number of time series for this metric?
+  options:
+  - '19'
+  - '200'
+  - '40'
+  - '2000'
+  answer: B
+  explanation_pt: |
+    O número máximo de séries é o produto das cardinalidades de cada label: 4 × 5 × 10 = 200. É por isso que um label a mais com muitos valores multiplica (não soma) o custo.
+  source: https://prometheus.io/docs/practices/instrumentation/#do-not-overuse-labels
+  lang: en
+- id: obs-021
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which question is best answered using logs rather than metrics?
+  options:
+  - 'What was the exact error message and stack trace for a particular failed request?'
+  - 'What is the 95th percentile latency over the last hour?'
+  - 'How many requests per second is the service handling?'
+  - 'Is CPU usage trending up over the last week?'
+  answer: A
+  explanation_pt: |
+    Logs guardam eventos individuais com contexto detalhado (mensagem, stack trace, campos). Percentis, taxas e tendências são perguntas agregadas, onde métricas são muito mais eficientes.
+  source: https://prometheus.io/docs/introduction/overview/#when-does-it-not-fit
+  lang: en
+- id: obs-022
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    According to the Prometheus documentation, for which use case is Prometheus NOT a good choice?
+  options:
+  - 'Monitoring highly dynamic service-oriented architectures'
+  - 'Alerting on machine-level metrics'
+  - 'Collecting multi-dimensional time series data'
+  - 'Use cases that need 100% accuracy, such as per-request billing'
+  answer: D
+  explanation_pt: |
+    A doc oficial diz: Prometheus valoriza confiabilidade; se você precisa de 100% de precisão (ex.: cobrança por requisição), ele não é a escolha certa, pois os dados coletados podem não ser detalhados e completos o suficiente. Use outro sistema para billing e o Prometheus para o restante do monitoramento.
+  source: https://prometheus.io/docs/introduction/overview/#when-does-it-not-fit
+  lang: en
+- id: obs-023
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    Why is a Prometheus server considered reliable during an outage of other infrastructure?
+  options:
+  - 'It replicates its data to a quorum of peers using Raft'
+  - 'It stores data in a distributed object store by default'
+  - 'Each server is standalone and does not depend on network storage or other remote services'
+  - 'It automatically fails over to the Alertmanager'
+  answer: C
+  explanation_pt: |
+    Cada Prometheus é autônomo: armazenamento local, sem dependência de banco externo ou cluster. Assim ele continua funcionando (e você consegue diagnosticar) mesmo quando partes da infraestrutura estão quebradas.
+  source: https://prometheus.io/docs/introduction/overview/#when-does-it-fit
+  lang: en
+- id: obs-024
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    What feature allows a metric sample (for example a histogram observation) to reference a specific trace ID, so you can jump from a latency spike to an example trace?
+  options:
+  - 'Staleness markers'
+  - 'Exemplars'
+  - 'Recording rules'
+  - 'Inhibition rules'
+  answer: B
+  explanation_pt: |
+    Exemplars são dados extras (ex.: `trace_id`) anexados a uma amostra. No formato OpenMetrics aparecem após `#` na linha do bucket. O Grafana usa isso para linkar do gráfico de latência direto para o trace.
+  source: https://prometheus.io/docs/prometheus/latest/feature_flags/#exemplars-storage
+  lang: en
+- id: obs-025
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    Which alert is an example of symptom-based alerting, the approach generally recommended for paging?
+  options:
+  - 'The error ratio of the checkout API is above 5% for 10 minutes'
+  - 'CPU usage of the database host is above 80%'
+  - 'A Kubernetes node has more than 100 pods'
+  - 'The garbage collector ran more than 10 times in a minute'
+  answer: A
+  explanation_pt: |
+    Sintoma = o que o usuário sente (erros, latência). Causas (CPU alta, GC frequente) podem ou não afetar usuários; alertar nelas gera ruído. Recomenda-se paginar em sintomas e usar causas para diagnóstico/dashboards.
+  source: https://prometheus.io/docs/practices/alerting/
+  lang: en
+- id: obs-026
+  domain: Observability Concepts
+  difficulty: hard
+  question: |
+    A service has a 30-day SLO. Its error budget is currently being consumed at a burn rate of 2. If this continues, when will the whole budget be exhausted?
+  options:
+  - 'After 60 days'
+  - 'It will never be exhausted'
+  - 'After 2 days'
+  - 'After 15 days'
+  answer: D
+  explanation_pt: |
+    Burn rate 1 = consome o budget exatamente na janela (30 dias). Burn rate 2 = duas vezes mais rápido: 30 / 2 = 15 dias. Alertas multi-window/multi-burn-rate usam, por exemplo, burn rate 14,4 em 1 h (2% do budget de 30 dias).
+  source: https://sre.google/workbook/alerting-on-slos/
+  lang: en
+- id: obs-027
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Why is service discovery important for monitoring cloud-native environments?
+  options:
+  - 'It encrypts the scrape traffic'
+  - 'It reduces the number of labels on each series'
+  - 'Targets are created and destroyed frequently (autoscaling, rescheduling), so the list of targets must be kept up to date automatically'
+  - 'It replaces the need for exporters'
+  answer: C
+  explanation_pt: |
+    Em Kubernetes/nuvem, IPs e instâncias mudam o tempo todo. Service discovery (kubernetes_sd, ec2_sd, consul_sd, file_sd...) descobre os alvos automaticamente, sem editar a config à mão.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+  lang: en
+- id: obs-028
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Why are latency percentiles (such as p99) usually preferred over the average latency?
+  options:
+  - 'Averages cannot be computed in PromQL'
+  - 'Averages hide the tail: a small fraction of very slow requests can hurt many users while barely moving the mean'
+  - 'Percentiles use less storage'
+  - 'Percentiles are always exact in Prometheus'
+  answer: B
+  explanation_pt: |
+    A média mascara a cauda da distribuição. Um p99 de 3 s significa que 1% das requisições leva ≥ 3 s, algo que a média pode nem mostrar. Observação: no Prometheus, percentis de histogramas são ESTIMATIVAS.
+  source: https://prometheus.io/docs/practices/histograms/
+  lang: en
+- id: obs-029
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    In Prometheus's pull model, how does the server know which endpoints to scrape?
+  options:
+  - 'Through its configuration: static target lists and/or service discovery mechanisms'
+  - 'Targets register themselves by pushing their address to Alertmanager'
+  - 'By scanning the whole network for open /metrics endpoints'
+  - 'From Grafana data source settings'
+  answer: A
+  explanation_pt: |
+    Os alvos vêm de `scrape_configs`: `static_configs` ou algum `*_sd_configs` (kubernetes, file, dns, consul, http...). O Prometheus não faz varredura de rede e nem recebe registro dos alvos.
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
+  lang: en
+- id: obs-030
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    In distributed tracing, what is a span?
+  options:
+  - 'A complete end-to-end request across all services'
+  - 'The time window used by rate()'
+  - 'A single named and timed operation within a trace, with a parent/child relationship to other spans'
+  - 'A group of alerts sent together'
+  answer: C
+  explanation_pt: |
+    Um trace é uma árvore de spans. Cada span representa uma operação (ex.: chamada HTTP, query no banco), com início, duração, atributos e o span pai.
+  source: https://opentelemetry.io/docs/concepts/signals/traces/#spans
+  lang: en
+- id: obs-031
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    What is OpenTelemetry?
+  options:
+  - 'A time series database that replaces Prometheus TSDB'
+  - 'The query language used by Grafana'
+  - 'An alert routing component'
+  - 'A vendor-neutral set of APIs, SDKs and tools to generate, collect and export telemetry such as traces, metrics and logs'
+  answer: D
+  explanation_pt: |
+    OpenTelemetry (CNCF) padroniza a GERAÇÃO e o transporte de telemetria. Ele não é um backend de armazenamento; métricas OTel podem ser enviadas ao Prometheus (ex.: via OTLP receiver ou remote write).
+  source: https://opentelemetry.io/docs/what-is-opentelemetry/
+  lang: en
+- id: obs-032
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    What is the main benefit of structured logging (e.g. JSON with key/value fields) over free-form text logs?
+  options:
+  - 'Structured logs use no disk space'
+  - 'Fields can be reliably parsed, filtered and aggregated by machines'
+  - 'Structured logs replace the need for metrics'
+  - 'Structured logs are automatically converted into traces'
+  answer: B
+  explanation_pt: |
+    Com campos explícitos (`level`, `user`, `duration_ms`), ferramentas conseguem filtrar e agregar sem regex frágeis. Não substitui métricas nem traces: cada sinal tem seu papel.
+  source: https://opentelemetry.io/docs/concepts/signals/logs/
+  lang: en
+- id: obs-033
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    Which expression is a well-formed request-based availability SLI (ratio of good events to valid events)?
+  options:
+  - '`sum(rate(http_requests_total{code!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`'
+  - '`avg(up)`'
+  - '`sum(http_requests_total{code=~"5.."})`'
+  - '`rate(http_requests_total[5m]) > 0`'
+  answer: A
+  explanation_pt: |
+    SLI de disponibilidade = eventos bons / eventos válidos, ambos como TAXA na mesma janela. O resultado é uma razão entre 0 e 1. `avg(up)` mede se o alvo é raspável, não o que o usuário vive; o counter cru não é uma razão.
+  source: https://sre.google/workbook/implementing-slos/
+  lang: en
+- id: obs-034
+  domain: Observability Concepts
+  difficulty: easy
+  question: |
+    Which property makes a page (an alert that wakes someone up) a good one?
+  options:
+  - 'It fires on every metric that deviates from its weekly average'
+  - 'It includes as many labels as possible'
+  - 'It is urgent, actionable and indicates real or imminent user impact'
+  - 'It fires at least once per day to prove the system works'
+  answer: C
+  explanation_pt: |
+    Alertas de página devem ser poucos, urgentes, acionáveis e ligados a impacto no usuário. Alertas não acionáveis causam fadiga e fazem o time ignorar páginas importantes.
+  source: https://prometheus.io/docs/practices/alerting/
+  lang: en
+- id: obs-035
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    A team needs to store a unique request ID for every request to debug individual failures. Which signal handles this high-cardinality data best?
+  options:
+  - 'A Prometheus label on http_requests_total'
+  - 'A recording rule'
+  - 'A gauge per request ID'
+  - 'Logs and/or traces, where each event carries its own attributes'
+  answer: D
+  explanation_pt: |
+    Logs e traces são orientados a eventos: cada evento carrega seus atributos, sem criar uma série temporal por valor. Pôr um ID único como label de métrica cria uma série por requisição (cardinalidade explosiva).
+  source: https://prometheus.io/docs/practices/instrumentation/#do-not-overuse-labels
+  lang: en
+- id: obs-036
+  domain: Observability Concepts
+  difficulty: medium
+  question: |
+    What is a key drawback of the push model compared to the pull model for general-purpose monitoring?
+  options:
+  - 'Push cannot carry labels'
+  - 'The monitoring system cannot easily tell whether a target is down or simply has nothing to send, and may be overloaded by clients'
+  - 'Push only works over UDP'
+  - 'Push-based metrics cannot be graphed'
+  answer: B
+  explanation_pt: |
+    No push, silêncio é ambíguo: o cliente morreu ou só não tem dados? Também é o cliente que dita o ritmo, podendo sobrecarregar o servidor. No pull, `up == 0` indica falha de forma explícita.
+  source: https://prometheus.io/docs/introduction/faq/#why-do-you-pull-rather-than-push
+  lang: en

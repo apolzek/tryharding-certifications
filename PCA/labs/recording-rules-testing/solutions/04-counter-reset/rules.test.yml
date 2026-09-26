@@ -1,0 +1,22 @@
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'jobs_processed_total{job="worker", instance="a"}'
+        values: '0+60x20'              # 1/s, sem restart
+      - series: 'jobs_processed_total{job="worker", instance="b"}'
+        values: '0+60x5 60+60x14'      # 0..300 até 5m; em 6m reinicia e vale 60 (1/s o tempo todo)
+    promql_expr_test:
+      # o próprio teste documenta que houve 1 reset na série b
+      - expr: resets(jobs_processed_total{instance="b"}[10m])
+        eval_time: 10m
+        exp_samples:
+          - labels: '{job="worker", instance="b"}'
+            value: 1
+      # com o reset dentro da janela, a taxa real continua 1 + 1 = 2/s
+      - expr: job:jobs_processed:rate5m
+        eval_time: 8m
+        exp_samples:
+          - labels: 'job:jobs_processed:rate5m{job="worker"}'
+            value: 2

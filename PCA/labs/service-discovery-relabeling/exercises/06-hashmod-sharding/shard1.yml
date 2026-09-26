@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  # (shard1) 6 alvos divididos entre 2 Prometheus (cada um raspa metade).
+  - job_name: sharded-apps
+    static_configs:
+      - targets:
+          - payments-api:8000
+          - payments-worker:8000
+          - checkout-api:8000
+          - search-api:8000
+          - inventory-api:8000
+          - prober:8000
+    relabel_configs:
+      - source_labels: [__address__]
+        modulus: 2
+        target_label: __tmp_hash
+        action: hashmod
+      - source_labels: [__tmp_hash]
+        regex: "0"
+        action: keep

@@ -1,0 +1,30 @@
+id: "152"
+title: "Req/s por réplica (join com nomes diferentes)"
+topic: labels
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_replace/
+prompt: |
+  Calcule as **req/s por réplica** de cada serviço: `label_replace_http_requests_per_second{service}`
+  ÷ `label_replace_kube_deployment_status_replicas_available{deployment}` — os dois lados chamam a
+  mesma coisa por nomes de label diferentes.
+hints:
+  - "Deixe os labels compatíveis: crie `service` a partir de `deployment` no lado direito."
+  - "Depois divida casando `on (service)` (ou ignorando `deployment`)."
+  - "x / on (service) label_replace(y, \"service\", \"$1\", \"deployment\", \"(.*)\")"
+solution: |
+  label_replace_http_requests_per_second
+    / on (service)
+  label_replace(label_replace_kube_deployment_status_replicas_available, "service", "$1", "deployment", "(.*)")
+accepted_answers:
+  - 'label_replace_http_requests_per_second / ignoring (deployment) label_replace(label_replace_kube_deployment_status_replicas_available, "service", "$1", "deployment", "(.*)")'
+wrong_answers:
+  - 'label_replace_http_requests_per_second / label_replace_kube_deployment_status_replicas_available'
+  - 'label_replace_http_requests_per_second / on (service) label_replace_kube_deployment_status_replicas_available'
+  - 'label_replace_http_requests_per_second / on (service) label_replace(label_replace_kube_deployment_status_replicas_available, "deployment", "$1", "service", "(.*)")'
+ignore_labels: [env, instance, job]
+explanation: |
+  checkout 40, payments 30, cart 30 req/s por réplica. Com `on (service)` o resultado fica só com `service`;
+  com `ignoring (deployment)` mantém os demais labels — o corretor aceita os dois (ignora env/job/instance).
+
+  Pegadinha: sem alinhar os nomes dos labels, nenhuma série casa e o resultado é vazio.

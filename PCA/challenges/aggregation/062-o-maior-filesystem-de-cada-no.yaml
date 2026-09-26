@@ -1,0 +1,25 @@
+id: "062"
+title: "O maior filesystem de cada nó"
+topic: aggregation
+level: basic
+domain: PromQL
+lesson: https://prometheus.io/docs/prometheus/latest/querying/operators/#aggregation-operators
+prompt: |
+  Para o inventário, retorne o **tamanho do maior filesystem de cada nó**
+  (`sort_node_filesystem_size_bytes`, labels `node` e `mountpoint`).
+hints:
+  - "Máximo entre séries, agrupado."
+  - "max by (node) (...)"
+  - "max by (node) (sort_node_filesystem_size_bytes)"
+solution: 'max by (node) (sort_node_filesystem_size_bytes)'
+accepted_answers:
+  - 'max(sort_node_filesystem_size_bytes) by (node)'
+wrong_answers:
+  - 'max(sort_node_filesystem_size_bytes)'
+  - 'max by (mountpoint) (sort_node_filesystem_size_bytes)'
+  - 'topk(1, sort_node_filesystem_size_bytes)'
+explanation: |
+  node-a → 500 GiB (/data), node-b → 1 TiB (/data), node-c → 200 GiB (/).
+  `max by (node)` devolve uma série por nó só com o label `node`.
+
+  Pegadinha: `topk(1, ...)` devolve UMA série no total (a maior de todas), com todos os labels.

@@ -1,0 +1,48 @@
+# Vitrine das actions "menos famosas" do relabel. Carregue com:
+#   ./load.sh configs/demo-actions.yml
+# e compare discoveredLabels x labels em http://localhost:9120/service-discovery
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  - job_name: demo-actions
+    file_sd_configs:
+      - files: [/etc/prometheus/sd/apps.json]
+    relabel_configs:
+      # keepequal: mantém o alvo só se o valor de source_labels == valor de target_label.
+      # Aqui: só quem tem o próprio time de plantão (__meta_oncall == team). checkout sai (oncall=sre).
+      - source_labels: [__meta_oncall]
+        target_label: team
+        action: keepequal
+      # dropequal é o inverso (descarta quando são iguais). Troque keepequal por dropequal
+      # aqui e só o checkout-api sobra. Uso real de keepequal no Kubernetes: manter só a
+      # porta do container igual à da annotation prometheus.io/port.
+      # lowercase: "Prod"/"Staging" -> "prod"/"staging" (padroniza para não quebrar queries)
+      - source_labels: [env]
+        target_label: env
+        action: lowercase
+      # lowercase a partir de um __meta_: "SA-EAST-1" -> region="sa-east-1"
+      - source_labels: [__meta_region]
+        target_label: region
+        action: lowercase
+      # uppercase: team="payments" -> team_code="PAYMENTS"
+      - source_labels: [team]
+        target_label: team_code
+        action: uppercase
+      # __tmp_*: rascunho. Nunca vira label (tudo que começa com __ some após o relabel)
+      - source_labels: [__address__]
+        regex: '([^:]+):.*'
+        target_label: __tmp_host
+      - source_labels: [__tmp_host, env]
+        separator: "@"
+        target_label: host_env          # ex.: payments-api@prod
+    metric_relabel_configs:
+      # labelkeep: fica SÓ com os labels cujo NOME casa com a regex (o resto some).
+      # Cuidado: tem que incluir __name__, job e instance!
+      - action: labelkeep
+        regex: __name__|job|instance|team|team_code|env|region|host_env|route|cache|service|version|user_id

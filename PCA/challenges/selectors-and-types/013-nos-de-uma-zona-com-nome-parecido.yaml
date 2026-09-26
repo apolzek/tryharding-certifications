@@ -1,0 +1,26 @@
+id: "013"
+title: "Nós de uma zona com nome parecido"
+topic: selectors-and-types
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_by_label/
+prompt: |
+  A métrica `sort_by_label_node_load1` tem os labels `node` (node-1 … node-12) e `zone`.
+  Retorne o load **dos nós da zona `us-east-1a` cujo nome começa com `node-1`**
+  (ou seja, node-1, node-10, node-11... que estejam nessa zona).
+hints:
+  - "Combine um matcher de igualdade e um de regex no mesmo seletor."
+  - "Lembre que a regex é ancorada: `node-1.*`."
+  - "sort_by_label_node_load1{zone=\"us-east-1a\", node=~\"node-1.*\"}"
+solution: 'sort_by_label_node_load1{zone="us-east-1a", node=~"node-1.*"}'
+accepted_answers:
+  - 'sort_by_label_node_load1{node=~"node-1[0-9]*", zone=~"us-east-1a"}'
+wrong_answers:
+  - 'sort_by_label_node_load1{node=~"node-1.*"}'
+  - 'sort_by_label_node_load1{zone="us-east-1a", node="node-1"}'
+  - 'sort_by_label_node_load1{zone="us-east-1a"}'
+explanation: |
+  Os matchers são combinados com AND. Só `node-1` e `node-11` estão na us-east-1a
+  (`node-10` e `node-12` estão na us-east-1b).
+
+  Pegadinha: `node="node-1"` pega só o node-1; `node=~"node-1"` idem (âncora).

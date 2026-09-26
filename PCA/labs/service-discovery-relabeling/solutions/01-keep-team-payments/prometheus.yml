@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  - job_name: payments-only
+    file_sd_configs:
+      - files: [/etc/prometheus/sd/apps.json]
+    relabel_configs:
+      # regex é ANCORADA (^...$): "payment" não casa com "payments"
+      - source_labels: [team]
+        regex: payments
+        action: keep

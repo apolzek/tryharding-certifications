@@ -1,0 +1,23 @@
+id: '245'
+title: NaN contamina `sum`
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  `sort_cronjob_last_duration_seconds` tem um CronJob com valor `NaN` (`sync`).
+
+  Retorne a **soma** das durações **ignorando** o NaN (uma série só).
+hints:
+- sum(x) com um NaN dá NaN
+- 'Filtre antes de somar: x == x (NaN != NaN)'
+solution: sum(sort_cronjob_last_duration_seconds == sort_cronjob_last_duration_seconds)
+accepted_answers:
+- sum(sort_cronjob_last_duration_seconds >= 0)
+- sum(sort_cronjob_last_duration_seconds{cronjob!="sync"})
+wrong_answers:
+- sum(sort_cronjob_last_duration_seconds)
+- sum(sort_cronjob_last_duration_seconds != NaN)
+explanation: |
+  `sum`/`avg` propagam NaN (IEEE 754): `120 + 8 + 45 + NaN = NaN`. Filtrando o NaN antes (`x == x`
+  ou `x >= 0`) a soma é **173**. Já `max`/`min`/`topk` **ignoram** NaN (a não ser que só exista NaN).

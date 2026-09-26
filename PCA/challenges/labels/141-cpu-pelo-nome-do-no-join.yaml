@@ -1,0 +1,32 @@
+id: "141"
+title: "CPU pelo NOME do nó (join)"
+topic: labels
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/label_replace/
+prompt: |
+  Você quer a CPU de `label_replace_node_cpu_usage_percent` (label `endpoint="IP:porta"`) com o **nome do nó**. O nome está em
+  `label_replace_kube_node_info{node, internal_ip}` (valor 1, IP sem porta).
+
+  Retorne a CPU de cada nó **com o label `node`** adicionado (e os labels originais da CPU),
+  extraindo o IP para um label `internal_ip` e fazendo o join.
+hints:
+  - "Passo 1: label_replace para criar `internal_ip` a partir de `endpoint`."
+  - "Passo 2: multiplicar por kube_node_info (valor 1) casando `on (internal_ip)`."
+  - "... * on (internal_ip) group_left (node) label_replace_kube_node_info"
+solution: |
+  label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*")
+    * on (internal_ip) group_left (node)
+  label_replace_kube_node_info
+accepted_answers:
+  - 'label_replace_kube_node_info * on (internal_ip) group_right (node) label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*")'
+wrong_answers:
+  - 'label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*") * on (internal_ip) label_replace_kube_node_info'
+  - 'label_replace_node_cpu_usage_percent * on (endpoint) group_left (node) label_replace_kube_node_info'
+  - 'label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*") * on (internal_ip) group_left label_replace_kube_node_info'
+explanation: |
+  Padrão "info metric": multiplicar por uma série de valor 1 não muda o número, só traz labels.
+  `group_left (node)` copia o label `node` do lado direito para o resultado.
+
+  Pegadinha: sem `group_left`, um casamento 1-para-1 com `on (internal_ip)` devolve SÓ os labels do `on`.
+  E sem listar `(node)` no `group_left`, nenhum label novo é copiado.

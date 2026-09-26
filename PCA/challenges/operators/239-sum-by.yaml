@@ -1,0 +1,28 @@
+id: '239'
+title: '`sum by`: CPU por namespace'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  `sort_desc_container_cpu_usage_seconds_total{namespace, pod}` é counter de CPU (segundos).
+
+  Retorne o uso de CPU (em cores = `rate` 5m) **somado por namespace**.
+hints:
+- Primeiro rate, depois sum
+- sum by(namespace)(rate(x[5m]))
+solution: sum by(namespace)(rate(sort_desc_container_cpu_usage_seconds_total[5m]))
+accepted_answers:
+- sum(rate(sort_desc_container_cpu_usage_seconds_total[5m])) by (namespace)
+- sum without(pod)(rate(sort_desc_container_cpu_usage_seconds_total[5m]))
+wrong_answers:
+- sum(rate(sort_desc_container_cpu_usage_seconds_total[5m]))
+- sum by(pod)(rate(sort_desc_container_cpu_usage_seconds_total[5m]))
+ignore_labels:
+- job
+- instance
+- env
+explanation: |
+  Regra de ouro: **primeiro `rate`, depois `sum`**. `by(namespace)` mantém só esse label (3 séries:
+  batch, kube-system, shop). `sum without(pod)` daria os mesmos números, mas manteria `job`/`instance`.
+  A cláusula pode vir antes ou depois: `sum(rate(...)) by (namespace)` é igual.

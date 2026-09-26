@@ -1,0 +1,23 @@
+id: "081"
+title: "Pico de memória que o gráfico não mostra"
+topic: over-time
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/max_over_time/
+prompt: |
+  O pod `api-1` levou OOM, mas o gráfico (resolução de 1 min) nunca mostrou memória alta.
+  Retorne o **pico de memória de cada pod nos últimos 10 minutos**
+  (`max_over_time_container_memory_working_set_bytes`).
+hints:
+  - "Picos curtos caem entre os pontos do gráfico."
+  - "Pegue o máximo de TODAS as amostras da janela."
+  - "max_over_time(max_over_time_container_memory_working_set_bytes[10m])"
+solution: 'max_over_time(max_over_time_container_memory_working_set_bytes[10m])'
+wrong_answers:
+  - 'max(max_over_time_container_memory_working_set_bytes)'
+  - 'avg_over_time(max_over_time_container_memory_working_set_bytes[10m])'
+explanation: |
+  `max_over_time` olha todas as amostras cruas (a cada 5 s), então pega o pico de 15 s (~950 MiB)
+  que um gráfico com step de 1 min pula.
+
+  Pegadinha: `max(...)` é o máximo ENTRE pods naquele instante, não no tempo.

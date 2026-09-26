@@ -1,0 +1,26 @@
+id: "068"
+title: "Quais versões estão no ar"
+topic: aggregation
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/sort_by_label/
+prompt: |
+  Liste as **versões distintas** da aplicação que estão rodando (`sort_by_label_app_build_info`,
+  label `version`), com **valor 1** para cada versão.
+hints:
+  - "Você quer 'agrupar', sem se importar com o valor."
+  - "Existe um operador que devolve sempre 1."
+  - "group by (version) (sort_by_label_app_build_info)"
+solution: 'group by (version) (sort_by_label_app_build_info)'
+accepted_answers:
+  - 'max by (version) (sort_by_label_app_build_info)'
+  - 'count by (version) (sort_by_label_app_build_info) > bool 0'
+wrong_answers:
+  - 'count by (version) (sort_by_label_app_build_info)'
+  - 'group(sort_by_label_app_build_info)'
+  - 'sort_by_label_app_build_info'
+explanation: |
+  `group` devolve 1 para cada grupo — perfeito para 'quais valores de label existem'
+  e para usar do lado direito de `and`/`on` sem se preocupar com valores.
+
+  Pegadinha: `count by (version)` lista as versões, mas com a quantidade de pods como valor.

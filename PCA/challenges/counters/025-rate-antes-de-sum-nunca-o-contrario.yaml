@@ -1,0 +1,28 @@
+id: "025"
+title: "rate antes de sum (nunca o contrário)"
+topic: counters
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/rate/
+prompt: |
+  O capacity planning quer o **total de CPU (em cores) usado pelos 3 pods** de
+  `resets_process_cpu_seconds_total`, média dos últimos 5 min. Atenção: os pods reiniciam
+  (o counter zera) em momentos diferentes.
+hints:
+  - "Você vai precisar de rate() e sum(). A ORDEM importa."
+  - "Somar counters antes do rate mistura os resets de cada série."
+  - "sum(rate(resets_process_cpu_seconds_total[5m]))"
+solution: 'sum(rate(resets_process_cpu_seconds_total[5m]))'
+accepted_answers:
+  - 'sum(increase(resets_process_cpu_seconds_total[5m])) / 300'
+wrong_answers:
+  - 'rate(sum(resets_process_cpu_seconds_total)[5m:])'
+  - 'sum(resets_process_cpu_seconds_total)'
+  - 'sum(deriv(resets_process_cpu_seconds_total[5m]))'
+explanation: |
+  Regra de ouro: **rate primeiro, sum depois**. Cada série tem seus resets; `rate()` os
+  compensa individualmente. Resultado ≈ 1,5 cores (3 × 0,5).
+
+  Pegadinha: `rate(sum(x)[5m:])` vê a soma 'caindo' quando UM pod reinicia, acha que a soma
+  inteira resetou e gera picos absurdos. Por isso recording rules seguem o padrão
+  `sum(rate(...))`.

@@ -1,0 +1,23 @@
+id: '244'
+title: '`topk by`: o nó mais carregado de cada zona'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  `sort_by_label_node_load1{node, zone}` é o load de 12 nós em 2 zonas.
+
+  Retorne **o nó com maior load em cada zona** — o resultado precisa manter o label `node`.
+hints:
+- max by(zone) perde o label node
+- 'topk aceita by: topk by(zone)(1, ...)'
+solution: topk by(zone)(1, sort_by_label_node_load1)
+accepted_answers:
+- topk(1, sort_by_label_node_load1) by (zone)
+wrong_answers:
+- max by(zone)(sort_by_label_node_load1)
+- topk(1, sort_by_label_node_load1)
+- topk by(zone)(2, sort_by_label_node_load1)
+explanation: |
+  Em `topk`/`bottomk`, o `by` só **separa os grupos**; as séries devolvidas mantêm **todos** os labels.
+  Já `max by(zone)` devolve o valor, mas só com o label `zone` (perde o `node`).

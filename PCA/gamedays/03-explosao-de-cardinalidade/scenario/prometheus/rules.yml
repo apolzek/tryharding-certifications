@@ -1,0 +1,9 @@
+groups:
+  - name: meta
+    rules:
+      - alert: PrometheusMuitasSeries
+        expr: prometheus_tsdb_head_series > 2000
+        labels:
+          severity: ticket
+        annotations:
+          summary: "head do Prometheus com {{ $value }} séries"

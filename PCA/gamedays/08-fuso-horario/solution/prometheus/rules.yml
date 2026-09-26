@@ -1,0 +1,19 @@
+groups:
+  - name: backoffice
+    rules:
+      # O backoffice só é usado em horário comercial (09h às 18h, horário de Brasília).
+      # hour() é SEMPRE UTC -> converta: Brasília = UTC-3 (sem horário de verão desde 2019)
+      - alert: BackofficeErrosHorarioComercial
+        expr: |
+          (
+              sum(rate(http_requests_total{job="backoffice", code="500"}[1m]))
+            /
+              sum(rate(http_requests_total{job="backoffice"}[1m]))
+            > 0.05
+          )
+          and on() hour(vector(time() - 3 * 3600)) >= 9 < 18
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "backoffice com {{ $value | humanizePercentage }} de erro"

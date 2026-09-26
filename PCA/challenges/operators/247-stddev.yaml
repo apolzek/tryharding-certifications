@@ -1,0 +1,23 @@
+id: '247'
+title: '`stddev`: dispersão entre partições'
+topic: operators
+level: intermediate
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  Calcule o **desvio padrão** (populacional) do tamanho das partições de
+  `sort_by_label_desc_kafka_log_size_bytes`, **em GiB**.
+hints:
+- stddev(v) — e divida por 1024^3 depois
+- stdvar é a variância (o quadrado)
+solution: stddev(sort_by_label_desc_kafka_log_size_bytes) / 1024^3
+accepted_answers:
+- sqrt(stdvar(sort_by_label_desc_kafka_log_size_bytes)) / 1024^3
+- stddev(sort_by_label_desc_kafka_log_size_bytes / 1024^3)
+wrong_answers:
+- stdvar(sort_by_label_desc_kafka_log_size_bytes) / 1024^3
+- stdvar(sort_by_label_desc_kafka_log_size_bytes / 1024^3)
+tolerance: 0.001
+explanation: |
+  `stddev` é o desvio padrão **populacional** (divide por N) entre as séries: √(143/12) ≈ **3.452 GiB**.
+  `stdvar` é o quadrado (≈ 11.92 GiB²) — se dividir `stdvar` por 1024³ a unidade fica errada.

@@ -1,0 +1,1001 @@
+# Baralho curado à mão: cards de alto rendimento para a PCA, cobrindo os 5 domínios.
+#
+# Formato de cada card:
+#   - id: promql-001          # ÚNICO e ESTÁVEL (vira o GUID da nota no Anki: não renomeie!)
+#     domain: promql          # observability | fundamentals | promql | instrumentation | alerting
+#     front: "pergunta"       # markdown simples (`code`, **negrito**, listas "- ")
+#     back: "resposta"
+#     # ...ou, em vez de front/back, um cloze no padrão do Anki:
+#     cloze: "O padrão é {{c1::1m}}."   # {{c1::...}}, {{c2::...}} geram 1 card por número
+#     extra: "nota extra"     # opcional (aparece no verso)
+#     source: labs/alertmanager/   # caminho relativo a PCA/ ou URL
+#     tags: [extra-tag]       # opcional
+#
+# Para adicionar um card: copie um bloco, dê um id novo e rode ./test.sh (ou tools/build.sh).
+
+# ═══════════════════════════ PromQL (28%) ═══════════════════════════
+
+- id: promql-001
+  domain: promql
+  front: 'Quais são os 4 tipos de dado de uma expressão PromQL?'
+  back: |-
+    - **instant vector**: 1 amostra por série num instante (`up`)
+    - **range vector**: várias amostras por série numa janela (`up[5m]`)
+    - **scalar**: um número (`42`, `scalar(...)`)
+    - **string**: só literal (quase não usado)
+  source: promql-functions-lab/PCA.md
+
+- id: promql-002
+  domain: promql
+  front: "`rate(http_requests_total)` (sem `[5m]`): o que acontece?"
+  back: "**Erro de parse**: `rate()` exige um **range vector**. Correto: `rate(http_requests_total[5m])`."
+  source: promql-functions-lab/functions/rate/
+
+- id: promql-003
+  domain: promql
+  cloze: "Os matchers `=~` e `!~` usam regex RE2 {{c1::totalmente ancorada}}: `{env=~\"prod\"}` casa `prod`, mas **não** `production` (use `prod.*`)."
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+
+- id: promql-004
+  domain: promql
+  front: '`{job=~".*"}` é um seletor válido sozinho?'
+  back: |-
+    **Não.** Todo seletor precisa de pelo menos um matcher que **não** case com string vazia (ou do nome da métrica).
+    Válidos: `{job=~".+"}`, `{job=~".*", env="prod"}`, `http_requests_total{job=~".*"}`.
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+
+- id: promql-005
+  domain: promql
+  front: 'Como selecionar séries que **não têm** o label `env`?'
+  back: '`http_requests_total{env=""}`: label ausente é tratado como valor vazio.'
+
+- id: promql-006
+  domain: promql
+  front: 'Como selecionar métricas por regex **no nome**?'
+  back: '`{__name__=~"http_.*_total"}`: o nome da métrica é só o label `__name__`.'
+
+- id: promql-007
+  domain: promql
+  front: 'Diferença entre o modificador `offset` e o modificador `@`?'
+  back: |-
+    - `x offset 1h`: **relativo** ao instante de avaliação (valor de 1 h atrás).
+    - `x @ 1700000000`: **absoluto** (timestamp Unix fixo); também `@ start()` / `@ end()`.
+    - Podem ser combinados: `x @ 1700000000 offset 5m`. Ambos vêm logo depois do seletor.
+  source: promql-functions-lab/functions/start/
+
+- id: promql-008
+  domain: promql
+  front: 'Sintaxe de uma **subquery** e o que ela retorna?'
+  back: |-
+    `<expr instantânea>[<range>:<resolução>]` → retorna **range vector**.
+    Ex.: `max_over_time(rate(x[5m])[1h:1m])` = maior rate de 5m na última hora, avaliado a cada 1m.
+    Sem resolução (`[1h:]`) usa o `evaluation_interval` global.
+  source: promql-functions-lab/functions/max_over_time/
+
+- id: promql-009
+  domain: promql
+  cloze: "No Prometheus 3.x, range selectors são {{c1::left-open}}: uma amostra exatamente no início da janela é {{c2::excluída}}."
+  source: https://prometheus.io/docs/prometheus/latest/migration/
+
+- id: promql-010
+  domain: promql
+  front: 'O que é o **lookback delta** e qual o padrão?'
+  back: |-
+    **5m** (`--query.lookback-delta`). Um instant vector pega a amostra mais recente de cada série nos últimos 5 min;
+    série sem amostra há mais de 5 min (ou com **staleness marker**) não aparece.
+
+- id: promql-011
+  domain: promql
+  front: "`x > 100` vs `x > bool 100`?"
+  back: |-
+    - Sem `bool`: **filtro**. Séries falsas somem; as verdadeiras mantêm o valor original.
+    - Com `bool`: devolve **0 ou 1** para todas as séries (remove o nome).
+    - Entre dois escalares, `bool` é obrigatório: `1 > bool 0`.
+  source: promql-functions-lab/functions/day_of_week/
+
+- id: promql-012
+  domain: promql
+  front: 'Precedência dos operadores binários (maior → menor)?'
+  back: |-
+    1. `^` (associativo à **direita**)
+    2. `*` `/` `%` `atan2`
+    3. `+` `-`
+    4. `==` `!=` `<=` `<` `>=` `>`
+    5. `and` `unless`
+    6. `or`
+
+- id: promql-013
+  domain: promql
+  front: 'Qual é o vector matching padrão em `a / b` entre dois instant vectors?'
+  back: |-
+    **One-to-one**: pareia séries com **exatamente o mesmo conjunto de labels** (ignorando `__name__`).
+    Séries sem par somem. Ajuste com `on(labels)` ou `ignoring(labels)`.
+
+- id: promql-014
+  domain: promql
+  front: 'Quando usar `group_left`? Dê um exemplo.'
+  back: |-
+    **Many-to-one**: o lado **esquerdo** tem várias séries para cada série do direito.
+    `group_left(labels)` copia labels do lado direito:
+    `rate(node_network_receive_bytes_total[5m]) * on(instance) group_left(nodename) node_uname_info`
+  source: promql-functions-lab/functions/info/
+
+- id: promql-015
+  domain: promql
+  front: "`and`, `or`, `unless`: que tipo de matching e o que cada um retorna?"
+  back: |-
+    **Many-to-many** (set operators):
+    - `a and b`: séries de `a` que têm par em `b` (valores de `a`)
+    - `a or b`: todas de `a` + as de `b` sem par em `a`
+    - `a unless b`: séries de `a` **sem** par em `b`
+
+- id: promql-016
+  domain: promql
+  front: "`sum by (job) (x)` vs `sum without (instance) (x)`?"
+  back: |-
+    - `by (job)`: mantém **só** os labels listados.
+    - `without (instance)`: remove os listados e **mantém o resto**.
+    Em recording rules, `without` é preferido: preserva labels como `job`, `cluster`.
+
+- id: promql-017
+  domain: promql
+  front: 'Qual operador de agregação devolve as **séries originais** (labels intactos) em vez de uma série agregada?'
+  back: '`topk(k, v)` e `bottomk(k, v)`: devolvem os elementos de entrada inalterados (por grupo, se usar `by`). Em range queries, o conjunto pode mudar a cada step.'
+
+- id: promql-018
+  domain: promql
+  front: 'O que faz `count_values("version", build_info)`?'
+  back: 'Conta quantas séries têm cada **valor**; o valor vira o label `version`. Ex.: `{version="1.2"} 3`.'
+
+- id: promql-019
+  domain: promql
+  front: "`quantile(0.9, x)` vs `quantile_over_time(0.9, x[5m])` vs `histogram_quantile(0.9, ...)`?"
+  back: |-
+    - `quantile`: entre **séries**, no mesmo instante (agregação).
+    - `quantile_over_time`: ao longo do **tempo**, por série.
+    - `histogram_quantile`: estima a partir de **buckets** de histograma.
+  source: promql-functions-lab/functions/quantile_over_time/
+
+- id: promql-020
+  domain: promql
+  front: "`rate` vs `irate` vs `increase`: quando usar cada um?"
+  back: |-
+    - `rate`: média **por segundo** na janela: alertas e recording rules.
+    - `irate`: por segundo usando só as **2 últimas amostras**: gráficos de counters voláteis.
+    - `increase`: **total** na janela (= `rate × segundos`): leitura humana ("quantos na última hora").
+  source: promql-functions-lab/functions/rate/
+
+- id: promql-021
+  domain: promql
+  cloze: "Regra de ouro: primeiro {{c1::rate}}, depois {{c2::sum}}: `sum(rate(x[5m]))`. Nunca `rate(sum(x)[5m:])`, porque o restart de um pod vira um {{c3::reset falso do total}}."
+  source: promql-functions-lab/functions/rate/
+
+- id: promql-022
+  domain: promql
+  front: 'Por que `increase(errors_total[1h])` pode dar `2.97` num counter que só soma inteiros?'
+  back: '**Extrapolação**: `rate`/`increase` extrapolam até as bordas da janela. Não é bug.'
+  source: promql-functions-lab/functions/increase/
+
+- id: promql-023
+  domain: promql
+  front: 'Quais funções são para **gauges** (e não para counters)?'
+  back: '`delta`, `idelta`, `deriv`, `predict_linear` (e os `*_over_time`). Counters: `rate`, `irate`, `increase`, `resets`.'
+  source: promql-functions-lab/functions/deriv/
+
+- id: promql-024
+  domain: promql
+  front: 'O que significa `predict_linear(node_filesystem_avail_bytes[6h], 4*3600) < 0`?'
+  back: 'Regressão linear sobre as últimas 6 h, **projetada 4 h (em segundos) à frente**. O alerta clássico: "o disco enche em 4 h".'
+  source: promql-functions-lab/functions/predict_linear/
+
+- id: promql-025
+  domain: promql
+  front: 'Forma correta de `histogram_quantile` num histograma **clássico** agregado por serviço?'
+  back: '`histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m])))`. Mantenha o `le` no `by` e use `rate`.'
+  source: promql-functions-lab/functions/histogram_quantile/
+
+- id: promql-026
+  domain: promql
+  front: 'Como calcular a **latência média** a partir de um histogram ou summary?'
+  back: '`rate(x_sum[5m]) / rate(x_count[5m])`: soma das durações ÷ quantidade de observações.'
+  source: promql-functions-lab/functions/histogram_avg/
+
+- id: promql-027
+  domain: promql
+  front: 'O que `absent(up{job="api"})` retorna?'
+  back: 'Vazio se a série existe; `{job="api"} 1` se **não existe nenhuma**. Serve para alertar que "a métrica sumiu".'
+  source: promql-functions-lab/functions/absent/
+
+- id: promql-028
+  domain: promql
+  front: 'Como evitar "No data" quando uma soma de erros fica vazia?'
+  back: '`sum(rate(errors_total[5m])) or vector(0)`'
+  source: promql-functions-lab/functions/vector/
+
+- id: promql-029
+  domain: promql
+  cloze: "`scalar(v)` retorna {{c1::NaN}} se `v` não tiver {{c2::exatamente 1}} elemento."
+  source: promql-functions-lab/functions/scalar/
+
+- id: promql-030
+  domain: promql
+  front: 'Assinatura de `label_replace` e o que acontece se a regex não casar?'
+  back: |-
+    `label_replace(v, "dst", "replacement", "src", "regex")`: **destino primeiro**.
+    Regex ancorada; se não casar, a série volta **inalterada** (sem erro).
+  source: promql-functions-lab/functions/label_replace/
+
+- id: promql-031
+  domain: promql
+  front: "`sort()` / `sort_desc()` têm efeito em range queries (gráficos)?"
+  back: '**Não.** Só afetam **instant queries** (tabela/console).'
+  source: promql-functions-lab/functions/sort/
+
+- id: promql-032
+  domain: promql
+  front: 'Endpoints HTTP da API para consultas?'
+  back: |-
+    - `/api/v1/query`: instant (`query`, `time`)
+    - `/api/v1/query_range`: range (`query`, `start`, `end`, `step`)
+    - `/api/v1/series`, `/api/v1/labels`, `/api/v1/label/<nome>/values`: metadados
+
+- id: promql-033
+  domain: promql
+  front: "`count(x)` vs `count_over_time(x[5m])`?"
+  back: '`count`: número de **séries** no instante. `count_over_time`: número de **amostras** de cada série na janela.'
+  source: promql-functions-lab/functions/count_over_time/
+
+- id: promql-034
+  domain: promql
+  front: 'Operações aritméticas mantêm o nome da métrica?'
+  back: 'Não: aritmética (e `bool`) **removem** `__name__`. Comparação usada como **filtro** (sem `bool`) mantém a série original com o nome.'
+
+- id: promql-035
+  domain: promql
+  front: 'Query de **taxa de erro em %** de um serviço HTTP?'
+  back: '`100 * sum(rate(http_requests_total{code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`'
+  source: promql-functions-lab/functions/rate/
+
+- id: promql-036
+  domain: promql
+  front: 'Quais unidades de duração o PromQL aceita?'
+  back: '`ms`, `s`, `m`, `h`, `d`, `w`, `y`, combináveis em ordem decrescente: `1h30m`. `1d` = 24 h, `1y` = 365 d.'
+
+- id: promql-037
+  domain: promql
+  front: 'Por que a janela do `rate` deve ser ≥ 4× o `scrape_interval`?'
+  back: '`rate` precisa de **no mínimo 2 amostras** na janela; a folga tolera scrapes que falham. No Grafana, use `$__rate_interval`.'
+  source: promql-functions-lab/functions/rate/
+
+- id: promql-038
+  domain: promql
+  front: 'Query de **% de CPU ocupada** por instância (node_exporter)?'
+  back: '`100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`'
+  source: promql-functions-lab/functions/rate/
+
+- id: promql-039
+  domain: promql
+  front: 'Operação entre um vetor com labels e um vetor **sem** labels (ex.: `x / on() group_left vector(2)`): por que às vezes precisa de `on()`?'
+  back: 'Para casar séries com conjuntos de labels diferentes: `on()` (lista vazia) casa tudo com a série única do outro lado. Alternativa mais simples: `scalar(...)`.'
+  source: promql-functions-lab/functions/scalar/
+
+# ═══════════════════════════ Prometheus Fundamentals (20%) ═══════════════════════════
+
+- id: fund-001
+  domain: fundamentals
+  front: 'Quais são os componentes internos de um servidor Prometheus?'
+  back: |-
+    - **Retrieval**: service discovery + scrape
+    - **TSDB** local
+    - **PromQL engine** + HTTP API/UI (`:9090`)
+    - **Rule manager**: recording/alerting rules; envia alertas ao Alertmanager
+
+- id: fund-002
+  domain: fundamentals
+  front: 'Qual é o modelo de coleta padrão do Prometheus?'
+  back: '**Pull**: HTTP GET em `/metrics` de cada target. Push só como exceção: Pushgateway (e receivers de remote write/OTLP).'
+
+- id: fund-003
+  domain: fundamentals
+  cloze: "Defaults do `global`: scrape_interval {{c1::1m}}, scrape_timeout {{c2::10s}}, evaluation_interval {{c3::1m}}."
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: fund-004
+  domain: fundamentals
+  front: 'Quais labels todo target recebe automaticamente?'
+  back: '`job` (vem do `job_name`) e `instance` (vem do `__address__` após o relabeling).'
+
+- id: fund-005
+  domain: fundamentals
+  front: 'Quais séries o Prometheus gera sozinho a cada scrape?'
+  back: '`up` (1 = scrape ok, 0 = falhou), `scrape_duration_seconds`, `scrape_samples_scraped`, `scrape_samples_post_metric_relabeling`, `scrape_series_added`.'
+
+- id: fund-006
+  domain: fundamentals
+  front: 'Seções de topo do `prometheus.yml`?'
+  back: '`global`, `rule_files`, `scrape_configs`, `alerting`, `remote_write`, `remote_read` (além de `storage`, `tracing`, `scrape_config_files`...).'
+
+- id: fund-007
+  domain: fundamentals
+  front: 'Como recarregar a configuração sem reiniciar o Prometheus?'
+  back: '`kill -HUP <pid>` ou `curl -X POST :9090/-/reload` (exige `--web.enable-lifecycle`). Se a nova config for inválida, a antiga continua valendo.'
+
+- id: fund-008
+  domain: fundamentals
+  front: 'Como validar configuração e regras antes de aplicar?'
+  back: '`promtool check config prometheus.yml` (valida também os rule_files referenciados) e `promtool check rules rules.yml`.'
+  source: labs/recording-rules-testing/
+
+- id: fund-009
+  domain: fundamentals
+  front: "`relabel_configs` vs `metric_relabel_configs`?"
+  back: |-
+    - `relabel_configs`: **antes** do scrape, sobre o **target** (`__meta_*`, `__address__`). Decide o quê/como raspar.
+    - `metric_relabel_configs`: **depois** do scrape, sobre cada **amostra**, antes de gravar. Serve para descartar métricas/labels caros.
+  source: labs/service-discovery-relabeling/
+
+- id: fund-010
+  domain: fundamentals
+  front: 'Quais são as `action`s de relabeling?'
+  back: '`replace` (padrão), `keep`, `drop`, `keepequal`, `dropequal`, `hashmod`, `labelmap`, `labeldrop`, `labelkeep`, `lowercase`, `uppercase`.'
+  source: labs/service-discovery-relabeling/
+
+- id: fund-011
+  domain: fundamentals
+  cloze: "Defaults de uma regra de relabel: regex {{c1::`(.*)`}}, separator {{c2::`;`}}, replacement {{c3::`$1`}}, action {{c4::`replace`}}."
+  source: labs/service-discovery-relabeling/
+
+- id: fund-012
+  domain: fundamentals
+  front: 'O que acontece com labels que começam com `__` depois do relabeling?'
+  back: 'São **removidos** do target (os `__meta_*` só existem durante o relabeling). Para labels temporários, use o prefixo `__tmp`.'
+  source: labs/service-discovery-relabeling/
+
+- id: fund-013
+  domain: fundamentals
+  front: 'Quais labels especiais controlam **como** um target é raspado?'
+  back: '`__address__` (host:porta), `__scheme__` (http/https), `__metrics_path__` (padrão `/metrics`), `__param_<nome>` (query string), `__scrape_interval__`, `__scrape_timeout__`.'
+  source: labs/service-discovery-relabeling/
+
+- id: fund-014
+  domain: fundamentals
+  front: 'O que faz `honor_labels: true`?'
+  back: 'Em conflito de labels, **mantém os do target**. Com `false` (padrão), os do target são renomeados para `exported_<label>`. Usado em **federation** e **Pushgateway**.'
+
+- id: fund-015
+  domain: fundamentals
+  front: 'Cite mecanismos de service discovery.'
+  back: '`static_configs`, `file_sd_configs` (JSON/YAML, recarregado quando muda), `kubernetes_sd_configs`, `consul_sd_configs`, `ec2_sd_configs`, `dns_sd_configs`, `http_sd_configs`...'
+  source: labs/service-discovery-relabeling/
+
+- id: fund-016
+  domain: fundamentals
+  front: 'Quais são os `role`s do `kubernetes_sd_configs`?'
+  back: '`node`, `pod`, `service`, `endpoints`, `endpointslice`, `ingress`.'
+  source: labs/service-discovery-relabeling/
+
+- id: fund-017
+  domain: fundamentals
+  front: 'Como raspar só os pods com a annotation `prometheus.io/scrape: "true"`?'
+  back: |-
+    ```
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        regex: "true"
+        action: keep
+    ```
+  source: labs/service-discovery-relabeling/
+
+- id: fund-018
+  domain: fundamentals
+  cloze: "Retenção padrão da TSDB: {{c1::15d}}. Flags: `--storage.tsdb.retention.{{c2::time}}` e `--storage.tsdb.retention.{{c2::size}}` (vale o que estourar primeiro)."
+  source: labs/tsdb-storage/
+
+- id: fund-019
+  domain: fundamentals
+  front: 'Como a TSDB organiza os dados?'
+  back: |-
+    - **Head block** em memória (amostras recentes), protegido pelo **WAL** em disco
+    - A cada ~**2 h** vira um **bloco** imutável em disco (`chunks/`, `index`, `meta.json`, `tombstones`)
+    - **Compaction** junta blocos em blocos maiores
+  source: labs/tsdb-storage/
+
+- id: fund-020
+  domain: fundamentals
+  front: 'Para que serve o WAL (write-ahead log)?'
+  back: 'Durabilidade do head block: após um crash/restart, o Prometheus **reproduz o WAL** para reconstruir os dados em memória.'
+  source: labs/tsdb-storage/
+
+- id: fund-021
+  domain: fundamentals
+  front: 'Como apagar séries da TSDB?'
+  back: 'Admin API (precisa `--web.enable-admin-api`): `POST /api/v1/admin/tsdb/delete_series?match[]=...` grava **tombstones**; `clean_tombstones` remove do disco. Snapshots: `POST /api/v1/admin/tsdb/snapshot`.'
+  source: labs/tsdb-storage/
+
+- id: fund-022
+  domain: fundamentals
+  front: 'O que define a **identidade** de uma série temporal?'
+  back: 'Nome da métrica + conjunto de labels (o nome é o label `__name__`). Qualquer valor de label diferente cria uma **série nova**.'
+
+- id: fund-023
+  domain: fundamentals
+  front: 'Regras de nomes de métricas e labels (formato clássico)?'
+  back: |-
+    - Métrica: `[a-zA-Z_:][a-zA-Z0-9_:]*` (`:` reservado para recording rules)
+    - Label: `[a-zA-Z_][a-zA-Z0-9_]*`; prefixo `__` reservado ao uso interno
+    - O Prometheus 3 também aceita UTF-8 (entre aspas: `{"my.metric"}`)
+
+- id: fund-024
+  domain: fundamentals
+  front: 'O que é um **staleness marker**?'
+  back: 'Quando uma série some de um scrape (ou o target some), o Prometheus grava um marcador especial. A série deixa de aparecer em instant queries **imediatamente**, sem esperar o lookback de 5 min.'
+  source: promql-functions-lab/functions/absent/
+
+- id: fund-025
+  domain: fundamentals
+  front: 'Como funciona a **federation**?'
+  back: 'Um Prometheus raspa `/federate?match[]=<seletor>` de outro, com `honor_labels: true`. Use para **hierarquia** (global puxando agregados/recording rules), não para copiar tudo.'
+  source: labs/federation-remote-write/
+
+- id: fund-026
+  domain: fundamentals
+  front: 'Para que servem `remote_write` e `remote_read`?'
+  back: '`remote_write` envia amostras em tempo real para um storage remoto (Thanos, Cortex, Mimir, VictoriaMetrics...) para retenção longa e visão global. `remote_read` consulta esses dados de volta.'
+  source: labs/federation-remote-write/
+
+- id: fund-027
+  domain: fundamentals
+  front: 'O que é o **Agent mode**?'
+  back: '`prometheus --agent`: só faz scrape + `remote_write` (com WAL). Não tem TSDB consultável, nem regras ou alertas locais. Ideal para edge/clusters que enviam para um storage central.'
+  source: labs/federation-remote-write/
+
+- id: fund-028
+  domain: fundamentals
+  front: 'Quais são as limitações conhecidas do Prometheus?'
+  back: |-
+    - Não serve para **logs/eventos** individuais
+    - Não é 100% preciso (billing): amostragem + extrapolação
+    - Single-node: escala com sharding/federation/Thanos/Mimir
+    - Alta **cardinalidade** consome muita memória
+
+- id: fund-029
+  domain: fundamentals
+  front: 'Para que servem `global.external_labels`?'
+  back: 'São labels anexados quando os dados **saem** do Prometheus (federation, remote_write, alertas enviados ao Alertmanager), para identificar a origem (ex.: `cluster`, `replica`).'
+  source: labs/federation-remote-write/
+
+- id: fund-030
+  domain: fundamentals
+  front: 'Endpoints de saúde do Prometheus?'
+  back: '`/-/healthy` (processo vivo) e `/-/ready` (pronto para servir consultas). Os targets aparecem na UI `/targets` e na API `/api/v1/targets`.'
+
+- id: fund-031
+  domain: fundamentals
+  cloze: "Portas padrão: Prometheus {{c1::9090}}, Pushgateway {{c2::9091}}, Alertmanager {{c3::9093}} (cluster 9094), node_exporter {{c4::9100}}, blackbox_exporter {{c5::9115}}."
+
+# ═══════════════════════════ Observability Concepts (18%) ═══════════════════════════
+
+- id: obs-001
+  domain: observability
+  front: 'Quais são os três pilares da observabilidade, e qual deles o Prometheus cobre?'
+  back: '**Métricas** (numéricas, agregadas, baratas: o Prometheus), **logs** (eventos detalhados: Loki/ELK) e **traces** (caminho de uma requisição entre serviços: Tempo/Jaeger).'
+
+- id: obs-002
+  domain: observability
+  front: 'Quando métricas são melhores que logs?'
+  back: 'Para **tendências, agregação e alertas**, com custo fixo por série (independe do volume de eventos). Logs servem para detalhes de **eventos individuais** e dados de alta cardinalidade.'
+
+- id: obs-003
+  domain: observability
+  front: 'Vantagens do modelo **pull**?'
+  back: |-
+    - Detecta target fora do ar (`up == 0`)
+    - O servidor controla a taxa de coleta
+    - Fácil depurar (abrir `/metrics` no navegador) e rodar uma 2ª instância
+    - O target não precisa saber para onde enviar
+
+- id: obs-004
+  domain: observability
+  front: 'Quando o **push** é apropriado no ecossistema Prometheus?'
+  back: '**Jobs batch de curta duração** (service-level), que terminam antes de serem raspados, via Pushgateway. Não use push para serviços de longa duração.'
+  source: labs/exporters-pushgateway/
+
+- id: obs-005
+  domain: observability
+  front: 'Monitoramento **white-box** vs **black-box**?'
+  back: '**White-box**: métricas internas expostas pela instrumentação da app. **Black-box**: sondar de fora como um usuário (ex.: blackbox_exporter → `probe_success`).'
+  source: labs/exporters-pushgateway/
+
+- id: obs-006
+  domain: observability
+  cloze: "Método **RED** (para {{c2::serviços}}): {{c1::Rate}}, {{c1::Errors}}, {{c1::Duration}}."
+  source: labs/slo-end-to-end/
+
+- id: obs-007
+  domain: observability
+  cloze: "Método **USE** (para {{c2::recursos}}: CPU, disco, rede): {{c1::Utilization}}, {{c1::Saturation}}, {{c1::Errors}}."
+
+- id: obs-008
+  domain: observability
+  front: 'Quais são os **Four Golden Signals** (Google SRE)?'
+  back: '**Latency**, **Traffic**, **Errors**, **Saturation**.'
+
+- id: obs-009
+  domain: observability
+  front: 'SLI vs SLO vs SLA?'
+  back: |-
+    - **SLI**: indicador medido (ex.: requisições boas ÷ total)
+    - **SLO**: meta interna para o SLI (ex.: 99,9% em 30 dias)
+    - **SLA**: contrato com consequência (multa/crédito); normalmente mais frouxo que o SLO
+  source: labs/slo-end-to-end/
+
+- id: obs-010
+  domain: observability
+  front: 'Qual é o **error budget** de um SLO de 99,9% em 30 dias?'
+  back: '1 − 0,999 = **0,1%**. Em tempo: 0,001 × 43.200 min = **43,2 min** de indisponibilidade.'
+  source: labs/slo-end-to-end/
+
+- id: obs-011
+  domain: observability
+  cloze: "Indisponibilidade permitida em 30 dias: 99% → {{c1::7,2 h}}; 99,9% → {{c2::43,2 min}}; 99,99% → {{c3::4,32 min}}."
+  source: labs/slo-end-to-end/
+
+- id: obs-012
+  domain: observability
+  front: 'O que é **burn rate**?'
+  back: 'Velocidade de consumo do error budget em relação ao ritmo "ideal". Burn rate **1** gasta o budget exatamente no período do SLO; **14,4** mantido por 1 h consome **2%** de um budget de 30 dias.'
+  source: labs/slo-end-to-end/
+
+- id: obs-013
+  domain: observability
+  front: 'Por que alertas de SLO usam **multi-window, multi-burn-rate**?'
+  back: 'A janela **longa** (ex.: 1 h) dá significância (evita alarme por ruído); a **curta** (ex.: 5 m) faz o alerta parar logo que o problema acaba. Ex.: page se burn rate > 14,4 em 1 h **e** em 5 m.'
+  source: labs/slo-end-to-end/
+
+- id: obs-014
+  domain: observability
+  front: 'Alertar em **sintomas** ou em **causas**?'
+  back: 'Em **sintomas** (o que o usuário sente: erros, latência, indisponibilidade). Causas (CPU alta, disco) vão para dashboards/tickets, ou viram alertas só quando preveem um sintoma.'
+
+- id: obs-015
+  domain: observability
+  front: 'Por que a **média** de latência engana?'
+  back: 'Esconde a **cauda**: poucos usuários muito lentos somem na média. Use percentis (p95/p99) via histogram: `histogram_quantile`.'
+  source: promql-functions-lab/functions/histogram_quantile/
+
+- id: obs-016
+  domain: observability
+  front: 'O que é **cardinalidade** e por que importa?'
+  back: 'Número de séries únicas = combinações de valores de labels. Labels como `user_id`, email, IP ou URL com IDs **explodem** memória e disco.'
+
+- id: obs-017
+  domain: observability
+  front: 'O que são **exemplars**?'
+  back: 'Amostras com um **trace ID** anexado a um bucket/counter: permitem pular de um pico no gráfico para um trace concreto. Vêm via OpenMetrics; armazenamento com `--enable-feature=exemplar-storage`.'
+
+- id: obs-018
+  domain: observability
+  front: 'O que é um **trace** e um **span**?'
+  back: '**Trace**: árvore de spans de uma requisição ponta a ponta. **Span**: uma operação (nome, início, duração, `trace_id`, `span_id`, pai). O contexto é propagado entre serviços (W3C `traceparent`).'
+
+- id: obs-019
+  domain: observability
+  front: 'Qual a relação entre OpenTelemetry e Prometheus?'
+  back: 'O OTel é o padrão aberto de instrumentação (API/SDK/Collector) para métricas, logs e traces. O Prometheus pode **receber OTLP** (`--web.enable-otlp-receiver`) ou raspar o endpoint Prometheus do SDK/Collector.'
+
+- id: obs-020
+  domain: observability
+  front: 'Monitoramento vs observabilidade?'
+  back: '**Monitoramento** responde perguntas **conhecidas** (dashboards/alertas pré-definidos). **Observabilidade** é a capacidade de responder perguntas **novas** a partir dos sinais que o sistema emite.'
+
+- id: obs-021
+  domain: observability
+  front: 'Por que não usar o Prometheus para **faturamento** (billing)?'
+  back: 'Os dados são **amostrados** por scrape, `rate`/`increase` **extrapolam**, e scrapes podem falhar. Não é 100% exato. Para cobrança, use um sistema de eventos/logs.'
+
+- id: obs-022
+  domain: observability
+  front: 'SLI de **disponibilidade** em PromQL?'
+  back: '`sum(rate(http_requests_total{code!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`: fração de requisições boas.'
+  source: labs/slo-end-to-end/
+
+- id: obs-023
+  domain: observability
+  front: 'SLI de **latência** em PromQL (ex.: % de requisições < 300 ms)?'
+  back: '`sum(rate(http_request_duration_seconds_bucket{le="0.3"}[5m])) / sum(rate(http_request_duration_seconds_count[5m]))`. Para isso ser exato, é preciso ter um bucket **exatamente** no limiar.'
+  source: labs/slo-end-to-end/
+
+- id: obs-024
+  domain: observability
+  front: 'O error budget acabou. O que a política de SLO costuma prever?'
+  back: '**Congelar** releases de features e priorizar confiabilidade até o budget se recuperar.'
+  source: labs/slo-end-to-end/
+
+- id: obs-025
+  domain: observability
+  front: 'Métricas, logs e traces: qual responde "**qual** serviço na cadeia está lento para **esta** requisição"?'
+  back: '**Traces.** As métricas mostram que a latência subiu; os traces mostram onde o tempo foi gasto em uma requisição específica.'
+
+# ═══════════════════════════ Alerting & Dashboarding (18%) ═══════════════════════════
+
+- id: alert-001
+  domain: alerting
+  front: 'Quais são os campos de uma **alerting rule**?'
+  back: '`alert`, `expr`, `for`, `keep_firing_for`, `labels`, `annotations`.'
+  source: labs/alertmanager/
+
+- id: alert-002
+  domain: alerting
+  cloze: "Estados de um alerta no Prometheus: {{c1::inactive}} → {{c2::pending}} (enquanto o `for` não completou) → {{c3::firing}}."
+  source: labs/alertmanager/
+
+- id: alert-003
+  domain: alerting
+  front: 'Um alerta **sem** `for:` passa pelo estado pending?'
+  back: 'Não. Vai direto para **firing** na primeira avaliação em que a `expr` retorna resultado.'
+  source: labs/alertmanager/
+
+- id: alert-004
+  domain: alerting
+  front: 'Para que serve `keep_firing_for`?'
+  back: 'Mantém o alerta **firing** por um tempo depois que a `expr` para de retornar. Evita flapping e "resolved" falso por uma falha de scrape.'
+  source: labs/alertmanager/
+
+- id: alert-005
+  domain: alerting
+  front: 'Como usar os labels e o valor do alerta numa annotation?'
+  back: '`{{ $labels.instance }}`, `{{ $value }}`, `{{ $value | humanizePercentage }}`, `{{ $externalLabels.cluster }}` (templates Go).'
+  source: labs/alertmanager/
+
+- id: alert-006
+  domain: alerting
+  front: 'Labels vs annotations num alerta?'
+  back: '**Labels** identificam o alerta e são usados no **roteamento**, agrupamento e silences (`severity`, `team`). **Annotations** são informação para humanos (`summary`, `description`, `runbook_url`) e não roteiam.'
+  source: labs/alertmanager/
+
+- id: alert-007
+  domain: alerting
+  cloze: "Convenção de nome de recording rule: {{c1::`level:metric:operations`}}, ex.: `job:http_requests:rate5m`."
+  source: labs/recording-rules-testing/
+
+- id: alert-008
+  domain: alerting
+  front: 'Para que servem **recording rules**?'
+  back: 'Pré-calcular queries **caras** ou muito usadas (dashboards, alertas, SLOs) e gravar o resultado como série nova; também para federar só agregados.'
+  source: labs/recording-rules-testing/
+
+- id: alert-009
+  domain: alerting
+  front: 'Como são avaliados os **grupos** de regras?'
+  back: 'Grupos rodam **em paralelo**, cada um no seu `interval`. As regras **dentro** de um grupo rodam **em sequência**, então uma regra pode usar o resultado da anterior na mesma avaliação.'
+  source: labs/recording-rules-testing/
+
+- id: alert-010
+  domain: alerting
+  front: 'Como fazer testes unitários de regras?'
+  back: '`promtool test rules tests.yml`, com `input_series` (notação `0+10x5`), `alert_rule_test` (alertas esperados em `eval_time`) e `promql_expr_test`.'
+  source: labs/recording-rules-testing/
+
+- id: alert-011
+  domain: alerting
+  front: 'Que série o Prometheus grava para os alertas ativos?'
+  back: '`ALERTS{alertname, alertstate="pending|firing", ...labels}` (e `ALERTS_FOR_STATE`, usado para restaurar o `for` após um restart).'
+  source: labs/alertmanager/
+
+- id: alert-012
+  domain: alerting
+  front: 'Quem faz grouping, deduplicação, silences, inibição e roteamento?'
+  back: 'O **Alertmanager**. O Prometheus só **avalia** as regras e **envia** (e reenvia periodicamente) os alertas ativos.'
+  source: labs/alertmanager/
+
+- id: alert-013
+  domain: alerting
+  cloze: "Defaults do Alertmanager: group_wait {{c1::30s}}, group_interval {{c2::5m}}, repeat_interval {{c3::4h}}."
+  source: labs/alertmanager/
+
+- id: alert-014
+  domain: alerting
+  front: 'Diferença entre `group_wait`, `group_interval` e `repeat_interval`?'
+  back: |-
+    - `group_wait`: espera antes da **1ª** notificação de um grupo novo (para juntar alertas)
+    - `group_interval`: espera antes de notificar **mudanças** (alertas novos/resolvidos) num grupo já notificado
+    - `repeat_interval`: reenvio de um grupo que **não mudou** e continua firing
+  source: labs/alertmanager/
+
+- id: alert-015
+  domain: alerting
+  front: 'Como o **routing tree** do Alertmanager escolhe a rota?'
+  back: 'Começa na **raiz** (que casa tudo e precisa de `receiver`) e desce (depth-first) pelo **primeiro** filho que casa; para ali, a menos que a rota tenha `continue: true`. Os filhos herdam os parâmetros do pai.'
+  source: labs/alertmanager/
+
+- id: alert-016
+  domain: alerting
+  front: "O que faz `group_by: ['...']`?"
+  back: 'Desliga o agrupamento: cada conjunto único de labels vira um grupo próprio (uma notificação por alerta).'
+  source: labs/alertmanager/
+
+- id: alert-017
+  domain: alerting
+  front: 'Como funciona uma **inhibition rule**?'
+  back: '`inhibit_rules` com `source_matchers`, `target_matchers` e `equal`: enquanto um alerta **source** está firing, os alertas **target** com os mesmos valores nos labels de `equal` são suprimidos. Ex.: `critical` inibe `warning` do mesmo `cluster`.'
+  source: labs/alertmanager/
+
+- id: alert-018
+  domain: alerting
+  front: 'Silence vs inhibition?'
+  back: '**Silence**: manual, temporário (tem expiração), definido por matchers na UI/`amtool`. **Inhibition**: automática e configurada; depende de **outro alerta** estar firing.'
+  source: labs/alertmanager/
+
+- id: alert-019
+  domain: alerting
+  front: 'Onde se cria um **silence**?'
+  back: 'No **Alertmanager** (UI `:9093` ou `amtool silence add alertname=X --duration=2h -c "motivo"`). O Prometheus não sabe de silences.'
+  source: labs/alertmanager/
+
+- id: alert-020
+  domain: alerting
+  front: 'Como funciona a **alta disponibilidade** do Alertmanager?'
+  back: 'Várias réplicas em cluster via **gossip** (`--cluster.peer`, porta 9094). Cada Prometheus envia para **todas** as réplicas (sem load balancer); o cluster **deduplica** notificações e replica silences.'
+  source: labs/alertmanager/
+
+- id: alert-021
+  domain: alerting
+  front: 'Como validar a config do Alertmanager e testar para qual receiver um alerta iria?'
+  back: '`amtool check-config alertmanager.yml` e `amtool config routes test --config.file=alertmanager.yml severity=critical team=db`.'
+  source: labs/alertmanager/
+
+- id: alert-022
+  domain: alerting
+  front: 'Cite receivers do Alertmanager.'
+  back: '`email_configs`, `slack_configs`, `pagerduty_configs`, `opsgenie_configs`, `msteams_configs`, `webhook_configs` (integração genérica via HTTP POST com JSON)...'
+  source: labs/alertmanager/
+
+- id: alert-023
+  domain: alerting
+  front: 'Como silenciar notificações **fora do horário comercial** de forma recorrente?'
+  back: 'Defina `time_intervals` e use `mute_time_intervals` (ou `active_time_intervals`) na rota. Não é silence: é configuração da rota.'
+  source: labs/alertmanager/
+
+- id: alert-024
+  domain: alerting
+  front: 'O que é `$__rate_interval` no Grafana?'
+  back: 'Janela automática para `rate`: pelo menos 4× o scrape interval configurado no data source, ajustada ao step do painel. Use `rate(x[$__rate_interval])`.'
+  source: promql-functions-lab/functions/rate/
+
+- id: alert-025
+  domain: alerting
+  front: 'Como criar uma variável de dashboard no Grafana com a lista de jobs?'
+  back: 'Variável do tipo query: `label_values(up, job)`. No painel: `{job=~"$job"}` (regex, por causa do multi-select/All).'
+
+- id: alert-026
+  domain: alerting
+  front: 'Como o Prometheus sabe para onde enviar os alertas?'
+  back: 'Pela seção `alerting.alertmanagers` do `prometheus.yml` (static ou via service discovery). Os alertas vão via `POST /api/v2/alerts`.'
+  source: labs/alertmanager/
+
+- id: alert-027
+  domain: alerting
+  front: 'O que são **console templates**?'
+  back: 'Páginas HTML em Go templates servidas pelo próprio Prometheus em `/consoles` (flags `--web.console.templates` e `--web.console.libraries`). Hoje o padrão de mercado para dashboards é o **Grafana**.'
+
+- id: alert-028
+  domain: alerting
+  front: 'Como adicionar o Prometheus como data source no Grafana?'
+  back: 'Connections → Data sources → Prometheus → URL do servidor (ex.: `http://prometheus:9090`), acesso pelo backend do Grafana (server/proxy). Configure o *scrape interval* para o `$__rate_interval` ficar correto.'
+
+- id: alert-029
+  domain: alerting
+  front: 'Por que quase todo alerta deve ter `for:`?'
+  back: 'Para não disparar com **picos transitórios** (flapping). O alerta só vai para firing se a condição se mantiver durante todo o `for`.'
+  source: labs/alertmanager/
+
+- id: alert-030
+  domain: alerting
+  front: 'Qual é o erro de colocar um **counter cru** num gráfico?'
+  back: 'Ele só sobe (e despenca em restarts): não mostra nada útil. Mostre `rate()` (por segundo) ou `increase()` (total no período).'
+  source: promql-functions-lab/functions/rate/
+
+# ═══════════════════════════ Instrumentation & Exporters (16%) ═══════════════════════════
+
+- id: instr-001
+  domain: instrumentation
+  front: 'Quais são os 4 tipos de métrica e um exemplo de cada?'
+  back: |-
+    - **Counter**: só sobe (`http_requests_total`)
+    - **Gauge**: sobe e desce (`memory_usage_bytes`, fila)
+    - **Histogram**: buckets + `_sum` + `_count` (`http_request_duration_seconds`)
+    - **Summary**: quantis calculados no cliente + `_sum` + `_count`
+  source: labs/instrumentation/
+
+- id: instr-002
+  domain: instrumentation
+  front: 'Um counter pode diminuir?'
+  back: 'Não. Ele só volta a **0** quando o processo reinicia (reset). Em Go, `Add()` com valor negativo causa **panic**. Se o valor desce, é **gauge**.'
+  source: labs/instrumentation/
+
+- id: instr-003
+  domain: instrumentation
+  front: 'Quais séries um histograma **clássico** `http_request_duration_seconds` expõe?'
+  back: '`_bucket{le="..."}` (**cumulativos**, incluindo `le="+Inf"`), `_sum` e `_count`. O `_bucket{le="+Inf"}` é igual ao `_count`.'
+  source: promql-functions-lab/functions/histogram_quantile/
+
+- id: instr-004
+  domain: instrumentation
+  front: 'Histogram vs Summary: qual pode ser **agregado** entre instâncias?'
+  back: '**Histogram** (somam-se os buckets e depois aplica-se `histogram_quantile`). Os quantis do **summary** não podem ser somados nem ter média calculada. O summary tem quantil exato por instância, mas é mais caro no cliente e os quantis são fixos.'
+  source: labs/instrumentation/
+
+- id: instr-005
+  domain: instrumentation
+  cloze: "Buckets padrão dos client libraries (segundos): {{c1::.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}}."
+  source: labs/instrumentation/
+
+- id: instr-006
+  domain: instrumentation
+  front: 'Quais são as convenções de **nome** de métricas?'
+  back: |-
+    - `snake_case`, prefixo do domínio/app (`myapp_`)
+    - Counter termina em `_total`
+    - Unidade **base** no nome: `_seconds`, `_bytes`, `_meters`
+    - `_ratio` para 0..1; `_info` para metadados
+  source: labs/instrumentation/
+
+- id: instr-007
+  domain: instrumentation
+  front: 'O que está errado em `http_request_duration_milliseconds`?'
+  back: 'Use **unidades base**: segundos (float). O certo é `http_request_duration_seconds`.'
+  source: labs/instrumentation/
+
+- id: instr-008
+  domain: instrumentation
+  front: 'Quando **não** usar um label?'
+  back: 'Quando os valores não têm limite (**alta cardinalidade**): user ID, email, request ID, URL com IDs, timestamps. Cada combinação de valores é uma série nova.'
+  source: labs/instrumentation/
+
+- id: instr-009
+  domain: instrumentation
+  front: 'Como criar e incrementar um counter com labels em Go (`client_golang`)?'
+  back: |-
+    ```
+    var reqs = promauto.NewCounterVec(
+      prometheus.CounterOpts{Name: "myapp_requests_total", Help: "..."},
+      []string{"code"})
+    reqs.WithLabelValues("200").Inc()
+    http.Handle("/metrics", promhttp.Handler())
+    ```
+  source: labs/instrumentation/
+
+- id: instr-010
+  domain: instrumentation
+  front: 'Como instrumentar em Python (`prometheus_client`)?'
+  back: |-
+    ```
+    from prometheus_client import Counter, Histogram, start_http_server
+    JOBS = Counter("jobs", "Jobs processados", ["queue"])   # exposto como jobs_total
+    LAT = Histogram("job_duration_seconds", "Duração")
+    start_http_server(8000)
+    JOBS.labels("emails").inc()
+    with LAT.time(): work()
+    ```
+  source: labs/instrumentation/
+
+- id: instr-011
+  domain: instrumentation
+  front: 'Como é o formato de exposição em texto?'
+  back: |-
+    ```
+    # HELP http_requests_total Total de requisições.
+    # TYPE http_requests_total counter
+    http_requests_total{method="get",code="200"} 1027
+    ```
+    Timestamp (ms) opcional no fim da linha; quase nunca deve ser usado.
+  source: labs/instrumentation/
+
+- id: instr-012
+  domain: instrumentation
+  front: 'O que o **OpenMetrics** acrescenta ao formato de texto clássico?'
+  back: 'Termina com `# EOF`, `# UNIT`, counters com sufixo `_total` obrigatório, séries `_created` e **exemplars**. Content-Type `application/openmetrics-text`.'
+  source: labs/instrumentation/
+
+- id: instr-013
+  domain: instrumentation
+  front: 'O que é o padrão **info metric**?'
+  back: 'Um gauge com valor **1** e os metadados em labels: `myapp_build_info{version="1.2.3",revision="abc"} 1`. Faça join com `* on(instance) group_left(version) myapp_build_info`.'
+  source: promql-functions-lab/functions/info/
+
+- id: instr-014
+  domain: instrumentation
+  front: 'node_exporter: porta, métricas típicas e textfile collector?'
+  back: 'Porta **9100**: `node_cpu_seconds_total`, `node_memory_MemAvailable_bytes`, `node_filesystem_avail_bytes`, `node_network_receive_bytes_total`. Textfile collector: `--collector.textfile.directory` com arquivos `*.prom` (métricas de cron/scripts).'
+  source: labs/exporters-pushgateway/
+
+- id: instr-015
+  domain: instrumentation
+  front: 'Como configurar o **blackbox_exporter** (padrão multi-target)?'
+  back: |-
+    Raspe `/probe` com `params: {module: [http_2xx]}` e faça relabel:
+    `__address__` → `__param_target`; `__param_target` → `instance`; `__address__` = `blackbox:9115`.
+    Métrica-chave: `probe_success`.
+  source: labs/exporters-pushgateway/
+
+- id: instr-016
+  domain: instrumentation
+  front: 'Quais são as pegadinhas do **Pushgateway**?'
+  back: |-
+    - As métricas **não expiram** (ficam até um DELETE)
+    - O `up` reflete o Pushgateway, não o job
+    - É um ponto único de falha
+    - Exige `honor_labels: true` no scrape
+    - Uso correto: jobs batch **service-level**
+  source: labs/exporters-pushgateway/
+
+- id: instr-017
+  domain: instrumentation
+  front: 'Como enviar uma métrica para o Pushgateway com curl?'
+  back: '`echo "backup_last_success_timestamp_seconds $(date +%s)" | curl --data-binary @- http://pushgateway:9091/metrics/job/backup/instance/db1`. O **grouping key** é `job` + os labels do path.'
+  source: labs/exporters-pushgateway/
+
+- id: instr-018
+  domain: instrumentation
+  front: "Pushgateway: PUT vs POST vs DELETE?"
+  back: '**PUT** substitui **todas** as métricas do grupo; **POST** substitui só as métricas com o **mesmo nome**; **DELETE** apaga o grupo.'
+  source: labs/exporters-pushgateway/
+
+- id: instr-019
+  domain: instrumentation
+  front: 'Como alertar que um job batch **não roda há muito tempo**?'
+  back: 'O job expõe um gauge com timestamp: `backup_last_success_timestamp_seconds`. Alerta: `time() - backup_last_success_timestamp_seconds > 26*3600`. O Pushgateway também expõe `push_time_seconds` por grupo.'
+  source: labs/exporters-pushgateway/
+
+- id: instr-020
+  domain: instrumentation
+  front: 'Exporter vs instrumentação direta?'
+  back: '**Instrumentação direta**: seu código usa um client library. **Exporter**: traduz métricas de um sistema de terceiros que você não pode alterar (MySQL, HAProxy, hardware, SNMP) para o formato Prometheus.'
+  source: labs/exporters-pushgateway/
+
+- id: instr-021
+  domain: instrumentation
+  front: 'Cite exporters comuns e o que monitoram.'
+  back: 'node_exporter (hosts Linux), windows_exporter, blackbox (probes HTTP/TCP/ICMP/DNS), mysqld/postgres/redis exporters, snmp_exporter (rede), JMX exporter (JVM), cAdvisor (containers), kube-state-metrics (objetos do Kubernetes).'
+  source: labs/exporters-pushgateway/
+
+- id: instr-022
+  domain: instrumentation
+  front: 'kube-state-metrics vs cAdvisor?'
+  back: '**kube-state-metrics**: **estado** dos objetos da API do k8s (`kube_pod_container_status_restarts_total`, `kube_deployment_status_replicas`). **cAdvisor** (no kubelet): **uso de recursos** dos containers (`container_cpu_usage_seconds_total`).'
+
+- id: instr-023
+  domain: instrumentation
+  front: 'Que métricas os client libraries expõem por padrão?'
+  back: 'Métricas do processo (`process_cpu_seconds_total`, `process_resident_memory_bytes`, `process_open_fds`) e do runtime (`go_goroutines`, `go_gc_*`, `python_gc_*`).'
+  source: labs/instrumentation/
+
+- id: instr-024
+  domain: instrumentation
+  front: 'O que são **native histograms**?'
+  back: 'Histogramas com buckets **exponenciais esparsos** numa única série (o `schema` define a resolução). São mais precisos e baratos, e não têm `le`: `histogram_quantile(0.9, sum(rate(x[5m])))`.'
+  source: promql-functions-lab/functions/histogram_quantile/
+
+- id: instr-025
+  domain: instrumentation
+  front: 'Métodos de um Gauge e exemplos de uso?'
+  back: '`Set`, `Inc`, `Dec`, `Add`, `Sub`, `SetToCurrentTime`. Exemplos: requisições em andamento (in-flight), tamanho de fila, memória, temperatura, timestamp do último sucesso.'
+  source: labs/instrumentation/
+
+- id: instr-026
+  domain: instrumentation
+  front: 'Qual tipo de métrica usar para contar **requisições em andamento** (in-flight)?'
+  back: '**Gauge**: `Inc()` ao começar e `Dec()` ao terminar. Em Go: `promhttp.InstrumentHandlerInFlight`.'
+  source: labs/instrumentation/
+
+- id: instr-027
+  domain: instrumentation
+  front: 'Onde deve ficar o `/metrics` de uma aplicação instrumentada e quem o chama?'
+  back: 'Num endpoint HTTP da própria app (ex.: `:8080/metrics`), servido pelo handler do client library. O **Prometheus** faz o GET a cada `scrape_interval`; a app não empurra nada.'
+  source: labs/instrumentation/
+
+- id: instr-028
+  domain: instrumentation
+  front: 'Por que inicializar as séries com labels conhecidos (ex.: `code="500"`) com 0?'
+  back: 'Uma série que nunca foi incrementada **não existe**. Aí `rate` de erros some (em vez de dar 0) e queries/alertas com divisão quebram. Chame `WithLabelValues("500")` no startup.'
+  source: labs/instrumentation/

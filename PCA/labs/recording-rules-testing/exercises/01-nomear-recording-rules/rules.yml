@@ -1,0 +1,11 @@
+# EXERCÍCIO 01: complete as duas recording rules.
+# O teste (rules.test.yml) já está pronto e correto: faça-o passar.
+groups:
+  - name: ex01
+    rules:
+      # TODO: requisições por segundo, por job (média de 5m).
+      #       Nome no padrão nível:métrica:operações.
+      - record: http_requests_per_second
+        expr: sum(rate(http_requests_total[5m]))
+
+      # TODO: requisições por segundo, por job E code (média de 5m).

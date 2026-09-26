@@ -1,0 +1,26 @@
+id: "164"
+title: "Hora em Brasília (UTC−3)"
+topic: time
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/hour/
+prompt: |
+  `hour_simulated_clock_timestamp_seconds` é um relógio acelerado (um dia a cada 4 min).
+  Retorne a **hora local de Brasília (UTC−3, 0–23)** desse relógio.
+hints:
+  - "hour() sempre responde em UTC."
+  - "Desloque o TIMESTAMP antes de extrair a hora."
+  - "hour(hour_simulated_clock_timestamp_seconds - 3 * 3600)"
+solution: 'hour(hour_simulated_clock_timestamp_seconds - 3 * 3600)'
+accepted_answers:
+  - '(hour(hour_simulated_clock_timestamp_seconds) + 21) % 24'
+  - 'hour(hour_simulated_clock_timestamp_seconds - 10800)'
+wrong_answers:
+  - 'hour(hour_simulated_clock_timestamp_seconds)'
+  - 'hour(hour_simulated_clock_timestamp_seconds + 3 * 3600)'
+  - 'hour(hour_simulated_clock_timestamp_seconds - 3)'
+explanation: |
+  Subtrair 3 h do timestamp e depois extrair a hora lida corretamente com a virada do dia.
+  `(hour(x) + 21) % 24` também funciona.
+
+  Pegadinha: `hour(x) - 3` fica NEGATIVO entre 00h e 02h UTC. E o deslocamento é em segundos (3 × 3600).

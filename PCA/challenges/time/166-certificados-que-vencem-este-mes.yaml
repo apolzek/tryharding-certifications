@@ -1,0 +1,26 @@
+id: "166"
+title: "Certificados que vencem este mês"
+topic: time
+level: advanced
+domain: PromQL
+lesson: ../promql-functions-lab/functions/month/
+prompt: |
+  Liste os domínios de `month_probe_ssl_earliest_cert_expiry{domain}` cujo certificado **vence no mês
+  atual (UTC)**. O valor retornado deve ser o número do mês.
+hints:
+  - "month(v) dá o mês do timestamp; month() sem argumento dá o mês atual."
+  - "Comparar dois vetores exige labels iguais; `month()` não tem labels... converta para scalar."
+  - "month(x) == scalar(month())"
+solution: 'month(month_probe_ssl_earliest_cert_expiry) == scalar(month())'
+accepted_answers:
+  - 'month(month_probe_ssl_earliest_cert_expiry) == on () group_left month()'
+wrong_answers:
+  - 'month(month_probe_ssl_earliest_cert_expiry) == month()'
+  - 'month(month_probe_ssl_earliest_cert_expiry - 3 * 3600) == scalar(month())'
+  - 'month(month_probe_ssl_earliest_cert_expiry)'
+explanation: |
+  Só `legacy.lab.local` (último dia do mês, 23:00 UTC). O `midnight.lab.local` vence dia 1º do mês que vem
+  à 01:00 UTC — em Brasília ainda seria este mês! Por isso a versão com `- 3 * 3600` dá outra resposta.
+
+  Pegadinha: `vetor == month()` tenta casar labels e não casa nada (o lado direito não tem labels).
+  Use `scalar(month())` ou `on () group_left`.

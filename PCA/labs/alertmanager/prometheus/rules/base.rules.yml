@@ -1,0 +1,45 @@
+# Regras de alerta base do lab. Todas dependem de gauges que só existem
+# quando você cria com:  curl 'localhost:9113/set?name=<métrica>&value=<v>&<label>=<valor>...'
+groups:
+  - name: lab-base
+    interval: 5s
+    rules:
+      - alert: ServiceDown
+        expr: lab_up == 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} fora do ar (cluster {{ $labels.cluster }})"
+          description: "lab_up={{ $value }} em {{ $labels.instance }}."
+          runbook_url: "https://runbooks.example.com/ServiceDown"
+
+      - alert: HighErrorRate
+        expr: lab_error_ratio > 0.05
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} com {{ $value | humanizePercentage }} de erros"
+
+      - alert: HighLatency
+        expr: lab_latency_seconds > 0.5
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 de {{ $labels.instance }} em {{ $value | humanizeDuration }}"
+
+      - alert: DiskFilling
+        expr: lab_disk_free_bytes < 10e9
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} com só {{ $value | humanize1024 }}B livres"
+
+      # keep_firing_for: depois que a condição some, o alerta continua firing
+      # por mais 30s. Evita o "pisca-pisca" (flapping) de firing -> resolved -> firing.
+      - alert: FlappingCheck
+        expr: lab_flappy > 0
+        keep_firing_for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} instável (keep_firing_for=30s)"

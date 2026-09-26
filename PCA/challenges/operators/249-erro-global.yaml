@@ -1,0 +1,22 @@
+id: '249'
+title: Taxa de erro global (sem média de médias)
+topic: operators
+level: advanced
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  Qual a **taxa de erro global** do sistema: taxa de `sort_desc_http_requests_total{code="500"}`
+  dividida pela taxa de **todas** as requisições (`rate` 5m)? Uma série só.
+hints:
+- Some o numerador e o denominador separadamente e só então divida
+- Média das razões por serviço ≠ razão global (e recommendations é NaN)
+solution: sum(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum(rate(sort_desc_http_requests_total[5m]))
+accepted_answers:
+- sum(rate(sort_desc_http_requests_total{code="500"}[5m])) / scalar(sum(rate(sort_desc_http_requests_total[5m])))
+wrong_answers:
+- avg(sum by(service)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by(service)(rate(sort_desc_http_requests_total[5m])))
+- sum(rate(sort_desc_http_requests_total{code="500"}[5m]) / rate(sort_desc_http_requests_total[5m]))
+explanation: |
+  Some primeiro, divida depois: 18 / 300 = **0.06**. A média das taxas por serviço
+  (`avg(ratio by service)`) é **NaN** aqui (recommendations 0/0) e, mesmo sem NaN, daria peso igual a
+  serviços com tráfego muito diferente — "média de médias" é o erro clássico.

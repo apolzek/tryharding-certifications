@@ -1,0 +1,25 @@
+id: "103"
+title: "Média global: não faça média das médias"
+topic: histograms
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/histogram_avg/
+prompt: |
+  Qual a **latência média GLOBAL** (todos os serviços juntos) nos últimos 5 minutos?
+  web recebe ~50 req/s e batch ~2 req/s. Use `histogram_avg_request_duration_seconds_sum` / `_count`.
+hints:
+  - "Some numerador e denominador separadamente, depois divida."
+  - "Média das médias dá o mesmo peso a um serviço com 2 req/s e outro com 50 req/s."
+  - "sum(rate(x_sum[5m])) / sum(rate(x_count[5m]))"
+solution: 'sum(rate(histogram_avg_request_duration_seconds_sum[5m])) / sum(rate(histogram_avg_request_duration_seconds_count[5m]))'
+accepted_answers:
+  - 'histogram_avg(sum(rate(histogram_avg_request_duration_seconds[5m])))'
+wrong_answers:
+  - 'avg(rate(histogram_avg_request_duration_seconds_sum[5m]) / rate(histogram_avg_request_duration_seconds_count[5m]))'
+  - 'sum(rate(histogram_avg_request_duration_seconds_sum[5m]))'
+  - 'avg(histogram_avg(rate(histogram_avg_request_duration_seconds[5m])))'
+explanation: |
+  A média correta é ponderada pelo tráfego: ≈ 0,12 s. A média das médias dá ≈ 0,5 s, porque o
+  batch (lento, mas com pouquíssimas requisições) pesa igual ao web.
+
+  Regra: agregue `_sum` e `_count` (ou o native histogram) ANTES de dividir.

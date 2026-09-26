@@ -1,0 +1,23 @@
+id: "085"
+title: "p95 da duração do probe"
+topic: over-time
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/quantile_over_time/
+prompt: |
+  O `quantile_over_time_probe_duration_seconds{target}` tem picos raros de 3 s.
+  O SLO usa o **percentil 95 de cada alvo nos últimos 10 minutos**. Calcule-o.
+hints:
+  - "Percentil de um GAUGE ao longo do tempo."
+  - "quantile_over_time(φ, v[janela])"
+  - "quantile_over_time(0.95, quantile_over_time_probe_duration_seconds[10m])"
+solution: 'quantile_over_time(0.95, quantile_over_time_probe_duration_seconds[10m])'
+wrong_answers:
+  - 'max_over_time(quantile_over_time_probe_duration_seconds[10m])'
+  - 'avg_over_time(quantile_over_time_probe_duration_seconds[10m])'
+  - 'quantile(0.95, quantile_over_time_probe_duration_seconds)'
+explanation: |
+  checkout: p95 ≈ 0,25 s (ignora os 3% de picos); catalog: p95 ≈ 1 s (20% de cache miss).
+
+  Pegadinha: `avg_over_time` do catalog dá ~0,28 s, um valor que NUNCA acontece (bimodal).
+  `quantile(...)` é entre alvos, não no tempo.

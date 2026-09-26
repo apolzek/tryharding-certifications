@@ -1,0 +1,24 @@
+id: '243'
+title: '`topk`: as 3 maiores partições'
+topic: operators
+level: basic
+domain: PromQL
+lesson: ../labs/promql-operators/#10-operadores-de-agregação
+prompt: |
+  `sort_by_label_desc_kafka_log_size_bytes{topic, partition}` é o tamanho de cada partição.
+
+  Retorne as **3 maiores** partições, da maior para a menor.
+hints:
+- topk(k, v)
+solution: topk(3, sort_by_label_desc_kafka_log_size_bytes)
+accepted_answers:
+- sort_desc(topk(3, sort_by_label_desc_kafka_log_size_bytes))
+wrong_answers:
+- bottomk(3, sort_by_label_desc_kafka_log_size_bytes)
+- sort_desc(sort_by_label_desc_kafka_log_size_bytes)
+- max(sort_by_label_desc_kafka_log_size_bytes)
+ordered: true
+explanation: |
+  `topk` devolve as **séries originais** (com todos os labels) das k maiores. Numa instant query elas
+  já vêm ordenadas (maior primeiro): partições 11, 10, 9. Numa range query (gráfico) o topk é
+  recalculado **a cada ponto**, então podem aparecer mais de k séries na legenda.

@@ -1,0 +1,25 @@
+id: "061"
+title: "Média ENTRE pods agora"
+topic: aggregation
+level: basic
+domain: PromQL
+lesson: ../promql-functions-lab/functions/avg_over_time/
+prompt: |
+  Qual a **CPU média entre os pods, neste instante**? Use `avg_over_time_cpu_usage_percent{pod}`
+  (um número só, a média dos pods agora — não a média ao longo do tempo).
+hints:
+  - "Média entre séries = operador de agregação."
+  - "avg(v)"
+  - "avg(avg_over_time_cpu_usage_percent)"
+solution: 'avg(avg_over_time_cpu_usage_percent)'
+accepted_answers:
+  - 'sum(avg_over_time_cpu_usage_percent) / count(avg_over_time_cpu_usage_percent)'
+wrong_answers:
+  - 'avg_over_time(avg_over_time_cpu_usage_percent[1m])'
+  - 'avg by (pod) (avg_over_time_cpu_usage_percent)'
+  - 'max(avg_over_time_cpu_usage_percent)'
+explanation: |
+  Agregação (`avg`, `sum`, `max`...) combina **séries diferentes no mesmo instante**.
+  Funções `*_over_time` combinam **amostras da mesma série ao longo do tempo**. Não confunda!
+
+  Pegadinha: `avg by (pod)` não agrega nada aqui (cada pod já é uma série).

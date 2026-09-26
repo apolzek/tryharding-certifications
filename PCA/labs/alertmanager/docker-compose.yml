@@ -1,0 +1,69 @@
+# Lab de Alertmanager: Prometheus 9110 · Alertmanager 9111 · receiver 9112 · app 9113
+#
+# EX = pasta com o alertmanager.yml (e, opcionalmente, *.rules.yml) em uso.
+#   padrão: ./config (config completa e comentada)
+#   exercício: EX=./exercises/01-roteamento-severidade docker compose up -d --force-recreate
+name: pca-alertmanager
+
+x-py: &py
+  image: python:3.14-alpine
+  restart: unless-stopped
+  init: true
+
+services:
+  app:
+    <<: *py
+    command: ["python", "-u", "/srv/app.py"]
+    volumes: ["./app/app.py:/srv/app.py:ro"]
+    ports: ["9113:8000"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/-/healthy"]
+      interval: 2s
+      retries: 30
+
+  receiver:
+    <<: *py
+    command: ["python", "-u", "/srv/receiver.py"]
+    volumes: ["./receiver/receiver.py:/srv/receiver.py:ro"]
+    ports: ["9112:8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/-/healthy"]
+      interval: 2s
+      retries: 30
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle          # habilita POST /-/reload
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro   # regras base (sempre carregadas)
+      - ${EX:-./config}:/etc/prometheus/ex:ro         # regras extras do exercício (*.rules.yml)
+      - { type: tmpfs, target: /prometheus, tmpfs: { mode: 01777 } }   # estado zerado a cada recreate
+    ports: ["9110:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 2s
+      retries: 30
+    depends_on: [app, alertmanager]
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --web.external-url=http://localhost:9111
+      - --cluster.listen-address=       # instância única: gossip de HA desligado (veja README)
+    volumes:
+      - ${EX:-./config}:/etc/alertmanager:ro
+      - { type: tmpfs, target: /alertmanager, tmpfs: { mode: 01777 } } # silences/nflog zerados a cada recreate
+    ports: ["9111:9093"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/ready"]
+      interval: 2s
+      retries: 30
+    depends_on: [receiver]

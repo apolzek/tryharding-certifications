@@ -1,0 +1,23 @@
+id: "194"
+title: "Probe flapping"
+topic: alerting-expressions
+level: intermediate
+domain: PromQL
+lesson: ../promql-functions-lab/functions/changes/
+prompt: |
+  Alerta de instabilidade: **alvos cujo probe (`changes_probe_success{target}`) mudou de estado mais de
+  4 vezes nos últimos 5 minutos**. Valor = nº de mudanças.
+hints:
+  - "Contar mudanças de estado = changes()."
+  - "Filtre com > 4."
+  - "changes(changes_probe_success[5m]) > 4"
+solution: 'changes(changes_probe_success[5m]) > 4'
+wrong_answers:
+  - 'changes_probe_success > 4'
+  - 'resets(changes_probe_success[5m]) > 4'
+  - 'changes(changes_probe_success[5m]) > bool 4'
+explanation: |
+  Só o frete (~20 mudanças). Flapping não aparece em `probe_success == 0 for: 5m` porque o alvo volta
+  antes do `for` completar — `changes()` pega exatamente esse caso.
+
+  Pegadinha: `> bool 4` devolve 0/1 para todos os alvos e o alerta dispara sempre.

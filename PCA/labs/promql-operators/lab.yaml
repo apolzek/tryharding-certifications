@@ -1,0 +1,116 @@
+# Dashboard do lab promql-operators, no MESMO formato dos functions/<fn>/lab.yaml
+# (documentado no topo de promql-functions-lab/tools/gen_dashboards.py).
+# uid gerado: fn-promql-operators  ->  http://localhost:3300/d/fn-promql-operators
+# As queries também são testadas por ./test.sh (validate: nonempty é o padrão).
+function: promql-operators
+title: "PromQL sem funções — seletores, operadores, vector matching e agregações"
+category: "11 - Operadores e vector matching"
+time_from: now-30m
+intro_height: 5
+intro: |
+  **Analogia:** o Prometheus é uma planilha gigante. Seletor = **filtro**, comparação = filtro "maior que",
+  `bool` = `=SE(...;1;0)`, **vector matching** = **PROCV/VLOOKUP** (JOIN pelos labels, sempre INNER),
+  `and/or/unless` = semi-join/união/anti-join, agregação = **tabela dinâmica** (`GROUP BY`).
+
+  Desafios 200–253: `challenges/check.py list --topic operators`
+panels:
+  - title: "2. Seletores: regex é ANCORADA"
+    description: "`=~\"api-.*\"` casa com os 2 pods api; `=~\"api\"` (sem .*) não casa com NADA. `!~` exclui por regex."
+    type: table
+    width: 12
+    hide_columns: [Time, env, job, instance, __name__]
+    queries:
+      - expr: 'sort_desc_container_cpu_usage_seconds_total{pod=~"api-.*"}'
+      - expr: 'sort_desc_container_cpu_usage_seconds_total{namespace!~"kube-system|batch", pod!~"api-.*"}'
+  - title: "5. Subquery: pico (max_over_time[10m:30s]) vs rate[10m]"
+    description: "Subquery transforma o resultado de rate() em range vector. O pico de ~40 req/s aparece; rate[10m] dilui (~12)."
+    unit: reqps
+    queries:
+      - expr: 'rate(rate_http_requests_total{route="/api/search"}[1m])'
+        legend: "rate[1m] (cru)"
+      - expr: 'max_over_time(rate(rate_http_requests_total{route="/api/search"}[1m])[10m:30s])'
+        legend: "max_over_time(...[10m:30s])"
+      - expr: 'rate(rate_http_requests_total{route="/api/search"}[10m])'
+        legend: "rate[10m] (média dilui o pico)"
+  - title: "6. Aritmética: bytes / 1024^3 = GiB"
+    description: "`^` é avaliado antes de `/`. `/ 1024*1024*1024` seria x*1024 (esquerda para a direita)."
+    type: bargauge
+    unit: none
+    queries:
+      - expr: 'sort_node_filesystem_size_bytes / 1024^3'
+        legend: "{{node}} {{mountpoint}}"
+  - title: "7. Comparação: filtro vs bool (sync = NaN)"
+    description: "`> 30` filtra (2 séries, valores originais). `> bool 30` devolve 0/1 para TODAS — o NaN vira 0."
+    type: table
+    hide_columns: [Time, env, job, instance, __name__]
+    queries:
+      - expr: 'sort_cronjob_last_duration_seconds'
+      - expr: 'sort_cronjob_last_duration_seconds > bool 30'
+  - title: "8. Vector matching: taxa de erro por serviço (one-to-one após sum by)"
+    description: "sum by(service)(500) / sum by(service)(tudo). cart 1%, checkout 5%, payments 12%, recommendations NaN (0/0)."
+    type: bargauge
+    unit: percentunit
+    queries:
+      - expr: 'sum by(service)(rate(sort_desc_http_requests_total{code="500"}[5m])) / sum by(service)(rate(sort_desc_http_requests_total[5m]))'
+        legend: "{{service}}"
+  - title: "8. group_left: share de cada code no serviço (PROCV)"
+    description: "Esquerda: 2 séries por service (many). Direita: 1 (one). Sem group_left = erro many-to-one."
+    type: table
+    hide_columns: [Time, env, job, instance]
+    queries:
+      - expr: 'rate(sort_desc_http_requests_total[5m]) / on(service) group_left sum by(service)(rate(sort_desc_http_requests_total[5m]))'
+  - title: "8. group_left(node): IP → nome do nó"
+    description: "label_replace cria a chave internal_ip; `* on(internal_ip) group_left(node) kube_node_info` copia o nome."
+    unit: percent
+    queries:
+      - expr: 'label_replace(label_replace_node_cpu_usage_percent, "internal_ip", "$1", "endpoint", "(.*):.*") * on(internal_ip) group_left(node) label_replace_kube_node_info'
+        legend: "{{node}} ({{internal_ip}})"
+  - title: "8. group_left(version): enriquecer com target_info"
+    description: "Padrão info metric: valor não muda (× 1), só ganha o label version."
+    type: table
+    hide_columns: [Time, env, job, instance]
+    queries:
+      - expr: 'info_http_server_requests_total * on(job, instance) group_left(version) target_info'
+  - title: "9. and / unless on(service)"
+    description: "and on(service): séries dos serviços com >3 erros/s. unless on(service): serviços sem nenhum erro."
+    type: table
+    hide_columns: [Time, env, job, instance, __name__]
+    queries:
+      - expr: 'sort_desc_http_requests_total and on(service) rate(sort_desc_http_requests_total{code="500"}[5m]) > 3'
+      - expr: 'sort_desc_http_requests_total unless on(service) rate(sort_desc_http_requests_total{code="500"}[5m]) > 0'
+  - title: "10. topk by(zone) vs max by(zone)"
+    description: "topk mantém as séries originais (com node); max by(zone) só tem zone."
+    type: table
+    hide_columns: [Time, env, job, instance, __name__]
+    queries:
+      - expr: 'topk by(zone)(1, sort_by_label_node_load1)'
+      - expr: 'max by(zone)(sort_by_label_node_load1)'
+  - title: "10. topk em gráfico: por ponto vs @ end()"
+    description: "Em range query o topk é recalculado a cada ponto. `and topk(... @ end())` fixa as 3 séries do fim do período."
+    queries:
+      - expr: 'rate(sort_desc_container_cpu_usage_seconds_total[5m]) and topk(3, rate(sort_desc_container_cpu_usage_seconds_total[5m] @ end()))'
+        legend: "{{pod}}"
+  - title: "10. Agregações exatas (partições Kafka 1..12 GiB)"
+    description: "sum 78 · avg 6.5 · p90 10.9 · stddev 3.452 (GiB)."
+    type: stat
+    width: 12
+    queries:
+      - expr: 'sum(sort_by_label_desc_kafka_log_size_bytes) / 1024^3'
+        legend: "sum"
+      - expr: 'avg(sort_by_label_desc_kafka_log_size_bytes) / 1024^3'
+        legend: "avg"
+      - expr: 'quantile(0.9, sort_by_label_desc_kafka_log_size_bytes) / 1024^3'
+        legend: "quantile 0.9"
+      - expr: 'stddev(sort_by_label_desc_kafka_log_size_bytes) / 1024^3'
+        legend: "stddev"
+  - title: "10. count by / count_values / NaN"
+    description: "count by(version) = pods por versão. sum com NaN = NaN; max ignora NaN."
+    type: stat
+    width: 12
+    queries:
+      - expr: 'count by(version)(sort_by_label_app_build_info)'
+        legend: "v{{version}}"
+      - expr: 'sum(sort_cronjob_last_duration_seconds)'
+        legend: "sum (com NaN)"
+      - expr: 'max(sort_cronjob_last_duration_seconds)'
+        legend: "max (ignora NaN)"

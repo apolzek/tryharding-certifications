@@ -1,0 +1,8 @@
+# Exercício 02: escreva os DOIS alertas de página do SRE Workbook para o SLO de 99,9%.
+#   SLOErrorBudgetBurnFast   : burn rate > 14.4 na janela de 1h  E na de 5m,  for: 2m
+#   SLOErrorBudgetBurnMedium : burn rate > 6    na janela de 6h  E na de 30m, for: 15m
+# Labels obrigatórios: severity: page, burn_rate: "14.4" | "6"
+# As séries job:slo_errors_per_request:ratio_rate<janela> já existem (sli.yml).
+groups:
+  - name: slo-checkout-alerts
+    rules: []   # TODO
